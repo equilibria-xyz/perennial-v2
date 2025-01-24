@@ -28,6 +28,12 @@ import { IVerifier } from '@perennial/v2-oracle/types/generated'
 
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 
+export const PRICE = utils.parseEther('3374.655169')
+
+function payoff(number: BigNumber): BigNumber {
+  return number.mul(number).div(utils.parseEther('1')).div(100000)
+}
+
 describe('Compressor', function () {
   let compressor: Compressor
   let owner: SignerWithAddress
@@ -39,10 +45,10 @@ describe('Compressor', function () {
   let controller: FakeContract<Controller_Incentivized>
   let controllerVerifier: FakeContract<IAccountVerifier>
   let manager: FakeContract<IManager>
-  let managerVerifier: FakeContract<IOrderVerifier>
+  let orderVerifier: FakeContract<IOrderVerifier>
   let marketVerifier: FakeContract<IVerifier>
   let oracleFactory: FakeContract<IOracleFactory>
-  const nextOrderId = BigNumber.from(0)
+  let nextOrderId = BigNumber.from(0)
 
   beforeEach(async () => {
     ;[owner, referrer, user] = await ethers.getSigners()
@@ -51,7 +57,7 @@ describe('Compressor', function () {
     controller = await smock.fake<Controller_Incentivized>('Controller_Incentivized')
     manager = await smock.fake<IManager>('IManager')
     controllerVerifier = await smock.fake<IAccountVerifier>('IAccountVerifier')
-    managerVerifier = await smock.fake<IOrderVerifier>('IOrderVerifier')
+    orderVerifier = await smock.fake<IOrderVerifier>('IOrderVerifier')
     marketVerifier = await smock.fake<IVerifier>('IVerifier')
     market = await smock.fake<IMarket>('IMarket')
     oracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
@@ -66,7 +72,7 @@ describe('Compressor', function () {
   })
 
   describe('placeOrderBundle', function () {
-    const createCAAction = async (
+    const createCAAction = (
       userAddress: Address,
       nonce: BigNumber,
       group: BigNumber,
@@ -89,7 +95,7 @@ describe('Compressor', function () {
       }
     }
 
-    const createTOAction = async (
+    const createTOAction = (
       marketAddress: Address,
       nonce: BigNumber,
       group: BigNumber,
@@ -115,7 +121,7 @@ describe('Compressor', function () {
       }
     }
 
-    const createTakeOrder = async (
+    const createTakeOrder = (
       marketAddress: Address,
       nonce: BigNumber,
       group: BigNumber,
@@ -138,112 +144,170 @@ describe('Compressor', function () {
       }
     }
 
-    it('calls all contracts correctly', async () => {
-      const nonce = BigNumber.from(0)
-      const group = BigNumber.from(0)
-      const version = BigNumber.from(await currentBlockTimestamp())
-      const tradeAmount = parse6decimal('10')
-      const maxFee = parse6decimal('0.3')
-      const interfaceFee = BigNumber.from(0)
+    const getInvokeParams = async (
+      priceCommitmentData: string,
+      version: BigNumber,
+      market: string,
+      account: SignerWithAddress,
+      signer: SignerWithAddress,
+      tradeCollateral: BigNumber,
+      tradeAmount: BigNumber,
+      minPrice: BigNumber,
+      maxPrice: BigNumber,
+      group: BigNumber,
+      nonce: BigNumber,
+      relayerMaxFee: BigNumber,
+      triggerOrderMaxFee: BigNumber,
+      triggerOrderInterfaceFee: BigNumber,
+    ) => {
+      const expiresInSeconds = version.add(BigNumber.from(120)) // version + 2 mins
       const marketTransfer = {
-        market: market.address,
-        amount: parse6decimal('4'),
-        ...(await createCAAction(user.address, nonce, group, version.add(BigNumber.from(120)), user.address, maxFee)),
+        market: market,
+        amount: tradeCollateral,
+        ...createCAAction(account.address, nonce, group, expiresInSeconds, signer.address, relayerMaxFee),
       }
 
-      const takeOrder = await createTakeOrder(
-        market.address,
-        nonce.add(1),
-        group,
-        user.address,
-        version.add(BigNumber.from(120)),
-        tradeAmount,
-      )
-
-      const marketOrder = {
-        take: takeOrder,
-        ...(await createCAAction(
-          user.address,
-          nonce.add(2),
+      const marketAMMOrder = {
+        take: createTakeOrder(
+          market,
+          nonce.add(1),
           group,
-          version.add(BigNumber.from(120)),
-          user.address,
-          parse6decimal('0.3'),
-        )),
+          account.address,
+          expiresInSeconds,
+          tradeAmount,
+          signer.address,
+        ),
+        ...createCAAction(account.address, nonce.add(2), group, expiresInSeconds, signer.address, relayerMaxFee),
       }
 
       const triggerOrderSL = {
         order: {
           ...DEFAULT_TRIGGER_ORDER,
-          side: Side.LONG,
+          side: tradeAmount.gte(0) ? Side.LONG : Side.SHORT,
           comparison: Compare.LTE,
-          price: parse6decimal('1888.99'),
+          price: payoff(minPrice).div(1e12),
           delta: tradeAmount.mul(-1),
-          maxFee: maxFee,
+          maxFee: triggerOrderMaxFee,
           referrer: referrer.address,
           interfaceFee: {
             ...DEFAULT_TRIGGER_ORDER.interfaceFee,
             receiver: referrer.address,
-            amount: interfaceFee,
+            amount: triggerOrderInterfaceFee,
             fixedFee: true,
           },
         },
-        ...(await createTOAction(market.address, nonce.add(3), group, user.address, version.add(BigNumber.from(120)))),
+        ...createTOAction(
+          market,
+          nonce.add(3),
+          group,
+          account.address,
+          expiresInSeconds,
+          signer.address,
+          triggerOrderMaxFee,
+        ),
       }
+
+      nextOrderId = nextOrderId.add(1)
 
       const triggerOrderTP = {
         order: {
           ...DEFAULT_TRIGGER_ORDER,
-          side: Side.LONG,
+          side: tradeAmount.gte(0) ? Side.LONG : Side.SHORT,
           comparison: Compare.GTE,
-          price: parse6decimal('1888.99'),
+          price: payoff(maxPrice).div(1e12),
           delta: tradeAmount.mul(-1),
-          maxFee: maxFee,
+          maxFee: triggerOrderMaxFee,
           referrer: referrer.address,
           interfaceFee: {
             ...DEFAULT_TRIGGER_ORDER.interfaceFee,
             receiver: referrer.address,
-            amount: interfaceFee,
+            amount: triggerOrderInterfaceFee,
             fixedFee: true,
           },
         },
-        ...(await createTOAction(market.address, nonce.add(4), group, user.address, version.add(BigNumber.from(120)))),
+        ...createTOAction(
+          market,
+          nonce.add(4),
+          group,
+          account.address,
+          expiresInSeconds,
+          signer.address,
+          triggerOrderMaxFee,
+        ),
       }
 
-      const marketTransferSignature = await signMarketTransfer(user, controllerVerifier, marketTransfer)
-      const triggerOrderSLSignature = await signPlaceOrderAction(user, managerVerifier, triggerOrderSL)
-      const triggerOrderTPSignature = await signPlaceOrderAction(user, managerVerifier, triggerOrderTP)
-      const marketOrderOuterSignature = await signRelayedTake(user, controllerVerifier, marketOrder)
-      const marketOrderInnerSignature = await signTake(user, marketVerifier, marketOrder.take)
+      const marketTransferSignature = await signMarketTransfer(signer, controllerVerifier, marketTransfer)
+      const triggerOrderSLSignature = await signPlaceOrderAction(signer, orderVerifier, triggerOrderSL)
+      const triggerOrderTPSignature = await signPlaceOrderAction(signer, orderVerifier, triggerOrderTP)
+      const marketOrderOuterSignature = await signRelayedTake(signer, controllerVerifier, marketAMMOrder)
+      const marketOrderInnerSignature = await signTake(signer, marketVerifier, marketAMMOrder.take)
 
       const invokeParams = {
-        priceCommitmentData: '0x',
-        version: version,
-
-        market: market.address,
-        account: user.address,
-        signer: user.address,
-
-        tradeCollateral: marketTransfer.amount,
-        tradeAmount: marketOrder.take.amount,
+        priceCommitmentData,
+        version,
+        market,
+        account: account.address,
+        signer: signer.address,
+        tradeCollateral,
+        tradeAmount,
         minPrice: triggerOrderSL.order.price,
         maxPrice: triggerOrderTP.order.price,
-
-        group: group,
-        nonce: nonce,
-        relayerMaxFee: marketTransfer.action.maxFee,
-        triggerOrderMaxFee: triggerOrderSL.action.maxFee,
-
-        triggerOrderInterfaceFee: interfaceFee,
+        group,
+        nonce,
+        relayerMaxFee,
+        triggerOrderMaxFee,
+        triggerOrderInterfaceFee,
         triggerOrderSLId: triggerOrderSL.action.orderId,
         triggerOrderTPId: triggerOrderTP.action.orderId,
-
         marketTransferSignature,
         marketOrderOuterSignature,
         marketOrderInnerSignature,
         triggerOrderSLSignature,
         triggerOrderTPSignature,
       }
+
+      return {
+        invokeParams,
+        marketTransfer,
+        marketAMMOrder,
+        triggerOrderSL,
+        triggerOrderTP,
+        marketTransferSignature,
+        marketOrderOuterSignature,
+        marketOrderInnerSignature,
+        triggerOrderSLSignature,
+        triggerOrderTPSignature,
+      }
+    }
+
+    it('calls all contracts correctly', async () => {
+      const {
+        invokeParams,
+        marketTransfer,
+        marketAMMOrder,
+        triggerOrderSL,
+        triggerOrderTP,
+        marketTransferSignature,
+        marketOrderOuterSignature,
+        marketOrderInnerSignature,
+        triggerOrderSLSignature,
+        triggerOrderTPSignature,
+      } = await getInvokeParams(
+        '0x',
+        BigNumber.from(await currentBlockTimestamp()),
+        market.address,
+        user,
+        user,
+        parse6decimal('9000'),
+        parse6decimal('1.5'),
+        PRICE.sub(utils.parseEther('100')),
+        PRICE.add(utils.parseEther('100')),
+        BigNumber.from(0),
+        BigNumber.from(0),
+        parse6decimal('0.3'),
+        parse6decimal('0.3'),
+        BigNumber.from(0),
+      )
 
       dsu.balanceOf.returns(utils.parseEther('100'))
       dsu.transfer.returns(true)
@@ -253,125 +317,47 @@ describe('Compressor', function () {
       // check that all the actions are called correctly
       expect(pythFactory.commit).to.have.been.calledWith(
         [PYTH_ETH_USD_PRICE_FEED],
-        version,
+        invokeParams.version,
         invokeParams.priceCommitmentData,
       )
       expect(controller.marketTransferWithSignature).to.have.been.calledWith(marketTransfer, marketTransferSignature)
       expect(manager.placeOrderWithSignature).to.have.been.calledWith(triggerOrderSL, triggerOrderSLSignature)
       expect(manager.placeOrderWithSignature).to.have.been.calledWith(triggerOrderTP, triggerOrderTPSignature)
       expect(controller.relayTake).to.have.been.calledWith(
-        marketOrder,
+        marketAMMOrder,
         marketOrderOuterSignature,
         marketOrderInnerSignature,
       )
     })
 
     it('transfers the excess DSU to the sender', async () => {
-      const nonce = BigNumber.from(0)
-      const group = BigNumber.from(0)
-      const version = BigNumber.from(await currentBlockTimestamp())
-      const tradeAmount = parse6decimal('10')
-      const maxFee = parse6decimal('0.3')
-      const interfaceFee = BigNumber.from(0)
-      const marketTransfer = {
-        market: market.address,
-        amount: parse6decimal('4'),
-        ...(await createCAAction(user.address, nonce, group, version.add(BigNumber.from(120)), user.address, maxFee)),
-      }
-
-      const takeOrder = await createTakeOrder(
-        market.address,
-        nonce.add(1),
-        group,
-        user.address,
-        version.add(BigNumber.from(120)),
-        tradeAmount,
-      )
-
-      const marketOrder = {
-        take: takeOrder,
-        ...(await createCAAction(
-          user.address,
-          nonce.add(2),
-          group,
-          version.add(BigNumber.from(120)),
-          user.address,
-          parse6decimal('0.3'),
-        )),
-      }
-
-      const triggerOrderSL = {
-        order: {
-          ...DEFAULT_TRIGGER_ORDER,
-          side: Side.LONG,
-          comparison: Compare.LTE,
-          price: parse6decimal('1888.99'),
-          delta: tradeAmount.mul(-1),
-          maxFee: maxFee,
-          referrer: referrer.address,
-          interfaceFee: {
-            ...DEFAULT_TRIGGER_ORDER.interfaceFee,
-            receiver: referrer.address,
-            amount: interfaceFee,
-            fixedFee: true,
-          },
-        },
-        ...(await createTOAction(market.address, nonce.add(3), group, user.address, version.add(BigNumber.from(120)))),
-      }
-
-      const triggerOrderTP = {
-        order: {
-          ...DEFAULT_TRIGGER_ORDER,
-          side: Side.LONG,
-          comparison: Compare.GTE,
-          price: parse6decimal('1888.99'),
-          delta: tradeAmount.mul(-1),
-          maxFee: maxFee,
-          referrer: referrer.address,
-          interfaceFee: {
-            ...DEFAULT_TRIGGER_ORDER.interfaceFee,
-            receiver: referrer.address,
-            amount: interfaceFee,
-            fixedFee: true,
-          },
-        },
-        ...(await createTOAction(market.address, nonce.add(4), group, user.address, version.add(BigNumber.from(120)))),
-      }
-
-      const marketTransferSignature = await signMarketTransfer(user, controllerVerifier, marketTransfer)
-      const triggerOrderSLSignature = await signPlaceOrderAction(user, managerVerifier, triggerOrderSL)
-      const triggerOrderTPSignature = await signPlaceOrderAction(user, managerVerifier, triggerOrderTP)
-      const marketOrderOuterSignature = await signRelayedTake(user, controllerVerifier, marketOrder)
-      const marketOrderInnerSignature = await signTake(user, marketVerifier, marketOrder.take)
-
-      const invokeParams = {
-        priceCommitmentData: '0x',
-        version: version,
-
-        market: market.address,
-        account: user.address,
-        signer: user.address,
-
-        tradeCollateral: marketTransfer.amount,
-        tradeAmount: marketOrder.take.amount,
-        minPrice: triggerOrderSL.order.price,
-        maxPrice: triggerOrderTP.order.price,
-
-        group: group,
-        nonce: nonce,
-        relayerMaxFee: marketTransfer.action.maxFee,
-        triggerOrderMaxFee: triggerOrderSL.action.maxFee,
-
-        triggerOrderInterfaceFee: interfaceFee,
-        triggerOrderSLId: triggerOrderSL.action.orderId,
-        triggerOrderTPId: triggerOrderTP.action.orderId,
-
+      const {
+        invokeParams,
+        marketTransfer,
+        marketAMMOrder,
+        triggerOrderSL,
+        triggerOrderTP,
         marketTransferSignature,
         marketOrderOuterSignature,
         marketOrderInnerSignature,
         triggerOrderSLSignature,
         triggerOrderTPSignature,
-      }
+      } = await getInvokeParams(
+        '0x',
+        BigNumber.from(await currentBlockTimestamp()),
+        market.address,
+        user,
+        user,
+        parse6decimal('9000'),
+        parse6decimal('1.5'),
+        PRICE.sub(utils.parseEther('100')),
+        PRICE.add(utils.parseEther('100')),
+        BigNumber.from(0),
+        BigNumber.from(0),
+        parse6decimal('0.3'),
+        parse6decimal('0.3'),
+        BigNumber.from(0),
+      )
 
       dsu.balanceOf.returnsAtCall(0, utils.parseEther('100'))
       dsu.balanceOf.returnsAtCall(1, utils.parseEther('200'))
@@ -383,14 +369,14 @@ describe('Compressor', function () {
       expect(dsu.transfer).to.have.been.calledWith(user.address, utils.parseEther('100'))
       expect(pythFactory.commit).to.have.been.calledWith(
         [PYTH_ETH_USD_PRICE_FEED],
-        version,
+        invokeParams.version,
         invokeParams.priceCommitmentData,
       )
       expect(controller.marketTransferWithSignature).to.have.been.calledWith(marketTransfer, marketTransferSignature)
       expect(manager.placeOrderWithSignature).to.have.been.calledWith(triggerOrderSL, triggerOrderSLSignature)
       expect(manager.placeOrderWithSignature).to.have.been.calledWith(triggerOrderTP, triggerOrderTPSignature)
       expect(controller.relayTake).to.have.been.calledWith(
-        marketOrder,
+        marketAMMOrder,
         marketOrderOuterSignature,
         marketOrderInnerSignature,
       )
