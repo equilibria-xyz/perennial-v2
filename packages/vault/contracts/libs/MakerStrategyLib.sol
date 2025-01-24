@@ -63,14 +63,16 @@ struct MarketMakerStrategyContext {
     UFixed6 maxPosition;
 }
 
-/// @title Strategy
+/// @title MakerStrategy
 /// @notice Logic for vault capital allocation
 /// @dev (external-safe): this library is safe to externalize
 ///      - Deploys collateral first to satisfy the margin of each market, then deploys the rest by weight.
 ///      - Positions are then targeted based on the amount of collateral that ends up deployed to each market.
 library MakerStrategyLib {
-    error StrategyLibInsufficientCollateralError();
-    error StrategyLibInsufficientAssetsError();
+    // sig: 0xf90641dc
+    error MakerStrategyInsufficientCollateralError();
+    // sig: 0xb86270e3
+    error MakerStrategyInsufficientAssetsError();
 
     /// @dev The maximum multiplier that is allowed for leverage
     UFixed6 public constant LEVERAGE_BUFFER = UFixed6.wrap(1.2e6);
@@ -91,8 +93,8 @@ library MakerStrategyLib {
         UFixed6 collateral = UFixed6Lib.unsafeFrom(context.totalCollateral).add(deposit).unsafeSub(withdrawal);
         UFixed6 assets = collateral.unsafeSub(ineligible);
 
-        if (collateral.lt(context.totalMargin)) revert StrategyLibInsufficientCollateralError();
-        if (assets.lt(context.minAssets)) revert StrategyLibInsufficientAssetsError();
+        if (collateral.lt(context.totalMargin)) revert MakerStrategyInsufficientCollateralError();
+        if (assets.lt(context.minAssets)) revert MakerStrategyInsufficientAssetsError();
 
         targets = new Target[](context.markets.length);
         UFixed6 totalMarketCollateral;
@@ -141,7 +143,7 @@ library MakerStrategyLib {
             .max(marketContext.minPosition)
             .min(marketContext.maxPosition);
 
-        target.position = Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(marketContext.currentAccountPosition.maker));
+        target.maker = Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(marketContext.currentAccountPosition.maker));
     }
 
     /// @notice Loads the strategy context of each of the underlying markets

@@ -8,11 +8,14 @@ import {
   GuaranteeLocalTester,
   GuaranteeGlobalTester__factory,
   GuaranteeLocalTester__factory,
+  GuaranteeStorageGlobalLib,
+  GuaranteeStorageLocalLib,
+  GuaranteeStorageGlobalLib__factory,
+  GuaranteeStorageLocalLib__factory,
 } from '../../../types/generated'
 import { BigNumber } from 'ethers'
 import { GuaranteeStruct } from '../../../types/generated/contracts/Market'
 import { parse6decimal, DEFAULT_ORDER, DEFAULT_GUARANTEE, expectGuaranteeEq } from '../../../../common/testutil/types'
-import exp from 'constants'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -37,14 +40,23 @@ describe('Guarantee', () => {
       solverReferral: 0,
     }
 
+    let guaranteeStorageGlobalLib: GuaranteeStorageGlobalLib
     let guaranteeGlobal: GuaranteeGlobalTester
 
     beforeEach(async () => {
-      guaranteeGlobal = await new GuaranteeGlobalTester__factory(owner).deploy()
+      guaranteeStorageGlobalLib = await new GuaranteeStorageGlobalLib__factory(owner).deploy()
+      guaranteeGlobal = await new GuaranteeGlobalTester__factory(
+        { 'contracts/types/Guarantee.sol:GuaranteeStorageGlobalLib': guaranteeStorageGlobalLib.address },
+        owner,
+      ).deploy()
     })
 
     describe('common behavoir', () => {
-      shouldBehaveLike(() => ({ guarantee: guaranteeGlobal, validStoredGuarantee: VALID_STORED_GUARANTEE }))
+      shouldBehaveLike(() => ({
+        guarantee: guaranteeGlobal,
+        storageLib: guaranteeStorageGlobalLib,
+        validStoredGuarantee: VALID_STORED_GUARANTEE,
+      }))
     })
 
     describe('#store', () => {
@@ -78,14 +90,23 @@ describe('Guarantee', () => {
       solverReferral: 15,
     }
 
+    let guaranteeStorageLocalLib: GuaranteeStorageLocalLib
     let guaranteeLocal: GuaranteeLocalTester
 
     beforeEach(async () => {
-      guaranteeLocal = await new GuaranteeLocalTester__factory(owner).deploy()
+      guaranteeStorageLocalLib = await new GuaranteeStorageLocalLib__factory(owner).deploy()
+      guaranteeLocal = await new GuaranteeLocalTester__factory(
+        { 'contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': guaranteeStorageLocalLib.address },
+        owner,
+      ).deploy()
     })
 
     describe('common behavior', () => {
-      shouldBehaveLike(() => ({ guarantee: guaranteeLocal, validStoredGuarantee: VALID_STORED_GUARANTEE }))
+      shouldBehaveLike(() => ({
+        guarantee: guaranteeLocal,
+        storageLib: guaranteeStorageLocalLib,
+        validStoredGuarantee: VALID_STORED_GUARANTEE,
+      }))
     })
 
     describe('#store', () => {
@@ -129,7 +150,7 @@ describe('Guarantee', () => {
               ...DEFAULT_GUARANTEE,
               notional: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(guaranteeLocal, 'GuaranteeStorageInvalidError')
+          ).to.be.revertedWithCustomError(guaranteeStorageLocalLib, 'GuaranteeStorageInvalidError')
         })
 
         it('reverts if notional out of range (below)', async () => {
@@ -138,7 +159,7 @@ describe('Guarantee', () => {
               ...DEFAULT_GUARANTEE,
               notional: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
             }),
-          ).to.be.revertedWithCustomError(guaranteeLocal, 'GuaranteeStorageInvalidError')
+          ).to.be.revertedWithCustomError(guaranteeStorageLocalLib, 'GuaranteeStorageInvalidError')
         })
       })
 
@@ -159,7 +180,7 @@ describe('Guarantee', () => {
               ...DEFAULT_GUARANTEE,
               solverReferral: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(guaranteeLocal, 'GuaranteeStorageInvalidError')
+          ).to.be.revertedWithCustomError(guaranteeStorageLocalLib, 'GuaranteeStorageInvalidError')
         })
       })
     })
@@ -742,14 +763,16 @@ describe('Guarantee', () => {
   function shouldBehaveLike(
     getter: () => {
       guarantee: GuaranteeLocalTester | GuaranteeGlobalTester
+      storageLib: GuaranteeStorageLocalLib | GuaranteeStorageGlobalLib
       validStoredGuarantee: GuaranteeStruct
     },
   ) {
     let guarantee: GuaranteeLocalTester | GuaranteeGlobalTester
+    let storageLib: GuaranteeStorageLocalLib | GuaranteeStorageGlobalLib
     let validStoredGuarantee: GuaranteeStruct
 
     beforeEach(async () => {
-      ;({ guarantee, validStoredGuarantee } = getter())
+      ;({ guarantee, storageLib, validStoredGuarantee } = getter())
     })
 
     describe('#store', () => {
@@ -777,7 +800,7 @@ describe('Guarantee', () => {
               ...validStoredGuarantee,
               orders: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'GuaranteeStorageInvalidError')
         })
       })
 
@@ -798,7 +821,7 @@ describe('Guarantee', () => {
               ...DEFAULT_GUARANTEE,
               longPos: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'GuaranteeStorageInvalidError')
         })
       })
 
@@ -819,7 +842,7 @@ describe('Guarantee', () => {
               ...DEFAULT_GUARANTEE,
               longNeg: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'GuaranteeStorageInvalidError')
         })
       })
 
@@ -840,7 +863,7 @@ describe('Guarantee', () => {
               ...DEFAULT_GUARANTEE,
               shortPos: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'GuaranteeStorageInvalidError')
         })
       })
 
@@ -861,7 +884,7 @@ describe('Guarantee', () => {
               ...DEFAULT_GUARANTEE,
               shortNeg: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'GuaranteeStorageInvalidError')
         })
       })
 
@@ -882,7 +905,7 @@ describe('Guarantee', () => {
               ...DEFAULT_GUARANTEE,
               takerFee: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'GuaranteeStorageInvalidError')
         })
       })
 
@@ -903,7 +926,7 @@ describe('Guarantee', () => {
               ...DEFAULT_GUARANTEE,
               orderReferral: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'GuaranteeStorageInvalidError')
         })
       })
     })
