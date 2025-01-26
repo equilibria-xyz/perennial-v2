@@ -15471,6 +15471,88 @@ describe('Market', () => {
           })
         })
 
+        it('reverts if position increases in magnitude', async () => {
+          const positionMaker = parse6decimal('20.000')
+          const positionLong = parse6decimal('10.000')
+          const collateral = parse6decimal('1000')
+          const collateral2 = parse6decimal('350')
+          const collateralLiquidate = parse6decimal('4611686018427') // 2^62-1
+
+          const oracleVersion = {
+            price: parse6decimal('100'),
+            timestamp: TIMESTAMP + 7200,
+            valid: true,
+          }
+          oracle.at.whenCalledWith(oracleVersion.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
+          oracle.status.returns([oracleVersion, TIMESTAMP + 7300])
+          oracle.request.returns()
+
+          dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
+          await market
+            .connect(userB)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              userB.address,
+              positionMaker,
+              0,
+              0,
+              collateral,
+              false,
+            )
+          dsu.transferFrom.whenCalledWith(user.address, market.address, collateral2.mul(1e12)).returns(true)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](
+              user.address,
+              0,
+              positionLong,
+              0,
+              collateral2,
+              false,
+            )
+
+          const oracleVersion2 = {
+            price: parse6decimal('100'),
+            timestamp: TIMESTAMP + 7300,
+            valid: true,
+          }
+          oracle.at.whenCalledWith(oracleVersion2.timestamp).returns([oracleVersion2, INITIALIZED_ORACLE_RECEIPT])
+          oracle.status.returns([oracleVersion2, TIMESTAMP + 7400])
+          oracle.request.returns()
+
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
+
+          oracle.status.returns([oracleVersion2, TIMESTAMP + 7500])
+          oracle.request.returns()
+
+          const oracleVersion3 = {
+            price: parse6decimal('80'), // needs to overcome margin <> maintenance
+            timestamp: TIMESTAMP + 7380,
+            valid: true,
+          }
+          oracle.at.whenCalledWith(oracleVersion3.timestamp).returns([oracleVersion3, INITIALIZED_ORACLE_RECEIPT])
+          oracle.status.returns([oracleVersion3, TIMESTAMP + 7500])
+          oracle.request.returns()
+
+          // large amount increase
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, collateralLiquidate, 0, 0, true),
+          ).to.be.revertedWithCustomError(market, 'MarketInvalidProtectionError')
+
+          // any increase
+          await expect(
+            market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 1, 0, 0, true),
+          ).to.be.revertedWithCustomError(market, 'MarketInvalidProtectionError')
+
+          // should still be able to liquidate properly
+          await expect(
+            market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
+          ).to.not.be.reverted
+        })
+
         context('in liquidation', async () => {
           const EXPECTED_LIQUIDATION_FEE = parse6decimal('225')
 
@@ -15556,97 +15638,6 @@ describe('Market', () => {
               market
                 .connect(liquidator)
                 ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 1, 0, 0, 0, true),
-            ).to.be.revertedWithCustomError(market, 'MarketInvalidProtectionError')
-          })
-
-          it('reverts if position increases in magnitude', async () => {
-            const positionMaker = parse6decimal('20.000')
-            const positionLong = parse6decimal('10.000')
-            const collateral = parse6decimal('1000')
-            const collateral2 = parse6decimal('350')
-            const collateralWithdraw2 = parse6decimal('50')
-            const collateralLiquidate = parse6decimal('4611686018427') // 2^62-1
-
-            const oracleVersion = {
-              price: parse6decimal('100'),
-              timestamp: TIMESTAMP + 7200,
-              valid: true,
-            }
-            oracle.at.whenCalledWith(oracleVersion.timestamp).returns([oracleVersion, INITIALIZED_ORACLE_RECEIPT])
-            oracle.status.returns([oracleVersion, TIMESTAMP + 7300])
-            oracle.request.returns()
-
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
-            await market
-              .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
-                userB.address,
-                positionMaker,
-                0,
-                0,
-                collateral,
-                false,
-              )
-            dsu.transferFrom.whenCalledWith(user.address, market.address, collateral2.mul(1e12)).returns(true)
-            await market
-              .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
-                user.address,
-                0,
-                positionLong,
-                0,
-                collateral2,
-                false,
-              )
-
-            const oracleVersion2 = {
-              price: parse6decimal('100'),
-              timestamp: TIMESTAMP + 7300,
-              valid: true,
-            }
-            oracle.at.whenCalledWith(oracleVersion2.timestamp).returns([oracleVersion2, INITIALIZED_ORACLE_RECEIPT])
-            oracle.status.returns([oracleVersion2, TIMESTAMP + 7400])
-            oracle.request.returns()
-
-            await market
-              .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
-
-            oracle.status.returns([oracleVersion2, TIMESTAMP + 7500])
-            oracle.request.returns()
-
-            dsu.transfer.whenCalledWith(user.address, collateralWithdraw2.mul(1e12)).returns(true)
-            await market
-              .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
-                user.address,
-                0,
-                0,
-                0,
-                -collateralWithdraw2,
-                false,
-              )
-
-            const oracleVersion3 = {
-              price: parse6decimal('99.9999'),
-              timestamp: TIMESTAMP + 7380,
-              valid: true,
-            }
-            oracle.at.whenCalledWith(oracleVersion3.timestamp).returns([oracleVersion3, INITIALIZED_ORACLE_RECEIPT])
-            oracle.status.returns([oracleVersion3, TIMESTAMP + 7500])
-            oracle.request.returns()
-
-            await expect(
-              market
-                .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
-                  user.address,
-                  0,
-                  collateralLiquidate,
-                  0,
-                  0,
-                  true,
-                ),
             ).to.be.revertedWithCustomError(market, 'MarketInvalidProtectionError')
           })
         })
