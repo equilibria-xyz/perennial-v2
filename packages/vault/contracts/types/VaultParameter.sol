@@ -10,12 +10,16 @@ struct VaultParameter {
 
     /// @dev The minimum amount that can be deposited into the vault at one time
     UFixed6 minDeposit;
+
+    /// @dev The buffer for the leverage
+    UFixed6 leverageBuffer;
 }
 struct StoredVaultParameter {
     /* slot 0 */
     uint64 maxDeposit;
     uint64 minDeposit;
-    bytes16 __unallocated0__;
+    uint24 leverageBuffer;
+    bytes13 __unallocated0__;
 }
 struct VaultParameterStorage { StoredVaultParameter value; } // SECURITY: must remain at (1) slots
 using VaultParameterStorageLib for VaultParameterStorage global;
@@ -30,18 +34,21 @@ library VaultParameterStorageLib {
 
         return VaultParameter(
             UFixed6.wrap(uint256(storedValue.maxDeposit)),
-            UFixed6.wrap(uint256(storedValue.minDeposit))
+            UFixed6.wrap(uint256(storedValue.minDeposit)),
+            UFixed6.wrap(uint256(storedValue.leverageBuffer))
         );
     }
 
     function store(VaultParameterStorage storage self, VaultParameter memory newValue) internal {
         if (newValue.maxDeposit.gt(UFixed6.wrap(type(uint64).max))) revert VaultParameterStorageInvalidError();
         if (newValue.minDeposit.gt(UFixed6.wrap(type(uint64).max))) revert VaultParameterStorageInvalidError();
+        if (newValue.leverageBuffer.gt(UFixed6.wrap(type(uint24).max))) revert VaultParameterStorageInvalidError();
 
         self.value = StoredVaultParameter(
             uint64(UFixed6.unwrap(newValue.maxDeposit)),
             uint64(UFixed6.unwrap(newValue.minDeposit)),
-            bytes16(0)
+            uint24(UFixed6.unwrap(newValue.leverageBuffer)),
+            bytes13(0)
         );
     }
 }

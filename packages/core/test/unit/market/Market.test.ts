@@ -869,7 +869,13 @@ describe('Market', () => {
         await expect(
           market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+            ['update(address,int256,int256,int256,address)'](
+              user.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            ),
         )
           .to.emit(market, 'PositionProcessed')
           .withArgs(0, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp }, DEFAULT_VERSION_ACCUMULATION_RESULT)
@@ -983,7 +989,13 @@ describe('Market', () => {
         await expect(
           market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+            ['update(address,int256,int256,int256,address)'](
+              user.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            ),
         )
           .to.emit(market, 'PositionProcessed')
           .withArgs(0, { ...DEFAULT_ORDER, timestamp: ORACLE_VERSION_1.timestamp }, DEFAULT_VERSION_ACCUMULATION_RESULT)
@@ -1104,7 +1116,13 @@ describe('Market', () => {
         await expect(
           market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+            ['update(address,int256,int256,int256,address)'](
+              user.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            ),
         ).to.revertedWithCustomError(market, 'InstancePausedError')
 
         factory.paused.returns(false)
@@ -1130,7 +1148,7 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false),
+              ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero),
           )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -1183,7 +1201,7 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL.mul(-1), false),
+              ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL.mul(-1), constants.AddressZero),
           )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -1236,7 +1254,7 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false),
+              ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero),
           )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -1295,7 +1313,7 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL.mul(-1), false),
+              ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL.mul(-1), constants.AddressZero),
           )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -1348,7 +1366,7 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false),
+              ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero),
           )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -1406,7 +1424,7 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL.mul(-1), false),
+              ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL.mul(-1), constants.AddressZero),
           )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -1464,13 +1482,12 @@ describe('Market', () => {
             await expect(
               market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   POSITION,
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 ),
             )
               .to.emit(market, 'OrderCreated')
@@ -1553,13 +1570,12 @@ describe('Market', () => {
             await expect(
               market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   POSITION,
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 ),
             )
               .to.emit(market, 'PositionProcessed')
@@ -1671,12 +1687,18 @@ describe('Market', () => {
           it('opens a second position (same version)', async () => {
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
 
             await expect(
               market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.mul(2), 0, 0, 0, false),
+                ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, 0, constants.AddressZero),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -1729,12 +1751,18 @@ describe('Market', () => {
           it('opens a second position and settles (same version)', async () => {
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
 
             await expect(
               market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.mul(2), 0, 0, 0, false),
+                ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, 0, constants.AddressZero),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -1801,7 +1829,13 @@ describe('Market', () => {
           it('opens a second position (next version)', async () => {
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -1810,7 +1844,7 @@ describe('Market', () => {
             await expect(
               market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.mul(2), 0, 0, 0, false),
+                ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, 0, constants.AddressZero),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -1869,7 +1903,13 @@ describe('Market', () => {
           it('opens a second position and settles (next version)', async () => {
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -1878,7 +1918,7 @@ describe('Market', () => {
             await expect(
               market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.mul(2), 0, 0, 0, false),
+                ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, 0, constants.AddressZero),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -1946,13 +1986,12 @@ describe('Market', () => {
             await expect(
               market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   POSITION,
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 ),
             )
               .to.emit(market, 'OrderCreated')
@@ -2033,13 +2072,12 @@ describe('Market', () => {
             await expect(
               market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   POSITION,
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 ),
             )
               .to.emit(market, 'OrderCreated')
@@ -2125,7 +2163,13 @@ describe('Market', () => {
             dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
           })
 
           context('settles first', async () => {
@@ -2143,7 +2187,13 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                  ['update(address,int256,int256,int256,address)'](
+                    user.address,
+                    POSITION.mul(-1),
+                    0,
+                    0,
+                    constants.AddressZero,
+                  ),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -2203,7 +2253,13 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                  ['update(address,int256,int256,int256,address)'](
+                    user.address,
+                    POSITION.mul(-1),
+                    0,
+                    0,
+                    constants.AddressZero,
+                  ),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -2268,12 +2324,24 @@ describe('Market', () => {
             it('closes a second position (same version)', async () => {
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(2), 0, 0, 0, false)
+                ['update(address,int256,int256,int256,address)'](
+                  user.address,
+                  POSITION.div(2).mul(-1),
+                  0,
+                  0,
+                  constants.AddressZero,
+                )
 
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                  ['update(address,int256,int256,int256,address)'](
+                    user.address,
+                    POSITION.div(2).mul(-1),
+                    0,
+                    0,
+                    constants.AddressZero,
+                  ),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -2332,12 +2400,24 @@ describe('Market', () => {
             it('closes a second position and settles (same version)', async () => {
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(2), 0, 0, 0, false)
+                ['update(address,int256,int256,int256,address)'](
+                  user.address,
+                  POSITION.div(2).mul(-1),
+                  0,
+                  0,
+                  constants.AddressZero,
+                )
 
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                  ['update(address,int256,int256,int256,address)'](
+                    user.address,
+                    POSITION.div(2).mul(-1),
+                    0,
+                    0,
+                    constants.AddressZero,
+                  ),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -2402,7 +2482,13 @@ describe('Market', () => {
             it('closes a second position (next version)', async () => {
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(2), 0, 0, 0, false)
+                ['update(address,int256,int256,int256,address)'](
+                  user.address,
+                  POSITION.div(2).mul(-1),
+                  0,
+                  0,
+                  constants.AddressZero,
+                )
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_3.timestamp)
@@ -2413,7 +2499,13 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                  ['update(address,int256,int256,int256,address)'](
+                    user.address,
+                    POSITION.div(2).mul(-1),
+                    0,
+                    0,
+                    constants.AddressZero,
+                  ),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -2471,7 +2563,13 @@ describe('Market', () => {
             it('closes a second position and settles (next version)', async () => {
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(2), 0, 0, 0, false)
+                ['update(address,int256,int256,int256,address)'](
+                  user.address,
+                  POSITION.div(2).mul(-1),
+                  0,
+                  0,
+                  constants.AddressZero,
+                )
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_3.timestamp)
@@ -2482,7 +2580,13 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                  ['update(address,int256,int256,int256,address)'](
+                    user.address,
+                    POSITION.div(2).mul(-1),
+                    0,
+                    0,
+                    constants.AddressZero,
+                  ),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -2547,7 +2651,13 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                  ['update(address,int256,int256,int256,address)'](
+                    user.address,
+                    POSITION.mul(-1),
+                    0,
+                    0,
+                    constants.AddressZero,
+                  ),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -2626,7 +2736,13 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                  ['update(address,int256,int256,int256,address)'](
+                    user.address,
+                    POSITION.mul(-1),
+                    0,
+                    0,
+                    constants.AddressZero,
+                  ),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -2711,13 +2827,12 @@ describe('Market', () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userB.address,
                   POSITION,
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
             })
 
@@ -2725,14 +2840,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
-                    user.address,
-                    0,
-                    POSITION,
-                    0,
-                    COLLATERAL,
-                    false,
-                  ),
+                  ['update(address,int256,int256,address)'](user.address, POSITION, COLLATERAL, constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -2797,14 +2905,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
-                    user.address,
-                    0,
-                    POSITION,
-                    0,
-                    COLLATERAL,
-                    false,
-                  ),
+                  ['update(address,int256,int256,address)'](user.address, POSITION, COLLATERAL, constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -2881,19 +2982,17 @@ describe('Market', () => {
             it('opens a second position (same version)', async () => {
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
                   POSITION.div(2),
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+                  ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -2946,19 +3045,17 @@ describe('Market', () => {
             it('opens a second position and settles (same version)', async () => {
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
                   POSITION.div(2),
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+                  ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -3028,13 +3125,11 @@ describe('Market', () => {
             it('opens a second position (next version)', async () => {
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
                   POSITION.div(2),
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               oracle.at
@@ -3046,7 +3141,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+                  ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -3105,13 +3200,11 @@ describe('Market', () => {
             it('opens a second position and settles (next version)', async () => {
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
                   POSITION.div(2),
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               oracle.at
@@ -3123,7 +3216,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+                  ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -3223,13 +3316,11 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  ['update(address,int256,int256,address)'](
                     user.address,
-                    0,
                     POSITION.div(2),
-                    0,
                     COLLATERAL,
-                    false,
+                    constants.AddressZero,
                   ),
               )
                 .to.emit(market, 'OrderCreated')
@@ -3348,13 +3439,11 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  ['update(address,int256,int256,address)'](
                     user.address,
-                    0,
                     POSITION.div(2),
-                    0,
                     COLLATERAL,
-                    false,
+                    constants.AddressZero,
                   ),
               )
                 .to.emit(market, 'OrderCreated')
@@ -3493,13 +3582,11 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  ['update(address,int256,int256,address)'](
                     user.address,
-                    0,
                     POSITION.div(2),
-                    0,
                     COLLATERAL,
-                    false,
+                    constants.AddressZero,
                   ),
               )
                 .to.emit(market, 'OrderCreated')
@@ -3622,23 +3709,20 @@ describe('Market', () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userB.address,
                   POSITION,
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
                   POSITION.div(2),
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
             })
 
@@ -3657,7 +3741,12 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](
+                      user.address,
+                      POSITION.div(2).mul(-1),
+                      0,
+                      constants.AddressZero,
+                    ),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -3717,7 +3806,12 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](
+                      user.address,
+                      POSITION.div(2).mul(-1),
+                      0,
+                      constants.AddressZero,
+                    ),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -3816,12 +3910,22 @@ describe('Market', () => {
               it('closes a second position (same version)', async () => {
                 await market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
+                  ['update(address,int256,int256,address)'](
+                    user.address,
+                    POSITION.div(4).mul(-1),
+                    0,
+                    constants.AddressZero,
+                  )
 
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](
+                      user.address,
+                      POSITION.div(4).mul(-1),
+                      0,
+                      constants.AddressZero,
+                    ),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -3881,12 +3985,22 @@ describe('Market', () => {
               it('closes a second position and settles (same version)', async () => {
                 await market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
+                  ['update(address,int256,int256,address)'](
+                    user.address,
+                    POSITION.div(4).mul(-1),
+                    0,
+                    constants.AddressZero,
+                  )
 
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](
+                      user.address,
+                      POSITION.div(4).mul(-1),
+                      0,
+                      constants.AddressZero,
+                    ),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -3985,7 +4099,12 @@ describe('Market', () => {
               it('closes a second position (next version)', async () => {
                 await market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
+                  ['update(address,int256,int256,address)'](
+                    user.address,
+                    POSITION.div(4).mul(-1),
+                    0,
+                    constants.AddressZero,
+                  )
 
                 oracle.at
                   .whenCalledWith(ORACLE_VERSION_3.timestamp)
@@ -3996,7 +4115,12 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](
+                      user.address,
+                      POSITION.div(4).mul(-1),
+                      0,
+                      constants.AddressZero,
+                    ),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -4098,7 +4222,12 @@ describe('Market', () => {
 
                 await market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
+                  ['update(address,int256,int256,address)'](
+                    user.address,
+                    POSITION.div(4).mul(-1),
+                    0,
+                    constants.AddressZero,
+                  )
 
                 oracle.at
                   .whenCalledWith(ORACLE_VERSION_3.timestamp)
@@ -4109,7 +4238,12 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](
+                      user.address,
+                      POSITION.div(4).mul(-1),
+                      0,
+                      constants.AddressZero,
+                    ),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -4233,7 +4367,12 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](
+                      user.address,
+                      POSITION.div(2).mul(-1),
+                      0,
+                      constants.AddressZero,
+                    ),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -4347,7 +4486,12 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](
+                      user.address,
+                      POSITION.div(2).mul(-1),
+                      0,
+                      constants.AddressZero,
+                    ),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -4462,16 +4606,20 @@ describe('Market', () => {
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-            await market
-              .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
-                user.address,
-                0,
-                POSITION.div(2),
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
                 0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
+              )
+            await market
+              .connect(user)
+              ['update(address,int256,int256,address)'](
+                user.address,
+                POSITION.div(2),
+                COLLATERAL,
+                constants.AddressZero,
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
@@ -4861,24 +5009,21 @@ describe('Market', () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('450')).returns(true)
               await market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userB.address,
                   POSITION,
                   0,
-                  0,
                   parse6decimal('450'),
-                  false,
+                  constants.AddressZero,
                 )
               dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
                   POSITION.div(2),
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
             })
 
@@ -4911,11 +5056,7 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(
-                market
-                  .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
-              )
+              await expect(market.connect(liquidator).close(userB.address, true, constants.AddressZero))
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   userB.address,
@@ -5099,13 +5240,12 @@ describe('Market', () => {
               dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userC)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userC.address,
                   POSITION.div(4),
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               oracle.at
@@ -5137,11 +5277,7 @@ describe('Market', () => {
               await settle(market, userC)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
-              await expect(
-                market
-                  .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
-              )
+              await expect(market.connect(liquidator).close(userB.address, true, constants.AddressZero))
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   userB.address,
@@ -5418,11 +5554,7 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(
-                market
-                  .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
-              )
+              await expect(market.connect(liquidator).close(userB.address, true, constants.AddressZero))
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   userB.address,
@@ -5558,14 +5690,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
-                    userB.address,
-                    0,
-                    0,
-                    0,
-                    shortfall.mul(-1),
-                    false,
-                  ),
+                  ['update(address,int256,int256,address)'](userB.address, 0, shortfall.mul(-1), constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -5610,24 +5735,21 @@ describe('Market', () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userB.address,
                   POSITION,
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
               dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
                   POSITION.div(2),
-                  0,
                   parse6decimal('216'),
-                  false,
+                  constants.AddressZero,
                 )
             })
 
@@ -5660,11 +5782,7 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(
-                market
-                  .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
-              )
+              await expect(market.connect(liquidator).close(user.address, true, constants.AddressZero))
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
@@ -5870,11 +5988,7 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(
-                market
-                  .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
-              )
+              await expect(market.connect(liquidator).close(user.address, true, constants.AddressZero))
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
@@ -6006,14 +6120,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
-                    user.address,
-                    0,
-                    0,
-                    0,
-                    shortfall.mul(-1),
-                    false,
-                  ),
+                  ['update(address,int256,int256,address)'](user.address, 0, shortfall.mul(-1), constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -6058,17 +6165,21 @@ describe('Market', () => {
           beforeEach(async () => {
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 userB.address,
-                0,
                 POSITION.div(2),
-                0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
@@ -6189,13 +6300,12 @@ describe('Market', () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userB.address,
                   POSITION,
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
             })
 
@@ -6203,13 +6313,11 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  ['update(address,int256,int256,address)'](
                     user.address,
-                    0,
-                    0,
-                    POSITION,
+                    POSITION.mul(-1),
                     COLLATERAL,
-                    false,
+                    constants.AddressZero,
                   ),
               )
                 .to.emit(market, 'OrderCreated')
@@ -6276,13 +6384,11 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  ['update(address,int256,int256,address)'](
                     user.address,
-                    0,
-                    0,
-                    POSITION,
+                    POSITION.mul(-1),
                     COLLATERAL,
-                    false,
+                    constants.AddressZero,
                   ),
               )
                 .to.emit(market, 'OrderCreated')
@@ -6360,19 +6466,22 @@ describe('Market', () => {
             it('opens a second position (same version)', async () => {
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
-                  0,
-                  POSITION.div(2),
+                  POSITION.div(2).mul(-1),
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
+                  ['update(address,int256,int256,address)'](
+                    user.address,
+                    POSITION.div(2).mul(-1),
+                    0,
+                    constants.AddressZero,
+                  ),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -6427,19 +6536,22 @@ describe('Market', () => {
             it('opens a second position and settles (same version)', async () => {
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
-                  0,
-                  POSITION.div(2),
+                  POSITION.div(2).mul(-1),
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
+                  ['update(address,int256,int256,address)'](
+                    user.address,
+                    POSITION.div(2).mul(-1),
+                    0,
+                    constants.AddressZero,
+                  ),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -6510,13 +6622,11 @@ describe('Market', () => {
             it('opens a second position (next version)', async () => {
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
-                  0,
-                  POSITION.div(2),
+                  POSITION.div(2).mul(-1),
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               oracle.at
@@ -6528,7 +6638,12 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
+                  ['update(address,int256,int256,address)'](
+                    user.address,
+                    POSITION.div(2).mul(-1),
+                    0,
+                    constants.AddressZero,
+                  ),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -6588,13 +6703,11 @@ describe('Market', () => {
             it('opens a second position and settles (next version)', async () => {
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
-                  0,
-                  POSITION.div(2),
+                  POSITION.div(2).mul(-1),
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               oracle.at
@@ -6606,7 +6719,12 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
+                  ['update(address,int256,int256,address)'](
+                    user.address,
+                    POSITION.div(2).mul(-1),
+                    0,
+                    constants.AddressZero,
+                  ),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -6713,13 +6831,11 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  ['update(address,int256,int256,address)'](
                     user.address,
-                    0,
-                    0,
-                    POSITION.div(2),
+                    POSITION.div(2).mul(-1),
                     COLLATERAL,
-                    false,
+                    constants.AddressZero,
                   ),
               )
                 .to.emit(market, 'OrderCreated')
@@ -6841,13 +6957,11 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  ['update(address,int256,int256,address)'](
                     user.address,
-                    0,
-                    0,
-                    POSITION.div(2),
+                    POSITION.div(2).mul(-1),
                     COLLATERAL,
-                    false,
+                    constants.AddressZero,
                   ),
               )
                 .to.emit(market, 'OrderCreated')
@@ -6988,13 +7102,11 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  ['update(address,int256,int256,address)'](
                     user.address,
-                    0,
-                    0,
-                    POSITION.div(2),
+                    POSITION.div(2).mul(-1),
                     COLLATERAL,
-                    false,
+                    constants.AddressZero,
                   ),
               )
                 .to.emit(market, 'OrderCreated')
@@ -7119,23 +7231,20 @@ describe('Market', () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userB.address,
                   POSITION,
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
-                  0,
-                  POSITION.div(2),
+                  POSITION.div(2).mul(-1),
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
             })
 
@@ -7154,7 +7263,7 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, constants.AddressZero),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -7215,7 +7324,7 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, constants.AddressZero),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -7315,12 +7424,12 @@ describe('Market', () => {
               it('closes a second position (same version)', async () => {
                 await market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(4), 0, false)
+                  ['update(address,int256,int256,address)'](user.address, POSITION.div(4), 0, constants.AddressZero)
 
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](user.address, POSITION.div(4), 0, constants.AddressZero),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -7380,12 +7489,12 @@ describe('Market', () => {
               it('closes a second position and settles (same version)', async () => {
                 await market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(4), 0, false)
+                  ['update(address,int256,int256,address)'](user.address, POSITION.div(4), 0, constants.AddressZero)
 
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](user.address, POSITION.div(4), 0, constants.AddressZero),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -7485,7 +7594,7 @@ describe('Market', () => {
               it('closes a second position (next version)', async () => {
                 await market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(4), 0, false)
+                  ['update(address,int256,int256,address)'](user.address, POSITION.div(4), 0, constants.AddressZero)
 
                 oracle.at
                   .whenCalledWith(ORACLE_VERSION_3.timestamp)
@@ -7496,7 +7605,7 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](user.address, POSITION.div(4), 0, constants.AddressZero),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -7598,7 +7707,7 @@ describe('Market', () => {
 
                 await market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(4), 0, false)
+                  ['update(address,int256,int256,address)'](user.address, POSITION.div(4), 0, constants.AddressZero)
 
                 oracle.at
                   .whenCalledWith(ORACLE_VERSION_3.timestamp)
@@ -7609,7 +7718,7 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](user.address, POSITION.div(4), 0, constants.AddressZero),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -7735,7 +7844,7 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, constants.AddressZero),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -7851,7 +7960,7 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, constants.AddressZero),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -7967,16 +8076,20 @@ describe('Market', () => {
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 user.address,
-                0,
-                0,
-                POSITION.div(2),
+                POSITION.div(2).mul(-1),
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
@@ -8372,24 +8485,21 @@ describe('Market', () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('390')).returns(true)
               await market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userB.address,
                   POSITION,
                   0,
-                  0,
                   parse6decimal('390'),
-                  false,
+                  constants.AddressZero,
                 )
               dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
-                  0,
-                  POSITION.div(2),
+                  POSITION.div(2).mul(-1),
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
             })
 
@@ -8422,11 +8532,7 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(
-                market
-                  .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
-              )
+              await expect(market.connect(liquidator).close(userB.address, true, constants.AddressZero))
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   userB.address,
@@ -8603,13 +8709,12 @@ describe('Market', () => {
               dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userC)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userC.address,
                   POSITION.div(4),
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               oracle.at
@@ -8656,11 +8761,7 @@ describe('Market', () => {
               await settle(market, userC)
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
-              await expect(
-                market
-                  .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
-              )
+              await expect(market.connect(liquidator).close(userB.address, true, constants.AddressZero))
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   userB.address,
@@ -8903,11 +9004,7 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(
-                market
-                  .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
-              )
+              await expect(market.connect(liquidator).close(userB.address, true, constants.AddressZero))
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   userB.address,
@@ -9035,14 +9132,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
-                    userB.address,
-                    0,
-                    0,
-                    0,
-                    shortfall.mul(-1),
-                    false,
-                  ),
+                  ['update(address,int256,int256,address)'](userB.address, 0, shortfall.mul(-1), constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -9087,24 +9177,21 @@ describe('Market', () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userB.address,
                   POSITION,
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
               dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
-                  0,
-                  POSITION.div(2),
+                  POSITION.div(2).mul(-1),
                   parse6decimal('216'),
-                  false,
+                  constants.AddressZero,
                 )
             })
 
@@ -9137,11 +9224,7 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(
-                market
-                  .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
-              )
+              await expect(market.connect(liquidator).close(user.address, true, constants.AddressZero))
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
@@ -9353,11 +9436,7 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(
-                market
-                  .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
-              )
+              await expect(market.connect(liquidator).close(user.address, true, constants.AddressZero))
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
@@ -9491,14 +9570,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
-                    user.address,
-                    0,
-                    0,
-                    0,
-                    shortfall.mul(-1),
-                    false,
-                  ),
+                  ['update(address,int256,int256,address)'](user.address, 0, shortfall.mul(-1), constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -9543,17 +9615,21 @@ describe('Market', () => {
           beforeEach(async () => {
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 userB.address,
-                0,
-                0,
-                POSITION.div(2),
+                POSITION.div(2).mul(-1),
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
@@ -9675,7 +9751,13 @@ describe('Market', () => {
             await expect(
               market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(2), 0, 0, 0, false),
+                ['update(address,int256,int256,int256,address)'](
+                  user.address,
+                  POSITION.div(2).mul(-1),
+                  0,
+                  0,
+                  constants.AddressZero,
+                ),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -9794,24 +9876,21 @@ describe('Market', () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userB.address,
                   POSITION,
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
               dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userC)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   userC.address,
-                  0,
-                  0,
-                  POSITION,
+                  POSITION.mul(-1),
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
             })
 
@@ -9819,14 +9898,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
-                    user.address,
-                    0,
-                    POSITION,
-                    0,
-                    COLLATERAL,
-                    false,
-                  ),
+                  ['update(address,int256,int256,address)'](user.address, POSITION, COLLATERAL, constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -9893,14 +9965,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
-                    user.address,
-                    0,
-                    POSITION,
-                    0,
-                    COLLATERAL,
-                    false,
-                  ),
+                  ['update(address,int256,int256,address)'](user.address, POSITION, COLLATERAL, constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -9979,19 +10044,17 @@ describe('Market', () => {
             it('opens a second position (same version)', async () => {
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
                   POSITION.div(2),
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+                  ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -10047,19 +10110,17 @@ describe('Market', () => {
             it('opens a second position and settles (same version)', async () => {
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
                   POSITION.div(2),
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+                  ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -10132,13 +10193,11 @@ describe('Market', () => {
             it('opens a second position (next version)', async () => {
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
                   POSITION.div(2),
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               oracle.at
@@ -10150,7 +10209,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+                  ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -10211,13 +10270,11 @@ describe('Market', () => {
             it('opens a second position and settles (next version)', async () => {
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
                   POSITION.div(2),
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               oracle.at
@@ -10229,7 +10286,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+                  ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -10346,13 +10403,11 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  ['update(address,int256,int256,address)'](
                     user.address,
-                    0,
                     POSITION.div(2),
-                    0,
                     COLLATERAL,
-                    false,
+                    constants.AddressZero,
                   ),
               )
                 .to.emit(market, 'OrderCreated')
@@ -10495,13 +10550,11 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  ['update(address,int256,int256,address)'](
                     user.address,
-                    0,
                     POSITION.div(2),
-                    0,
                     COLLATERAL,
-                    false,
+                    constants.AddressZero,
                   ),
               )
                 .to.emit(market, 'OrderCreated')
@@ -10653,13 +10706,11 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  ['update(address,int256,int256,address)'](
                     user.address,
-                    0,
                     POSITION.div(2),
-                    0,
                     COLLATERAL,
-                    false,
+                    constants.AddressZero,
                   ),
               )
                 .to.emit(market, 'OrderCreated')
@@ -10791,13 +10842,11 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  ['update(address,int256,int256,address)'](
                     user.address,
-                    0,
                     POSITION.div(2),
-                    0,
                     COLLATERAL,
-                    false,
+                    constants.AddressZero,
                   ),
               )
                 .to.emit(market, 'OrderCreated')
@@ -10923,13 +10972,11 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  ['update(address,int256,int256,address)'](
                     user.address,
-                    0,
                     POSITION.div(2),
-                    0,
                     COLLATERAL,
-                    false,
+                    constants.AddressZero,
                   ),
               )
                 .to.emit(market, 'OrderCreated')
@@ -11061,13 +11108,11 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  ['update(address,int256,int256,address)'](
                     user.address,
-                    0,
                     POSITION.div(2),
-                    0,
                     COLLATERAL,
-                    false,
+                    constants.AddressZero,
                   ),
               )
                 .to.emit(market, 'OrderCreated')
@@ -11195,36 +11240,31 @@ describe('Market', () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userB.address,
                   POSITION,
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userC)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   userC.address,
-                  0,
-                  0,
-                  POSITION,
+                  POSITION.mul(-1),
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
                   POSITION.div(2),
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
             })
 
@@ -11243,7 +11283,12 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](
+                      user.address,
+                      POSITION.div(2).mul(-1),
+                      0,
+                      constants.AddressZero,
+                    ),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -11305,7 +11350,12 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](
+                      user.address,
+                      POSITION.div(2).mul(-1),
+                      0,
+                      constants.AddressZero,
+                    ),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -11419,12 +11469,22 @@ describe('Market', () => {
               it('closes a second position (same version)', async () => {
                 await market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
+                  ['update(address,int256,int256,address)'](
+                    user.address,
+                    POSITION.div(4).mul(-1),
+                    0,
+                    constants.AddressZero,
+                  )
 
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](
+                      user.address,
+                      POSITION.div(4).mul(-1),
+                      0,
+                      constants.AddressZero,
+                    ),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -11485,12 +11545,22 @@ describe('Market', () => {
               it('closes a second position and settles (same version)', async () => {
                 await market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
+                  ['update(address,int256,int256,address)'](
+                    user.address,
+                    POSITION.div(4).mul(-1),
+                    0,
+                    constants.AddressZero,
+                  )
 
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](
+                      user.address,
+                      POSITION.div(4).mul(-1),
+                      0,
+                      constants.AddressZero,
+                    ),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -11604,7 +11674,12 @@ describe('Market', () => {
               it('closes a second position (next version)', async () => {
                 await market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
+                  ['update(address,int256,int256,address)'](
+                    user.address,
+                    POSITION.div(4).mul(-1),
+                    0,
+                    constants.AddressZero,
+                  )
 
                 oracle.at
                   .whenCalledWith(ORACLE_VERSION_3.timestamp)
@@ -11615,7 +11690,12 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](
+                      user.address,
+                      POSITION.div(4).mul(-1),
+                      0,
+                      constants.AddressZero,
+                    ),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -11725,7 +11805,12 @@ describe('Market', () => {
               it('closes a second position and settles (next version)', async () => {
                 await market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(4), 0, 0, false)
+                  ['update(address,int256,int256,address)'](
+                    user.address,
+                    POSITION.div(4).mul(-1),
+                    0,
+                    constants.AddressZero,
+                  )
 
                 oracle.at
                   .whenCalledWith(ORACLE_VERSION_3.timestamp)
@@ -11736,7 +11821,12 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](
+                      user.address,
+                      POSITION.div(4).mul(-1),
+                      0,
+                      constants.AddressZero,
+                    ),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -11892,7 +11982,12 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](
+                      user.address,
+                      POSITION.div(2).mul(-1),
+                      0,
+                      constants.AddressZero,
+                    ),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -11988,7 +12083,12 @@ describe('Market', () => {
                 await expect(
                   market
                     .connect(user)
-                    ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                    ['update(address,int256,int256,address)'](
+                      user.address,
+                      POSITION.div(2).mul(-1),
+                      0,
+                      constants.AddressZero,
+                    ),
                 )
                   .to.emit(market, 'OrderCreated')
                   .withArgs(
@@ -12086,20 +12186,29 @@ describe('Market', () => {
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
             dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, POSITION, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](
+                userC.address,
+                POSITION.mul(-1),
+                COLLATERAL,
+                constants.AddressZero,
+              )
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 user.address,
-                0,
                 POSITION.div(2),
-                0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
@@ -12534,36 +12643,31 @@ describe('Market', () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('450')).returns(true)
               await market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userB.address,
                   POSITION,
                   0,
-                  0,
                   parse6decimal('450'),
-                  false,
+                  constants.AddressZero,
                 )
               dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userC)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   userC.address,
-                  0,
-                  0,
-                  POSITION,
+                  POSITION.mul(-1),
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
                   POSITION.div(2),
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
             })
 
@@ -12596,11 +12700,7 @@ describe('Market', () => {
 
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
-              await expect(
-                market
-                  .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
-              )
+              await expect(market.connect(liquidator).close(userB.address, true, constants.AddressZero))
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   userB.address,
@@ -12840,13 +12940,12 @@ describe('Market', () => {
               dsu.transferFrom.whenCalledWith(userD.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userD)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userD.address,
                   POSITION.div(5),
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               oracle.at
@@ -12879,11 +12978,7 @@ describe('Market', () => {
 
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
-              await expect(
-                market
-                  .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
-              )
+              await expect(market.connect(liquidator).close(userB.address, true, constants.AddressZero))
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   userB.address,
@@ -13139,11 +13234,7 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(
-                market
-                  .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true),
-              )
+              await expect(market.connect(liquidator).close(userB.address, true, constants.AddressZero))
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   userB.address,
@@ -13288,14 +13379,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
-                    userB.address,
-                    0,
-                    0,
-                    0,
-                    shortfall.mul(-1),
-                    false,
-                  ),
+                  ['update(address,int256,int256,address)'](userB.address, 0, shortfall.mul(-1), constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -13340,35 +13424,30 @@ describe('Market', () => {
               dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userB.address,
                   POSITION,
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
               dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
               await market
                 .connect(userC)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   userC.address,
-                  0,
-                  0,
-                  POSITION,
+                  POSITION.mul(-1),
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
               dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   user.address,
-                  0,
                   POSITION.div(2),
-                  0,
                   parse6decimal('216'),
-                  false,
+                  constants.AddressZero,
                 )
             })
 
@@ -13401,11 +13480,7 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(
-                market
-                  .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
-              )
+              await expect(market.connect(liquidator).close(user.address, true, constants.AddressZero))
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
@@ -13671,11 +13746,7 @@ describe('Market', () => {
               dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
               dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-              await expect(
-                market
-                  .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
-              )
+              await expect(market.connect(liquidator).close(user.address, true, constants.AddressZero))
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
                   user.address,
@@ -13834,14 +13905,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(liquidator)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
-                    user.address,
-                    0,
-                    0,
-                    0,
-                    shortfall.mul(-1),
-                    false,
-                  ),
+                  ['update(address,int256,int256,address)'](user.address, 0, shortfall.mul(-1), constants.AddressZero),
               )
                 .to.emit(market, 'OrderCreated')
                 .withArgs(
@@ -13886,22 +13950,31 @@ describe('Market', () => {
           beforeEach(async () => {
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 userB.address,
-                0,
                 POSITION.div(2),
-                0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               )
             dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, POSITION, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](
+                userC.address,
+                POSITION.mul(-1),
+                COLLATERAL,
+                constants.AddressZero,
+              )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -14018,13 +14091,12 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 user.address,
                 parse6decimal('1000'),
                 0,
-                0,
                 parse6decimal('500'),
-                false,
+                constants.AddressZero,
               ),
           ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
         })
@@ -14059,21 +14131,20 @@ describe('Market', () => {
 
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,int256,address)'](
               userB.address,
               POSITION,
               0,
-              0,
               LOWER_COLLATERAL,
-              false,
+              constants.AddressZero,
             )
 
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, LOWER_COLLATERAL, false)
+            ['update(address,int256,int256,address)'](user.address, 0, LOWER_COLLATERAL, constants.AddressZero)
           await market
             .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, LOWER_COLLATERAL, false)
+            ['update(address,int256,int256,address)'](userC.address, 0, LOWER_COLLATERAL, constants.AddressZero)
 
           verifier.verifyIntent.returns()
 
@@ -14121,21 +14192,20 @@ describe('Market', () => {
 
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,int256,address)'](
               userB.address,
               POSITION,
               0,
-              0,
               LOWER_COLLATERAL,
-              false,
+              constants.AddressZero,
             )
 
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, LOWER_COLLATERAL, false)
+            ['update(address,int256,int256,address)'](user.address, 0, LOWER_COLLATERAL, constants.AddressZero)
           await market
             .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, LOWER_COLLATERAL, false)
+            ['update(address,int256,int256,address)'](userC.address, 0, LOWER_COLLATERAL, constants.AddressZero)
 
           verifier.verifyIntent.returns()
 
@@ -14177,14 +14247,20 @@ describe('Market', () => {
 
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
 
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
           await market
             .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
           verifier.verifyIntent.returns()
 
@@ -14226,14 +14302,20 @@ describe('Market', () => {
 
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
 
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
           await market
             .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
           verifier.verifyIntent.returns()
 
@@ -14256,7 +14338,13 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              ),
           ).to.be.revertedWithCustomError(market, 'InstancePausedError')
           factory.paused.returns(false)
         })
@@ -14306,7 +14394,13 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              ),
           ).to.be.revertedWithCustomError(market, 'MarketMakerOverLimitError')
         })
 
@@ -14318,40 +14412,30 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,int256,address)'](
               user.address,
               POSITION.div(2),
               0,
-              0,
               COLLATERAL,
-              false,
+              constants.AddressZero,
             )
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userB.address,
-              0,
-              POSITION.div(2),
-              0,
-              COLLATERAL,
-              false,
-            )
+            ['update(address,int256,int256,address)'](userB.address, POSITION.div(2), COLLATERAL, constants.AddressZero)
           dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,address)'](
               userC.address,
-              0,
-              0,
-              POSITION.div(2),
+              POSITION.div(2).mul(-1),
               COLLATERAL,
-              false,
+              constants.AddressZero,
             )
           await expect(
             market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION, 0, 0, false),
+              ['update(address,int256,int256,address)'](userB.address, POSITION, 0, constants.AddressZero),
           ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
         })
 
@@ -14367,13 +14451,12 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,int256,address)'](
               user.address,
               POSITION.div(2),
               0,
-              0,
               COLLATERAL,
-              false,
+              constants.AddressZero,
             )
 
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 1])
@@ -14382,13 +14465,12 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,int256,address)'](
               userB.address,
               POSITION.add(1),
               0,
-              0,
               COLLATERAL,
-              false,
+              constants.AddressZero,
             )
 
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 2])
@@ -14397,13 +14479,12 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,int256,address)'](
               userC.address,
               POSITION.add(2),
               0,
-              0,
               COLLATERAL,
-              false,
+              constants.AddressZero,
             )
 
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 3])
@@ -14412,7 +14493,13 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.add(3), 0, 0, 0, false),
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION.add(3),
+                0,
+                0,
+                constants.AddressZero,
+              ),
           ).to.be.revertedWithCustomError(market, 'MarketExceedsPendingIdLimitError')
         })
 
@@ -14428,13 +14515,12 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,int256,address)'](
               user.address,
               POSITION.div(2),
               0,
-              0,
               COLLATERAL,
-              false,
+              constants.AddressZero,
             )
 
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 1])
@@ -14442,14 +14528,14 @@ describe('Market', () => {
 
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.add(1), 0, 0, 0, false)
+            ['update(address,int256,int256,int256,address)'](user.address, POSITION.add(1), 0, 0, constants.AddressZero)
 
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 2])
           oracle.request.whenCalledWith(user.address).returns()
 
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.add(2), 0, 0, 0, false)
+            ['update(address,int256,int256,int256,address)'](user.address, POSITION.add(2), 0, 0, constants.AddressZero)
 
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp + 3])
           oracle.request.whenCalledWith(user.address).returns()
@@ -14457,7 +14543,13 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.add(3), 0, 0, 0, false),
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION.add(3),
+                0,
+                0,
+                constants.AddressZero,
+              ),
           ).to.be.revertedWithCustomError(market, 'MarketExceedsPendingIdLimitError')
         })
 
@@ -14467,39 +14559,36 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 user.address,
                 POSITION,
                 POSITION,
-                0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               ),
           ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
 
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 user.address,
                 POSITION,
-                0,
                 POSITION,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               ),
           ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
 
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 user.address,
-                0,
                 POSITION,
                 POSITION,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               ),
           ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
         })
@@ -14508,18 +14597,16 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
 
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 user.address,
                 0,
-                0,
-                0,
                 COLLATERAL.add(1).mul(-1),
-                false,
+                constants.AddressZero,
               ),
           ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralError')
         })
@@ -14535,7 +14622,13 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              user.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp])
@@ -14545,14 +14638,20 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, -1, false),
+              ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, -1, constants.AddressZero),
           ).to.be.revertedWithCustomError(market, 'MarketStalePriceError')
 
           // revert if changing position
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.add(1), 0, 0, -1, false),
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION.add(1),
+                0,
+                -1,
+                constants.AddressZero,
+              ),
           ).to.be.revertedWithCustomError(market, 'MarketStalePriceError')
         })
 
@@ -14570,14 +14669,20 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, -1, false),
+              ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, -1, constants.AddressZero),
           ).to.be.revertedWithCustomError(market, 'MarketStalePriceError')
 
           // revert if changing position
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.add(1), 0, 0, -1, false),
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION.add(1),
+                0,
+                -1,
+                constants.AddressZero,
+              ),
           ).to.be.revertedWithCustomError(market, 'MarketStalePriceError')
         })
 
@@ -14592,7 +14697,13 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              user.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
@@ -14602,14 +14713,20 @@ describe('Market', () => {
           await expect(
             market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, -1, false),
+              ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, -1, constants.AddressZero),
           ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
 
           // revert if changing position
           await expect(
             market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.add(1), 0, 0, -1, false),
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION.add(1),
+                0,
+                -1,
+                constants.AddressZero,
+              ),
           ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
         })
 
@@ -14618,13 +14735,12 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 user.address,
                 1,
                 0,
-                0,
                 parse6decimal('99'),
-                false,
+                constants.AddressZero,
               ),
           ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
         })
@@ -14636,7 +14752,13 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              ),
           ).to.be.revertedWithCustomError(market, 'MarketClosedError')
         })
 
@@ -14644,18 +14766,22 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              user.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
 
           await expect(
             market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 userB.address,
-                0,
                 POSITION.add(1),
-                0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               ),
           ).to.be.revertedWithCustomError(market, `MarketInsufficientLiquidityError`)
         })
@@ -14669,17 +14795,16 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              0,
-              POSITION.div(2),
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
               0,
               COLLATERAL,
-              false,
+              constants.AddressZero,
             )
+          await market
+            .connect(user)
+            ['update(address,int256,int256,address)'](user.address, POSITION.div(2), COLLATERAL, constants.AddressZero)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -14690,7 +14815,7 @@ describe('Market', () => {
           // open to POSITION (POSITION / 2 settled)
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false)
+            ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, constants.AddressZero)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_4.timestamp])
@@ -14700,13 +14825,11 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 user.address,
+                POSITION.div(2).add(1).mul(-1),
                 0,
-                POSITION.div(2).sub(1),
-                0,
-                0,
-                false,
+                constants.AddressZero,
               ),
           ).to.revertedWithCustomError(market, 'MarketOverCloseError')
 
@@ -14714,7 +14837,12 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
+              ['update(address,int256,int256,address)'](
+                user.address,
+                POSITION.div(2).mul(-1),
+                0,
+                constants.AddressZero,
+              ),
           )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -14732,16 +14860,7 @@ describe('Market', () => {
 
           // can't close any more
           await expect(
-            market
-              .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
-                user.address,
-                0,
-                POSITION.div(2).sub(1),
-                0,
-                0,
-                false,
-              ),
+            market.connect(user)['update(address,int256,int256,address)'](user.address, -1, 0, constants.AddressZero),
           ).to.revertedWithCustomError(market, 'MarketOverCloseError')
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
@@ -14752,7 +14871,12 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+              ['update(address,int256,int256,address)'](
+                user.address,
+                POSITION.div(2).mul(-1),
+                0,
+                constants.AddressZero,
+              ),
           )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -14784,25 +14908,22 @@ describe('Market', () => {
             dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('450')).returns(true)
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 userB.address,
                 POSITION,
                 0,
-                0,
                 parse6decimal('450'),
-                false,
+                constants.AddressZero,
               )
             dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
 
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 user.address,
-                0,
                 POSITION.div(2),
-                0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
@@ -14826,43 +14947,30 @@ describe('Market', () => {
             await expect(
               market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false),
+                ['update(address,int256,int256,int256,address)'](
+                  userB.address,
+                  POSITION.mul(-1),
+                  0,
+                  0,
+                  constants.AddressZero,
+                ),
             ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
           })
 
           it('it reverts if already liquidated', async () => {
-            await market
-              .connect(liquidator)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, true)
+            await market.connect(liquidator).close(userB.address, true, constants.AddressZero)
 
             await expect(
               market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userB.address,
                   POSITION,
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 ),
             ).to.be.revertedWithCustomError(market, 'MarketProtectedError')
-          })
-
-          it('it reverts if withdrawing collateral', async () => {
-            await expect(
-              market
-                .connect(liquidator)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, -1, true),
-            ).to.be.revertedWithCustomError(market, 'MarketInvalidProtectionError')
-          })
-
-          it('it reverts if position doesnt close', async () => {
-            await expect(
-              market
-                .connect(liquidator)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 1, 0, 0, 0, true),
-            ).to.be.revertedWithCustomError(market, 'MarketInvalidProtectionError')
           })
 
           it('reverts if position increases in magnitude', async () => {
@@ -14883,27 +14991,20 @@ describe('Market', () => {
             oracle.request.returns()
 
             dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
-            await market
-              .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
-                userB.address,
-                positionMaker,
-                0,
-                0,
-                collateral,
-                false,
-              )
+            await market.connect(userB)['update(address,int256,int256,int256,address)'](
+              userB.address,
+              positionLong.sub(POSITION), // increase position to 20
+              0,
+              collateral,
+              constants.AddressZero,
+            )
             dsu.transferFrom.whenCalledWith(user.address, market.address, collateral2.mul(1e12)).returns(true)
-            await market
-              .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
-                user.address,
-                0,
-                positionLong,
-                0,
-                collateral2,
-                false,
-              )
+            await market.connect(user)['update(address,int256,int256,address)'](
+              user.address,
+              positionLong.sub(POSITION.div(2)), // increase position to 10
+              collateral2,
+              constants.AddressZero,
+            )
 
             const oracleVersion2 = {
               price: parse6decimal('100'),
@@ -14914,9 +15015,7 @@ describe('Market', () => {
             oracle.status.returns([oracleVersion2, TIMESTAMP + 7400])
             oracle.request.returns()
 
-            await market
-              .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
+            await market.connect(user).close(user.address, false, constants.AddressZero)
 
             oracle.status.returns([oracleVersion2, TIMESTAMP + 7500])
             oracle.request.returns()
@@ -14924,36 +15023,7 @@ describe('Market', () => {
             dsu.transfer.whenCalledWith(user.address, collateralWithdraw2.mul(1e12)).returns(true)
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
-                user.address,
-                0,
-                0,
-                0,
-                -collateralWithdraw2,
-                false,
-              )
-
-            const oracleVersion3 = {
-              price: parse6decimal('99.9999'),
-              timestamp: TIMESTAMP + 7380,
-              valid: true,
-            }
-            oracle.at.whenCalledWith(oracleVersion3.timestamp).returns([oracleVersion3, INITIALIZED_ORACLE_RECEIPT])
-            oracle.status.returns([oracleVersion3, TIMESTAMP + 7500])
-            oracle.request.returns()
-
-            await expect(
-              market
-                .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
-                  user.address,
-                  0,
-                  collateralLiquidate,
-                  0,
-                  0,
-                  true,
-                ),
-            ).to.be.revertedWithCustomError(market, 'MarketInvalidProtectionError')
+              ['update(address,int256,int256,address)'](user.address, 0, -collateralWithdraw2, constants.AddressZero)
           })
         })
 
@@ -14968,26 +15038,23 @@ describe('Market', () => {
             beforeEach(async () => {
               await market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userB.address,
                   POSITION,
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, COLLATERAL, false)
+                ['update(address,int256,int256,address)'](user.address, POSITION, COLLATERAL, constants.AddressZero)
               await market
                 .connect(userC)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   userC.address,
-                  0,
-                  0,
-                  POSITION.mul(2),
+                  POSITION.mul(2).mul(-1),
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               oracle.at
@@ -15002,7 +15069,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                  ['update(address,int256,int256,address)'](user.address, POSITION.mul(-1), 0, constants.AddressZero),
               ).to.not.be.reverted
             })
 
@@ -15014,14 +15081,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(userC)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
-                    userC.address,
-                    0,
-                    0,
-                    POSITION.mul(2).add(1),
-                    0,
-                    false,
-                  ),
+                  ['update(address,int256,int256,address)'](userC.address, -1, 0, constants.AddressZero),
               ).to.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
             })
 
@@ -15033,14 +15093,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(userC)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
-                    userC.address,
-                    0,
-                    0,
-                    POSITION.mul(2).add(1),
-                    0,
-                    false,
-                  ),
+                  ['update(address,int256,int256,address)'](userC.address, -1, 0, constants.AddressZero),
               ).to.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
             })
           })
@@ -15049,26 +15102,30 @@ describe('Market', () => {
             beforeEach(async () => {
               await market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userB.address,
                   POSITION,
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
+              // open short position
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, COLLATERAL, false)
+                ['update(address,int256,int256,address)'](
+                  user.address,
+                  POSITION.mul(-1),
+                  COLLATERAL,
+                  constants.AddressZero,
+                )
+              // open long position
               await market
                 .connect(userC)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   userC.address,
-                  0,
                   POSITION.mul(2),
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               oracle.at
@@ -15083,7 +15140,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+                  ['update(address,int256,int256,address)'](user.address, POSITION, 0, constants.AddressZero),
               ).to.not.be.reverted
             })
 
@@ -15095,14 +15152,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(userC)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
-                    userC.address,
-                    0,
-                    POSITION.mul(2).add(1),
-                    0,
-                    0,
-                    false,
-                  ),
+                  ['update(address,int256,int256,address)'](userC.address, 1, 0, constants.AddressZero),
               ).to.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
             })
 
@@ -15114,14 +15164,7 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(userC)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
-                    userC.address,
-                    0,
-                    POSITION.mul(2).add(1),
-                    0,
-                    0,
-                    false,
-                  ),
+                  ['update(address,int256,int256,address)'](userC.address, 1, 0, constants.AddressZero),
               ).to.revertedWithCustomError(market, 'MarketInsufficientLiquidityError')
             })
           })
@@ -15130,26 +15173,30 @@ describe('Market', () => {
             beforeEach(async () => {
               await market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   userB.address,
                   POSITION,
                   0,
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
+              // open short position
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, COLLATERAL, false)
+                ['update(address,int256,int256,address)'](
+                  user.address,
+                  POSITION.mul(-1),
+                  COLLATERAL,
+                  constants.AddressZero,
+                )
+              // open long position
               await market
                 .connect(userC)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,address)'](
                   userC.address,
-                  0,
                   POSITION.mul(2),
-                  0,
                   COLLATERAL,
-                  false,
+                  constants.AddressZero,
                 )
 
               oracle.at
@@ -15164,7 +15211,13 @@ describe('Market', () => {
               await expect(
                 market
                   .connect(userB)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false),
+                  ['update(address,int256,int256,int256,address)'](
+                    userB.address,
+                    POSITION.mul(-1),
+                    0,
+                    0,
+                    constants.AddressZero,
+                  ),
               ).to.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
             })
           })
@@ -15181,13 +15234,12 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 user.address,
                 parse6decimal('10'),
                 0,
-                0,
                 parse6decimal('1000'),
-                false,
+                constants.AddressZero,
               ),
           ).to.be.revertedWithCustomError(market, 'MarketSettleOnlyError')
         })
@@ -15198,17 +15250,21 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,address)'](
               user.address,
-              0,
               POSITION.div(2),
-              0,
               parse6decimal('216'),
-              false,
+              constants.AddressZero,
             )
         })
 
@@ -15239,11 +15295,7 @@ describe('Market', () => {
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-          await expect(
-            market
-              .connect(liquidator)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
-          )
+          await expect(market.connect(liquidator).close(user.address, true, constants.AddressZero))
             .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
@@ -15345,166 +15397,27 @@ describe('Market', () => {
         })
       })
 
-      context('liquidation w/ partial closed', async () => {
-        beforeEach(async () => {
-          const riskParameter = { ...(await market.riskParameter()) }
-          riskParameter.staleAfter = BigNumber.from(14400)
-          await market.updateRiskParameter(riskParameter)
-
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market
-            .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-          dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('324')).returns(true)
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              0,
-              0,
-              POSITION.div(2),
-              parse6decimal('324'),
-              false,
-            )
-
-          oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
-          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_4.timestamp])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              0,
-              0,
-              POSITION.mul(3).div(4),
-              0,
-              false,
-            )
-          await settle(market, userB)
-        })
-
-        it('default', async () => {
-          const EXPECTED_SETTLEMENT_FEE = parse6decimal('1')
-          const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
-
-          const oracleVersionLowerPrice = {
-            price: parse6decimal('150'),
-            timestamp: TIMESTAMP + 7200,
-            valid: true,
-          }
-          oracle.at
-            .whenCalledWith(oracleVersionLowerPrice.timestamp)
-            .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
-          oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_5.timestamp])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await settle(market, userB)
-          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-          dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
-
-          await expect(
-            market
-              .connect(liquidator)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
-                user.address,
-                0,
-                0,
-                POSITION.div(4).sub(1),
-                0,
-                true,
-              ),
-          ).to.revertedWithCustomError(market, 'MarketOverCloseError')
-
-          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.add(1).mul(1e12)).returns(true)
-          await expect(
-            market
-              .connect(liquidator)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(4), -1, true),
-          ).to.revertedWithCustomError(market, 'MarketInvalidProtectionError')
-
-          await expect(
-            market
-              .connect(liquidator)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(4), 0, true),
-          )
-            .to.emit(market, 'OrderCreated')
-            .withArgs(
-              user.address,
-              {
-                ...DEFAULT_ORDER,
-                timestamp: ORACLE_VERSION_5.timestamp,
-                orders: 1,
-                shortNeg: POSITION.div(2),
-                protection: 1,
-              },
-              { ...DEFAULT_GUARANTEE },
-              liquidator.address,
-              constants.AddressZero,
-              constants.AddressZero,
-            )
-
-          oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
-          oracle.at
-            .whenCalledWith(ORACLE_VERSION_5.timestamp)
-            .returns([ORACLE_VERSION_5, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: EXPECTED_SETTLEMENT_FEE }])
-          oracle.status.returns([ORACLE_VERSION_5, ORACLE_VERSION_6.timestamp])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await settle(market, user)
-          await settle(market, userB)
-
-          const oracleVersionLowerPrice2 = {
-            price: parse6decimal('150'),
-            timestamp: TIMESTAMP + 14400,
-            valid: true,
-          }
-          oracle.at
-            .whenCalledWith(oracleVersionLowerPrice2.timestamp)
-            .returns([oracleVersionLowerPrice2, INITIALIZED_ORACLE_RECEIPT])
-          oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
-          oracle.request.whenCalledWith(user.address).returns()
-
-          await settle(market, user)
-          await settle(market, userB)
-
-          expectLocalEq(await market.locals(liquidator.address), {
-            ...DEFAULT_LOCAL,
-            currentId: 0,
-            latestId: 0,
-            claimable: EXPECTED_LIQUIDATION_FEE,
-          })
-          expectPositionEq(await market.positions(user.address), {
-            ...DEFAULT_POSITION,
-            timestamp: ORACLE_VERSION_5.timestamp,
-            short: POSITION.div(4),
-          })
-
-          dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-          await expect(market.connect(liquidator).claimFee(liquidator.address))
-            .to.emit(market, 'FeeClaimed')
-            .withArgs(liquidator.address, liquidator.address, EXPECTED_LIQUIDATION_FEE)
-
-          expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
-        })
-      })
-
       context('liquidation w/ invalidation', async () => {
         beforeEach(async () => {
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
+          // open short position
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,address)'](
               user.address,
-              0,
-              0,
-              POSITION.div(2),
+              POSITION.div(2).mul(-1),
               parse6decimal('216'),
-              false,
+              constants.AddressZero,
             )
         })
 
@@ -15534,11 +15447,7 @@ describe('Market', () => {
           await settle(market, userB)
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
-          await expect(
-            market
-              .connect(liquidator)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
-          )
+          await expect(market.connect(liquidator).close(user.address, true, constants.AddressZero))
             .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
@@ -15573,11 +15482,7 @@ describe('Market', () => {
           ])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await expect(
-            market
-              .connect(liquidator)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
-          )
+          await expect(market.connect(liquidator).close(user.address, true, constants.AddressZero))
             .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
@@ -15782,17 +15687,22 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
+          // open long position
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,address)'](
               user.address,
-              0,
               POSITION.div(2),
-              0,
               parse6decimal('216'),
-              false,
+              constants.AddressZero,
             )
         })
 
@@ -15823,9 +15733,7 @@ describe('Market', () => {
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true)
+          await market.connect(user).close(user.address, true, constants.AddressZero)
 
           oracle.at
             .whenCalledWith(ORACLE_VERSION_4.timestamp)
@@ -15979,17 +15887,21 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,address)'](
               user.address,
-              0,
               POSITION.div(2),
-              0,
               parse6decimal('216'),
-              false,
+              constants.AddressZero,
             )
         })
 
@@ -16039,17 +15951,7 @@ describe('Market', () => {
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-          await market
-            .connect(liquidator)
-            ['update(address,uint256,uint256,uint256,int256,bool,address)'](
-              user.address,
-              0,
-              0,
-              0,
-              0,
-              true,
-              userB.address,
-            )
+          await market.connect(liquidator).close(user.address, true, userB.address)
 
           expect((await market.locals(user.address)).currentId).to.equal(2)
           expect(await market.liquidators(user.address, 2)).to.equal(liquidator.address)
@@ -16100,17 +16002,7 @@ describe('Market', () => {
           dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
           dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
 
-          await market
-            .connect(liquidator)
-            ['update(address,uint256,uint256,uint256,int256,bool,address)'](
-              user.address,
-              0,
-              0,
-              0,
-              0,
-              true,
-              userB.address,
-            )
+          await market.connect(liquidator).close(user.address, true, userB.address)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_4.timestamp).returns([ORACLE_VERSION_4, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
@@ -16122,13 +16014,11 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('1000')).returns(true)
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,address)'](
               user.address,
-              0,
               POSITION.div(5),
-              0,
               parse6decimal('1000'),
-              false,
+              constants.AddressZero,
             )
           await settle(market, user)
 
@@ -16154,7 +16044,13 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
         })
 
         it('settles the position w/o change', async () => {
@@ -16172,13 +16068,11 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 user.address,
-                0,
                 POSITION.div(2),
-                0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               ),
           )
             .to.emit(market, 'OrderCreated')
@@ -16303,13 +16197,11 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 user.address,
-                0,
                 POSITION.div(2),
-                0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               ),
           )
             .to.emit(market, 'OrderCreated')
@@ -16344,7 +16236,7 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
+              ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, constants.AddressZero),
           )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -16490,13 +16382,11 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 user.address,
-                0,
                 POSITION.div(2),
-                0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               ),
           )
             .to.emit(market, 'OrderCreated')
@@ -16531,7 +16421,7 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
+              ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, constants.AddressZero),
           )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -16679,13 +16569,11 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 user.address,
-                0,
                 POSITION.div(2),
-                0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               ),
           )
             .to.emit(market, 'OrderCreated')
@@ -16708,9 +16596,7 @@ describe('Market', () => {
           oracle.request.whenCalledWith(user.address).returns()
 
           await expect(
-            market
-              .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
+            market.connect(user)['update(address,int256,int256,address)'](user.address, 0, 0, constants.AddressZero),
           )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -16848,13 +16734,11 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 user.address,
-                0,
                 POSITION.div(2),
-                0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               ),
           )
             .to.emit(market, 'OrderCreated')
@@ -16877,9 +16761,7 @@ describe('Market', () => {
           oracle.request.whenCalledWith(user.address).returns()
 
           await expect(
-            market
-              .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
+            market.connect(user)['update(address,int256,int256,address)'](user.address, 0, 0, constants.AddressZero),
           )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -16904,7 +16786,7 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
+              ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, constants.AddressZero),
           )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -17063,13 +16945,11 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 user.address,
-                0,
                 POSITION.div(2),
-                0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               ),
           )
             .to.emit(market, 'OrderCreated')
@@ -17186,17 +17066,17 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              user.address,
-              0,
-              POSITION.div(2),
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
               0,
               COLLATERAL,
-              false,
+              constants.AddressZero,
             )
+          // open long position
+          await market
+            .connect(user)
+            ['update(address,int256,int256,address)'](user.address, POSITION.div(2), COLLATERAL, constants.AddressZero)
         })
 
         it('doesnt flip funding default', async () => {
@@ -17205,18 +17085,18 @@ describe('Market', () => {
           oracle.request.whenCalledWith(user.address).returns()
 
           dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          // close long position
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
+            ['update(address,int256,int256,address)'](user.address, POSITION.div(2).mul(-1), 0, constants.AddressZero)
+          // open short position
           await market
             .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,address)'](
               userC.address,
-              0,
-              0,
-              POSITION.div(2),
+              POSITION.div(2).mul(-1),
               COLLATERAL,
-              false,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
@@ -17349,18 +17229,18 @@ describe('Market', () => {
           oracle.request.whenCalledWith(user.address).returns()
 
           dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          // close long position
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
+            ['update(address,int256,int256,address)'](user.address, POSITION.div(2).mul(-1), 0, constants.AddressZero)
+          // open short position
           await market
             .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,address)'](
               userC.address,
-              0,
-              0,
-              POSITION.div(2),
+              POSITION.div(2).mul(-1),
               COLLATERAL,
-              false,
+              constants.AddressZero,
             )
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
@@ -17497,7 +17377,13 @@ describe('Market', () => {
           await expect(
             market
               .connect(operator)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              ),
           )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -17566,7 +17452,13 @@ describe('Market', () => {
           await expect(
             market
               .connect(operator)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              ),
           ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
         })
       })
@@ -17623,14 +17515,20 @@ describe('Market', () => {
 
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
 
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
           await market
             .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
           verifier.verifyIntent.returns()
 
@@ -17852,14 +17750,20 @@ describe('Market', () => {
 
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
 
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
           await market
             .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
           verifier.verifyIntent.returns()
 
@@ -17907,16 +17811,20 @@ describe('Market', () => {
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-            await market
-              .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
-                user.address,
-                0,
-                POSITION.div(2),
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
                 0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
+              )
+            await market
+              .connect(user)
+              ['update(address,int256,int256,address)'](
+                user.address,
+                POSITION.div(2),
+                COLLATERAL,
+                constants.AddressZero,
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
@@ -18026,16 +17934,14 @@ describe('Market', () => {
 
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false)
+              ['update(address,int256,int256,address)'](user.address, POSITION.div(2), 0, constants.AddressZero)
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
             await expect(
-              market
-                .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, 0, false),
+              market.connect(user)['update(address,int256,int256,address)'](user.address, 0, 0, constants.AddressZero),
             ).to.not.reverted
           })
         })
@@ -18045,16 +17951,21 @@ describe('Market', () => {
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
+            // open short
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 user.address,
-                0,
-                0,
-                POSITION.div(2),
+                POSITION.div(2).mul(-1),
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               )
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
@@ -18162,18 +18073,17 @@ describe('Market', () => {
             riskParameter.synBook = riskParameterSynBook
             await market.updateRiskParameter(riskParameter)
 
+            // increase short position
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false)
+              ['update(address,int256,int256,address)'](user.address, POSITION.div(2).mul(-1), 0, constants.AddressZero)
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
             await expect(
-              market
-                .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
+              market.connect(user)['update(address,int256,int256,address)'](user.address, 0, 0, constants.AddressZero),
             ).to.not.reverted
           })
         })
@@ -18196,13 +18106,12 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,int256,address)'](
               userB.address,
               positionMaker,
               0,
-              0,
               collateral,
-              false,
+              constants.AddressZero,
             )
 
           // Increase current version so multiple pending positions are unsettled
@@ -18210,14 +18119,7 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
-              userB.address,
-              positionMaker,
-              0,
-              0,
-              collateral,
-              false,
-            )
+            ['update(address,int256,int256,int256,address)'](userB.address, 0, 0, collateral, constants.AddressZero)
 
           // Fulfill oracle version 2 (invalid)
           const oracleVersion2 = {
@@ -18249,9 +18151,7 @@ describe('Market', () => {
 
           // settle
           await expect(
-            market
-              .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, positionMaker, 0, 0, 0, false),
+            market.connect(userB)['update(address,int256,int256,address)'](userB.address, 0, 0, constants.AddressZero),
           ).to.not.be.reverted
         })
 
@@ -18272,13 +18172,12 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](
+            ['update(address,int256,int256,int256,address)'](
               userB.address,
               positionMaker,
               0,
-              0,
               collateral,
-              false,
+              constants.AddressZero,
             )
 
           const oracleVersion2 = {
@@ -18293,7 +18192,13 @@ describe('Market', () => {
           dsu.transferFrom.whenCalledWith(user.address, market.address, collateral.mul(1e12)).returns(true)
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, positionLong, 0, collateral, false)
+            ['update(address,int256,int256,int256,address)'](
+              user.address,
+              positionLong,
+              0,
+              collateral,
+              constants.AddressZero,
+            )
 
           const collateralBefore = (await market.locals(user.address)).collateral
           const collateralBeforeB = (await market.locals(userB.address)).collateral
@@ -18321,7 +18226,7 @@ describe('Market', () => {
           // reset to 0
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, positionLong, 0, 0, false)
+            ['update(address,int256,int256,int256,address)'](user.address, 0, 0, 0, constants.AddressZero)
 
           // oracleVersion4 commited
           oracle.status.returns([oracleVersion4, oracleVersion4.timestamp + 100])
@@ -18330,7 +18235,7 @@ describe('Market', () => {
           // settle
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, positionMaker, 0, 0, 0, false)
+            ['update(address,int256,int256,int256,address)'](userB.address, 0, 0, 0, constants.AddressZero)
 
           const oracleVersion5 = {
             price: parse6decimal('90'),
@@ -18344,10 +18249,11 @@ describe('Market', () => {
           // settle
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, positionMaker, 0, 0, 0, false)
+            ['update(address,int256,int256,int256,address)'](userB.address, positionMaker, 0, 0, constants.AddressZero)
+          // close long position
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
+            ['update(address,int256,int256,address)'](user.address, positionLong.mul(-1), 0, constants.AddressZero)
 
           expect((await market.locals(user.address)).collateral).to.equal(collateralBefore)
           expect((await market.locals(userB.address)).collateral).to.equal(collateralBeforeB)
@@ -18364,81 +18270,104 @@ describe('Market', () => {
         it('cant switch current before settlement', async () => {
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](user.address, POSITION, COLLATERAL, constants.AddressZero)
 
+          // close long position
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
+              ['update(address,int256,int256,address)'](user.address, POSITION.mul(-1), 0, constants.AddressZero),
+          )
+
+          // try to open short position
+          await expect(
+            market
+              .connect(user)
+              ['update(address,int256,int256,address)'](user.address, POSITION.mul(-1), 0, constants.AddressZero),
           ).to.be.revertedWithCustomError(market, 'MarketOverCloseError')
         })
 
         it('cant switch current after latest settles', async () => {
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](user.address, POSITION, COLLATERAL, constants.AddressZero)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
+          // close long position
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
-          ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
+              ['update(address,int256,int256,address)'](user.address, POSITION.mul(-1), 0, constants.AddressZero),
+          )
 
-          await market
-            .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
+          // try to open short position
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
+              ['update(address,int256,int256,address)'](user.address, POSITION.mul(-1), 0, constants.AddressZero),
           ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
         })
 
         it('can switch current after reset settles', async () => {
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](user.address, POSITION, COLLATERAL, constants.AddressZero)
 
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
-          await expect(
-            market
-              .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
-          ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
-
+          // close long position
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
+            ['update(address,int256,int256,address)'](user.address, POSITION.mul(-1), 0, constants.AddressZero)
+
+          // open short position
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
+              ['update(address,int256,int256,address)'](user.address, POSITION.mul(-1), 0, constants.AddressZero),
           ).to.be.revertedWithCustomError(market, 'MarketNotSingleSidedError')
 
           oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
           oracle.request.whenCalledWith(user.address).returns()
 
+          // open short position
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION, 0, false),
+              ['update(address,int256,int256,address)'](user.address, POSITION.mul(-1), 0, constants.AddressZero),
           ).to.not.be.reverted
         })
       })
@@ -18482,13 +18411,11 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+              ['update(address,int256,int256,int256,address)'](
                 user.address,
                 POSITION,
                 0,
-                0,
                 COLLATERAL,
-                false,
                 liquidator.address,
               ),
           )
@@ -18602,7 +18529,13 @@ describe('Market', () => {
 
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
 
           factory.authorization
             .whenCalledWith(user.address, user.address, constants.AddressZero, liquidator.address)
@@ -18611,15 +18544,7 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
-                user.address,
-                0,
-                POSITION.div(2),
-                0,
-                COLLATERAL,
-                false,
-                liquidator.address,
-              ),
+              ['update(address,int256,int256,address)'](user.address, POSITION.div(2), COLLATERAL, liquidator.address),
           )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -18768,7 +18693,13 @@ describe('Market', () => {
 
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
 
           factory.authorization
             .whenCalledWith(user.address, user.address, constants.AddressZero, user.address)
@@ -18777,15 +18708,7 @@ describe('Market', () => {
           await expect(
             market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool,address)'](
-                user.address,
-                0,
-                POSITION.div(2),
-                0,
-                COLLATERAL,
-                false,
-                user.address,
-              ),
+              ['update(address,int256,int256,address)'](user.address, POSITION.div(2), COLLATERAL, user.address),
           )
             .to.emit(market, 'OrderCreated')
             .withArgs(
@@ -18961,14 +18884,20 @@ describe('Market', () => {
 
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
 
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
             await market
               .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
             verifier.verifyIntent.returns()
 
@@ -19200,14 +19129,20 @@ describe('Market', () => {
 
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
 
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
             await market
               .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
             verifier.verifyIntent.returns()
 
@@ -19440,14 +19375,20 @@ describe('Market', () => {
 
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
 
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
             await market
               .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
             verifier.verifyIntent.returns()
 
@@ -19680,14 +19621,20 @@ describe('Market', () => {
 
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
 
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
             await market
               .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
             verifier.verifyIntent.returns()
 
@@ -19936,17 +19883,23 @@ describe('Market', () => {
 
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
 
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
             await market
               .connect(userD)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userD.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](userD.address, 0, COLLATERAL, constants.AddressZero)
             await market
               .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
             verifier.verifyIntent.returns()
 
@@ -20258,14 +20211,20 @@ describe('Market', () => {
 
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
 
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
             await market
               .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
             verifier.verifyIntent.returns()
 
@@ -20501,14 +20460,20 @@ describe('Market', () => {
 
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
 
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
             await market
               .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
             verifier.verifyIntent.returns()
 
@@ -20679,25 +20644,24 @@ describe('Market', () => {
 
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 userB.address,
                 POSITION.mul(2),
                 0,
-                0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               )
 
             await market
               .connect(userD)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userD.address, 0, POSITION, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](userD.address, POSITION, COLLATERAL, constants.AddressZero)
 
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
             await market
               .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
             verifier.verifyIntent.returns()
 
@@ -20959,20 +20923,24 @@ describe('Market', () => {
 
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-            await market
-              .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
-                user.address,
-                0,
-                POSITION.div(2),
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
                 0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
+              )
+            await market
+              .connect(user)
+              ['update(address,int256,int256,address)'](
+                user.address,
+                POSITION.div(2),
+                COLLATERAL,
+                constants.AddressZero,
               )
             await market
               .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
             oracle.at
               .whenCalledWith(ORACLE_VERSION_2.timestamp)
@@ -21212,20 +21180,24 @@ describe('Market', () => {
 
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 user.address,
-                0,
-                0,
-                POSITION.div(2),
+                POSITION.div(2).mul(-1),
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               )
             await market
               .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
             oracle.at
               .whenCalledWith(ORACLE_VERSION_2.timestamp)
@@ -21465,19 +21437,23 @@ describe('Market', () => {
 
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
             await market
               .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 userC.address,
-                0,
-                0,
-                POSITION.div(2),
+                POSITION.div(2).mul(-1),
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               )
 
             oracle.at
@@ -21719,19 +21695,23 @@ describe('Market', () => {
 
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-            await market
-              .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
-            await market
-              .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
-                userC.address,
-                0,
-                POSITION.div(2),
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
                 0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
+              )
+            await market
+              .connect(user)
+              ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
+            await market
+              .connect(userC)
+              ['update(address,int256,int256,address)'](
+                userC.address,
+                POSITION.div(2),
+                COLLATERAL,
+                constants.AddressZero,
               )
 
             oracle.at
@@ -21972,26 +21952,28 @@ describe('Market', () => {
 
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-            await market
-              .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
-                user.address,
-                0,
-                POSITION.div(2),
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
                 0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
+              )
+            await market
+              .connect(user)
+              ['update(address,int256,int256,address)'](
+                user.address,
+                POSITION.div(2),
+                COLLATERAL,
+                constants.AddressZero,
               )
             await market
               .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 userC.address,
-                0,
-                0,
-                POSITION.div(2),
+                POSITION.div(2).mul(-1),
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               )
 
             oracle.at
@@ -22232,26 +22214,28 @@ describe('Market', () => {
 
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 user.address,
-                0,
-                0,
-                POSITION.div(2),
+                POSITION.div(2).mul(-1),
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               )
             await market
               .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 userC.address,
-                0,
                 POSITION.div(2),
-                0,
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               )
 
             oracle.at
@@ -22493,20 +22477,24 @@ describe('Market', () => {
 
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 user.address,
-                0,
-                0,
-                POSITION.div(2),
+                POSITION.div(2).mul(-1),
                 COLLATERAL,
-                false,
+                constants.AddressZero,
               )
             await market
               .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+              ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
             oracle.at
               .whenCalledWith(ORACLE_VERSION_2.timestamp)
@@ -22677,14 +22665,20 @@ describe('Market', () => {
 
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
 
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
           await market
             .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
           verifier.verifyIntent.returns()
 
@@ -22736,14 +22730,20 @@ describe('Market', () => {
 
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
 
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
           await market
             .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
           verifier.verifyIntent.returns()
 
@@ -22795,14 +22795,20 @@ describe('Market', () => {
 
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
 
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
           await market
             .connect(userC)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
           verifier.verifyIntent.returns()
 
@@ -22858,7 +22864,13 @@ describe('Market', () => {
 
           await market
             .connect(userB)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
 
           factory.authorization
             .whenCalledWith(user.address, user.address, constants.AddressZero, liquidator.address)
@@ -23020,7 +23032,7 @@ describe('Market', () => {
         dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market
           .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+          ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
@@ -23085,17 +23097,16 @@ describe('Market', () => {
         dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market
           .connect(userB)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-        await market
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
-            user.address,
-            0,
-            POSITION.div(2),
+          ['update(address,int256,int256,int256,address)'](
+            userB.address,
+            POSITION,
             0,
             COLLATERAL,
-            false,
+            constants.AddressZero,
           )
+        await market
+          .connect(user)
+          ['update(address,int256,int256,address)'](user.address, POSITION.div(2), COLLATERAL, constants.AddressZero)
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
@@ -23162,16 +23173,20 @@ describe('Market', () => {
         dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market
           .connect(userB)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          ['update(address,int256,int256,int256,address)'](
+            userB.address,
+            POSITION,
+            0,
+            COLLATERAL,
+            constants.AddressZero,
+          )
         await market
           .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
+          ['update(address,int256,int256,address)'](
             user.address,
-            0,
-            0,
-            POSITION.div(2),
+            POSITION.div(2).mul(-1),
             COLLATERAL,
-            false,
+            constants.AddressZero,
           )
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -23239,17 +23254,21 @@ describe('Market', () => {
         dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market
           .connect(userB)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          ['update(address,int256,int256,int256,address)'](
+            userB.address,
+            POSITION,
+            0,
+            COLLATERAL,
+            constants.AddressZero,
+          )
         dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
         await market
           .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
+          ['update(address,int256,int256,address)'](
             user.address,
-            0,
             POSITION.div(2),
-            0,
             parse6decimal('216'),
-            false,
+            constants.AddressZero,
           )
 
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
@@ -23400,18 +23419,17 @@ describe('Market', () => {
         dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market
           .connect(userB)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+          ['update(address,int256,int256,int256,address)'](
+            userB.address,
+            POSITION,
+            0,
+            COLLATERAL,
+            constants.AddressZero,
+          )
         dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market
           .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
-            user.address,
-            0,
-            POSITION.div(2),
-            0,
-            COLLATERAL,
-            false,
-          )
+          ['update(address,int256,int256,address)'](user.address, POSITION.div(2), COLLATERAL, constants.AddressZero)
 
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
 
@@ -23515,7 +23533,13 @@ describe('Market', () => {
       await expect(
         market
           .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+          ['update(address,int256,int256,int256,address)'](
+            user.address,
+            POSITION,
+            0,
+            COLLATERAL,
+            constants.AddressZero,
+          ),
       ).to.revertedWithCustomError(market, 'ReentrancyGuardReentrantCallError')
 
       // try to re-enter into update method
@@ -23523,7 +23547,13 @@ describe('Market', () => {
       await expect(
         market
           .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+          ['update(address,int256,int256,int256,address)'](
+            user.address,
+            POSITION,
+            0,
+            COLLATERAL,
+            constants.AddressZero,
+          ),
       ).to.revertedWithCustomError(market, 'ReentrancyGuardReentrantCallError')
 
       // try to re-enter into update intent method
@@ -23531,7 +23561,13 @@ describe('Market', () => {
       await expect(
         market
           .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+          ['update(address,int256,int256,int256,address)'](
+            user.address,
+            POSITION,
+            0,
+            COLLATERAL,
+            constants.AddressZero,
+          ),
       ).to.revertedWithCustomError(market, 'ReentrancyGuardReentrantCallError')
 
       // try to re-enter into settle method
@@ -23539,7 +23575,13 @@ describe('Market', () => {
       await expect(
         market
           .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+          ['update(address,int256,int256,int256,address)'](
+            user.address,
+            POSITION,
+            0,
+            COLLATERAL,
+            constants.AddressZero,
+          ),
       ).to.revertedWithCustomError(market, 'ReentrancyGuardReentrantCallError')
     })
   })
