@@ -65,7 +65,7 @@ struct MatchingResult {
 /// @dev (external-safe): this library is safe to externalize
 ///     // need to apply to appropriate accumulator
         // - maker close -> applies to position - makerNeg
-        // - long / short -> applies to position - neg [SpreadValue]
+        // - long / short -> applies to position - makerNeg - (short neg / long neg)
         // - maker open -> applies to position - neg + takerPos
 /// @notice
 library MatchingLib {

@@ -45,22 +45,22 @@ struct VersionAccumulationResult {
     /// @dev The total notional spread received by the makers (all phases)
     Fixed6 spreadMaker;
 
-    /// @dev The total notional spread received by the longs (maker close, socialization)
+    /// @dev The total notional spread received by the longs prior to applying the order
     Fixed6 spreadPreLong;
 
-    /// @dev The total notional spread received by the shorts (maker close, socialization)
+    /// @dev The total notional spread received by the shorts prior to applying the order
     Fixed6 spreadPreShort;
 
-    /// @dev The total notional spread received by the longs (taker, socialization)
+    /// @dev The total notional spread received by the longs after applying the negative component of the order
     Fixed6 spreadCloseLong;
 
-    /// @dev The total notional spread received by the shorts (taker, socialization)
+    /// @dev The total notional spread received by the shorts after applying the negative component of the order
     Fixed6 spreadCloseShort;
 
-    /// @dev The total notional spread received by the longs (maker open, socialization)
+    /// @dev The total notional spread received by the longs after applying the the order
     Fixed6 spreadPostLong;
 
-    /// @dev The total notional spread received by the shorts (maker open, socialization)
+    /// @dev The total notional spread received by the shorts after applying the the order
     Fixed6 spreadPostShort;
 
     /// @dev Funding accrued by makers
