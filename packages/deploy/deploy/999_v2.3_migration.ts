@@ -24,11 +24,11 @@ import {
   VaultFactory__factory,
   Verifier__factory,
 } from '../types/generated'
-import { PAYOFFS } from './002_deploy_payoff'
+import { PAYOFFS } from './002_deploy_payoff_and_verifier'
 
 const SkipIfAlreadyDeployed = false
 
-type TransparentUpgradeableProxyArgs = Parameters<TransparentUpgradeableProxy__factory['deploy']>
+export type TransparentUpgradeableProxyArgs = Parameters<TransparentUpgradeableProxy__factory['deploy']>
 const log = (...args: unknown[]) => console.log('[v2.3 Migration]', ...args)
 const write = (str: string) => process.stdout.write(`[v2.3 Migration] ${str}`)
 

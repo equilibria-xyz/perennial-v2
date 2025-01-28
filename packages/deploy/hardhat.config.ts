@@ -26,6 +26,7 @@ const config = defaultConfig({
     '@perennial/v2-oracle/contracts/metaquants/MetaQuantsFactory.sol',
     '@perennial/v2-core/contracts/Market.sol',
     '@perennial/v2-core/contracts/MarketFactory.sol',
+    '@perennial/v2-core/contracts/Verifier.sol',
     '@perennial/v2-vault/contracts/Vault.sol',
     '@perennial/v2-vault/contracts/VaultFactory.sol',
     '@perennial/v2-periphery/contracts/CollateralAccounts/Account.sol',

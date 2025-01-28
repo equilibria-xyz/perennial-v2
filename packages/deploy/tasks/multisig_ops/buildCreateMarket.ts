@@ -1,7 +1,7 @@
 import '@nomiclabs/hardhat-ethers'
 import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
-import { PAYOFFS } from '../../deploy/002_deploy_payoff'
+import { PAYOFFS } from '../../deploy/002_deploy_payoff_and_verifier'
 import { PopulatedTransaction, utils } from 'ethers'
 import { NewMarketParameter, NewRiskParams } from './constants'
 
