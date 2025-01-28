@@ -520,6 +520,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (updateContext.operator, updateContext.signer, updateContext.orderReferralFee) =
             IMarketFactory(address(factory())).authorization(context.account, msg.sender, signer, orderReferrer);
         if (guaranteeReferrer != address(0)) updateContext.guaranteeReferralFee = guaranteeReferralFee;
+
+        // load price adjustment
+        for (uint256 id = context.local.latestId + 1; id <= context.local.currentId; id++)
+            updateContext.priceAdjustment = updateContext.priceAdjustment
+                .add(_guarantees[context.account][id].read().priceAdjustment(context.latestOracleVersion.price));
     }
 
     /// @notice Stores the context for the update process
