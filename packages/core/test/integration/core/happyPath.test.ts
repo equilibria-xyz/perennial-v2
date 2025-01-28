@@ -1520,6 +1520,102 @@ describe('Happy Path', () => {
     expect((await market.global()).exposure).to.equals(0)
   })
 
+  it('opens intent order', async () => {
+    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
+
+    const market = await createMarket(instanceVars)
+
+    const protocolParameter = { ...(await marketFactory.parameter()) }
+    protocolParameter.referralFee = parse6decimal('0.20')
+
+    await marketFactory.updateParameter(protocolParameter)
+
+    const POSITION = parse6decimal('10')
+    const COLLATERAL = parse6decimal('10000')
+
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+
+    await market
+      .connect(user)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+
+    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+
+    await market
+      .connect(userB)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+
+    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+
+    await market
+      .connect(userC)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+    const intent: IntentStruct = {
+      amount: POSITION.div(2),
+      price: parse6decimal('125'),
+      fee: parse6decimal('0.5'),
+      originator: userC.address,
+      solver: owner.address,
+      collateralization: parse6decimal('0.01'),
+      common: {
+        account: user.address,
+        signer: user.address,
+        domain: market.address,
+        nonce: 0,
+        group: 0,
+        expiry: constants.MaxUint256,
+      },
+    }
+
+    const signature = await signIntent(user, verifier, intent)
+
+    await market
+      .connect(userC)
+      [
+        'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+      ](userC.address, intent, signature)
+
+    expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
+      ...DEFAULT_GUARANTEE,
+      orders: 2,
+      longPos: POSITION.div(2),
+      shortPos: POSITION.div(2),
+      takerFee: POSITION.div(2),
+      orderReferral: parse6decimal('1.0'),
+    })
+    expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
+      ...DEFAULT_GUARANTEE,
+      orders: 1,
+      notional: parse6decimal('625'),
+      longPos: POSITION.div(2),
+      orderReferral: parse6decimal('1.0'),
+      solverReferral: parse6decimal('0.5'),
+    })
+    expectOrderEq(await market.pending(), {
+      ...DEFAULT_ORDER,
+      orders: 3,
+      collateral: COLLATERAL.mul(3),
+      makerPos: POSITION,
+      longPos: POSITION.div(2),
+      shortPos: POSITION.div(2),
+      takerReferral: parse6decimal('1'),
+    })
+    expectOrderEq(await market.pendings(user.address), {
+      ...DEFAULT_ORDER,
+      orders: 1,
+      collateral: COLLATERAL,
+      longPos: POSITION.div(2),
+      takerReferral: parse6decimal('1'),
+    })
+    expectOrderEq(await market.pendings(userC.address), {
+      ...DEFAULT_ORDER,
+      orders: 1,
+      collateral: COLLATERAL,
+      shortPos: POSITION.div(2),
+    })
+  })
+
   it('opens intent order w/ signer', async () => {
     const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
 
@@ -2781,6 +2877,265 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       longPos: POSITION.div(2),
       takerReferral: parse6decimal('1'),
+    })
+  })
+
+  it('opens zero cross intent order (pos)', async () => {
+    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
+
+    const market = await createMarket(instanceVars)
+
+    const protocolParameter = { ...(await marketFactory.parameter()) }
+    protocolParameter.referralFee = parse6decimal('0.20')
+
+    await marketFactory.updateParameter(protocolParameter)
+
+    const POSITION = parse6decimal('10')
+    const COLLATERAL = parse6decimal('10000')
+
+    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+
+    await market
+      .connect(userB)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+
+    await market
+      .connect(user)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+
+    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+
+    await market
+      .connect(userC)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+    const intent: IntentStruct = {
+      amount: POSITION.div(4).mul(-1),
+      price: parse6decimal('125'),
+      fee: parse6decimal('0.5'),
+      originator: userC.address,
+      solver: owner.address,
+      collateralization: parse6decimal('0.01'),
+      common: {
+        account: user.address,
+        signer: user.address,
+        domain: market.address,
+        nonce: 0,
+        group: 0,
+        expiry: constants.MaxUint256,
+      },
+    }
+
+    const intent2: IntentStruct = {
+      amount: POSITION.div(2),
+      price: parse6decimal('125'),
+      fee: parse6decimal('0.5'),
+      originator: userC.address,
+      solver: owner.address,
+      collateralization: parse6decimal('0.01'),
+      common: {
+        account: user.address,
+        signer: user.address,
+        domain: market.address,
+        nonce: 1,
+        group: 0,
+        expiry: constants.MaxUint256,
+      },
+    }
+
+    const signature1 = await signIntent(user, verifier, intent)
+    const signature2 = await signIntent(user, verifier, intent2)
+
+    await market
+      .connect(userC)
+      [
+        'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+      ](userC.address, intent, signature1)
+
+    await market
+      .connect(userC)
+      [
+        'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+      ](userC.address, intent2, signature2)
+
+    expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
+      ...DEFAULT_GUARANTEE,
+      orders: 4,
+      longPos: POSITION.div(2),
+      longNeg: POSITION.div(4),
+      shortPos: POSITION.div(2),
+      shortNeg: POSITION.div(4),
+      takerFee: POSITION.div(4).mul(3),
+      orderReferral: parse6decimal('1.5'),
+    })
+    expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
+      ...DEFAULT_GUARANTEE,
+      orders: 2,
+      notional: parse6decimal('312.5'),
+      longPos: POSITION.div(4),
+      shortNeg: POSITION.div(4),
+      orderReferral: parse6decimal('1.5'),
+      solverReferral: parse6decimal('0.75'),
+    })
+    expectOrderEq(await market.pending(), {
+      ...DEFAULT_ORDER,
+      orders: 5,
+      collateral: COLLATERAL.mul(3),
+      makerPos: POSITION,
+      longPos: POSITION.div(2),
+      longNeg: POSITION.div(4),
+      shortPos: POSITION.div(2),
+      shortNeg: POSITION.div(4),
+      takerReferral: parse6decimal('1.5'),
+    })
+    expectOrderEq(await market.pendings(user.address), {
+      ...DEFAULT_ORDER,
+      orders: 2,
+      collateral: COLLATERAL,
+      longPos: POSITION.div(4),
+      shortPos: POSITION.div(4),
+      shortNeg: POSITION.div(4),
+      takerReferral: parse6decimal('1.5'),
+    })
+    expectOrderEq(await market.pendings(userC.address), {
+      ...DEFAULT_ORDER,
+      orders: 2,
+      collateral: COLLATERAL,
+      longPos: POSITION.div(4),
+      longNeg: POSITION.div(4),
+      shortPos: POSITION.div(4),
+    })
+  })
+
+  it('opens zero cross intent order (neg)', async () => {
+    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
+
+    const market = await createMarket(instanceVars)
+
+    const protocolParameter = { ...(await marketFactory.parameter()) }
+    protocolParameter.referralFee = parse6decimal('0.20')
+
+    await marketFactory.updateParameter(protocolParameter)
+
+    const POSITION = parse6decimal('10')
+    const COLLATERAL = parse6decimal('10000')
+
+    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+
+    await market
+      .connect(userB)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+
+    await market
+      .connect(user)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+
+    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+
+    await market
+      .connect(userC)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+    const intent: IntentStruct = {
+      amount: POSITION.div(4),
+      price: parse6decimal('125'),
+      fee: parse6decimal('0.5'),
+      originator: userC.address,
+      solver: owner.address,
+      collateralization: parse6decimal('0.01'),
+      common: {
+        account: user.address,
+        signer: user.address,
+        domain: market.address,
+        nonce: 0,
+        group: 0,
+        expiry: constants.MaxUint256,
+      },
+    }
+
+    const intent2: IntentStruct = {
+      amount: POSITION.div(2).mul(-1),
+      price: parse6decimal('125'),
+      fee: parse6decimal('0.5'),
+      originator: userC.address,
+      solver: owner.address,
+      collateralization: parse6decimal('0.01'),
+      common: {
+        account: user.address,
+        signer: user.address,
+        domain: market.address,
+        nonce: 1,
+        group: 0,
+        expiry: constants.MaxUint256,
+      },
+    }
+
+    const signature1 = await signIntent(user, verifier, intent)
+    const signature2 = await signIntent(user, verifier, intent2)
+
+    await market
+      .connect(userC)
+      [
+        'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+      ](userC.address, intent, signature1)
+
+    await market
+      .connect(userC)
+      [
+        'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+      ](userC.address, intent2, signature2)
+
+    expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
+      ...DEFAULT_GUARANTEE,
+      orders: 4,
+      longPos: POSITION.div(2),
+      longNeg: POSITION.div(4),
+      shortPos: POSITION.div(2),
+      shortNeg: POSITION.div(4),
+      takerFee: POSITION.div(4).mul(3),
+      orderReferral: parse6decimal('1.5'),
+    })
+    expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
+      ...DEFAULT_GUARANTEE,
+      orders: 2,
+      notional: parse6decimal('312.5').mul(-1),
+      longPos: POSITION.div(4),
+      longNeg: POSITION.div(4),
+      shortPos: POSITION.div(4),
+      orderReferral: parse6decimal('1.5'),
+      solverReferral: parse6decimal('0.75'),
+    })
+    expectOrderEq(await market.pending(), {
+      ...DEFAULT_ORDER,
+      orders: 5,
+      collateral: COLLATERAL.mul(3),
+      makerPos: POSITION,
+      longPos: POSITION.div(2),
+      longNeg: POSITION.div(4),
+      shortPos: POSITION.div(2),
+      shortNeg: POSITION.div(4),
+      takerReferral: parse6decimal('1.5'),
+    })
+    expectOrderEq(await market.pendings(user.address), {
+      ...DEFAULT_ORDER,
+      orders: 2,
+      collateral: COLLATERAL,
+      longPos: POSITION.div(4),
+      longNeg: POSITION.div(4),
+      shortPos: POSITION.div(4),
+      takerReferral: parse6decimal('1.5'),
+    })
+    expectOrderEq(await market.pendings(userC.address), {
+      ...DEFAULT_ORDER,
+      orders: 2,
+      collateral: COLLATERAL,
+      longPos: POSITION.div(4),
+      shortPos: POSITION.div(4),
+      shortNeg: POSITION.div(4),
     })
   })
 

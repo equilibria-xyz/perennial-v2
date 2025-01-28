@@ -23,6 +23,7 @@ import { Market, Verifier__factory } from '../../../types/generated'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import {
   AccountPositionProcessedEventObject,
+  IntentStruct,
   PositionProcessedEventObject,
 } from '../../../types/generated/contracts/Market'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
@@ -2653,6 +2654,198 @@ describe('Fees', () => {
         collateral: COLLATERAL,
       })
       expectCheckpointEq(await market.checkpoints(userD.address, TIMESTAMP_2), {
+        ...DEFAULT_CHECKPOINT,
+      })
+    })
+
+    it('intent order fee exclusion with zero cross', async () => {
+      const { owner, user, userB, userC, marketFactory, verifier, dsu, chainlink } = instanceVars
+
+      const protocolParameter = { ...(await marketFactory.parameter()) }
+      protocolParameter.referralFee = parse6decimal('0.20')
+
+      await marketFactory.updateParameter(protocolParameter)
+
+      const POSITION = parse6decimal('10')
+      const COLLATERAL = parse6decimal('10000')
+
+      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+
+      await market
+        .connect(userB)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+
+      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+
+      await market
+        .connect(user)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+
+      await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+
+      await market
+        .connect(userC)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+      const intent: IntentStruct = {
+        amount: POSITION.div(4).mul(-1),
+        price: PRICE.add(2),
+        fee: parse6decimal('0.5'),
+        originator: userC.address,
+        solver: owner.address,
+        collateralization: parse6decimal('0.01'),
+        common: {
+          account: user.address,
+          signer: user.address,
+          domain: market.address,
+          nonce: 0,
+          group: 0,
+          expiry: constants.MaxUint256,
+        },
+      }
+
+      const intent2: IntentStruct = {
+        amount: POSITION.div(2),
+        price: PRICE.add(2),
+        fee: parse6decimal('0.5'),
+        originator: userC.address,
+        solver: owner.address,
+        collateralization: parse6decimal('0.01'),
+        common: {
+          account: user.address,
+          signer: user.address,
+          domain: market.address,
+          nonce: 1,
+          group: 0,
+          expiry: constants.MaxUint256,
+        },
+      }
+
+      const signature1 = await signIntent(user, verifier, intent)
+      const signature2 = await signIntent(user, verifier, intent2)
+
+      await market
+        .connect(userC)
+        [
+          'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+        ](userC.address, intent, signature1)
+
+      await market
+        .connect(userC)
+        [
+          'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+        ](userC.address, intent2, signature2)
+
+      expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
+        ...DEFAULT_GUARANTEE,
+        orders: 4,
+        longPos: POSITION.div(2),
+        longNeg: POSITION.div(4),
+        shortPos: POSITION.div(2),
+        shortNeg: POSITION.div(4),
+        takerFee: POSITION.div(4).mul(3),
+        orderReferral: parse6decimal('1.5'),
+      })
+      expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
+        ...DEFAULT_GUARANTEE,
+        orders: 2,
+        notional: POSITION.div(4).mul(PRICE).div(1e6).add(6), // loss of precision
+        longPos: POSITION.div(4),
+        shortNeg: POSITION.div(4),
+        orderReferral: parse6decimal('1.5'),
+        solverReferral: parse6decimal('0.75'),
+      })
+      expectOrderEq(await market.pending(), {
+        ...DEFAULT_ORDER,
+        orders: 5,
+        collateral: COLLATERAL.mul(3),
+        makerPos: POSITION,
+        longPos: POSITION.div(2),
+        longNeg: POSITION.div(4),
+        shortPos: POSITION.div(2),
+        shortNeg: POSITION.div(4),
+        takerReferral: parse6decimal('1.5'),
+      })
+      expectOrderEq(await market.pendings(user.address), {
+        ...DEFAULT_ORDER,
+        orders: 2,
+        collateral: COLLATERAL,
+        longPos: POSITION.div(4),
+        shortPos: POSITION.div(4),
+        shortNeg: POSITION.div(4),
+        takerReferral: parse6decimal('1.5'),
+      })
+      expectOrderEq(await market.pendings(userC.address), {
+        ...DEFAULT_ORDER,
+        orders: 2,
+        collateral: COLLATERAL,
+        longPos: POSITION.div(4),
+        longNeg: POSITION.div(4),
+        shortPos: POSITION.div(4),
+      })
+
+      await chainlink.next()
+
+      await market.settle(user.address)
+      await market.settle(userB.address)
+      await market.settle(userC.address)
+
+      const EXPECTED_PNL = POSITION.div(4).mul(PRICE.add(2).sub(PRICE_1)).div(1e6) // position * price change
+      const TRADE_FEE_A = parse6decimal('21.336843') // position * (0.025) * price_1
+
+      expectLocalEq(await market.locals(user.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 1,
+        latestId: 1,
+        collateral: COLLATERAL.sub(EXPECTED_PNL).sub(TRADE_FEE_A).sub(6), // loss of precision
+      })
+      expectPositionEq(await market.positions(user.address), {
+        ...DEFAULT_POSITION,
+        timestamp: TIMESTAMP_1,
+        long: POSITION.div(4),
+      })
+      expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
+        ...DEFAULT_CHECKPOINT,
+      })
+      const TRADE_FEE_B = parse6decimal('56.898250') // position * 0.05 * price_1
+      const MAKER_LINEAR_FEE = parse6decimal('102.416848') // position * 0.09 * price_1
+      const MAKER_PROPORTIONAL_FEE = parse6decimal('91.037198') // position * 0.08 * price_1
+      expectLocalEq(await market.locals(userB.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 1,
+        latestId: 1,
+        collateral: COLLATERAL.sub(TRADE_FEE_B).sub(MAKER_LINEAR_FEE).sub(MAKER_PROPORTIONAL_FEE).sub(4), // loss of precision
+      })
+      expectPositionEq(await market.positions(userB.address), {
+        ...DEFAULT_POSITION,
+        timestamp: TIMESTAMP_1,
+        maker: POSITION,
+      })
+      expectOrderEq(await market.pendingOrders(userB.address, 1), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        makerPos: POSITION,
+        collateral: COLLATERAL,
+      })
+      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
+        ...DEFAULT_CHECKPOINT,
+      })
+
+      // no trade fee deducted for userC for intent order
+      expectLocalEq(await market.locals(userC.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 1,
+        latestId: 1,
+        collateral: COLLATERAL.add(EXPECTED_PNL).add(1), // loss of precision
+        claimable: TRADE_FEE_A.div(10).add(1), // loss of precision
+      })
+      expectPositionEq(await market.positions(userC.address), {
+        ...DEFAULT_POSITION,
+        timestamp: TIMESTAMP_1,
+        short: POSITION.div(4),
+      })
+      expectCheckpointEq(await market.checkpoints(userC.address, TIMESTAMP_2), {
         ...DEFAULT_CHECKPOINT,
       })
     })
