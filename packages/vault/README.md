@@ -4,6 +4,8 @@ Vault for the Perennial V2 Protocol
 
 ## Usage
 
+Before using a vault, please run token approvals for both `Vault` and `Margin` contracts.
+
 ### Pre Requisites
 
 Before running any command, make sure to install dependencies. Run this in the root workspace as well to capture package patches:

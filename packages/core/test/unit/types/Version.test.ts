@@ -18,9 +18,7 @@ import {
   DEFAULT_VERSION,
   DEFAULT_GUARANTEE,
   parse6decimal,
-  Guarantee,
   DEFAULT_ORACLE_RECEIPT,
-  DEFAULT_CHECKPOINT,
   DEFAULT_CONTEXT,
   DEFAULT_SETTLEMENT_CONTEXT,
 } from '../../../../common/testutil/types'
@@ -1674,7 +1672,6 @@ describe('Version', () => {
         const makerFee = parse6decimal('24.6')
         // (longpos+longneg+shortpos+shortneg - guarantee.takerFee) * 0.01 * price = (13+12-1.5) * 0.01 * 123
         const takerFee = parse6decimal('28.905')
-        console.log('makerFee', makerFee.toString(), 'takerFee', takerFee.toString())
         const fee = makerFee.add(takerFee)
 
         const linearMaker = parse6decimal('0.2') //    (makerpos+makerneg) * 0.02 = (10) * 0.02
@@ -1699,7 +1696,6 @@ describe('Version', () => {
         // mean / scale * takerNeg-guarantee.takerNeg * adiabaticFee, * -1 because of positive price delta
         const impactTakerNeg = parse6decimal('0.1425') // -9.5 / 100 * (18-3) * 0.1 * -1 = -0.095 * 15 * -0.1
         const impact = impactTakerPos.add(impactTakerNeg).mul(123) // price
-        console.log('total adiabatic', impact.toString())
 
         // (linearMaker * -1 * priceNew / makerTotal) + (proportionalMaker * -1 * priceNew / makerTotal)
         const makerOffset = linearMaker.mul(-1).mul(123).div(10).add(proportionalMaker.mul(-1).mul(123).div(10))

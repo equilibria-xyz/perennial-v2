@@ -18,7 +18,7 @@ interface IMarketFactory is IFactory {
     event OperatorUpdated(address indexed account, address indexed operator, bool newEnabled);
     event SignerUpdated(address indexed account, address indexed signer, bool newEnabled);
     event ReferralFeeUpdated(address indexed referrer, UFixed6 newFee);
-    event MarketCreated(IMarket indexed market, IMarket.MarketDefinition definition);
+    event MarketCreated(IMarket indexed market, IOracleProvider oracle);
 
     // sig: 0x0a37dc74
     error FactoryInvalidPayoffError();
@@ -53,5 +53,5 @@ interface IMarketFactory is IFactory {
     function updateAccessBatch(AccessUpdate[] calldata operators, AccessUpdate[] calldata signers) external;
     function updateAccessBatchWithSignature(AccessUpdateBatch calldata accessUpdateBatch, bytes calldata signature) external;
     function updateReferralFee(address referrer, UFixed6 newReferralFee) external;
-    function create(IMarket.MarketDefinition calldata definition) external returns (IMarket);
+    function create(IOracleProvider oracle) external returns (IMarket);
 }

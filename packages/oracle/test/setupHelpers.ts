@@ -1,4 +1,7 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+
+import { Margin__factory } from '@perennial/v2-core/types/generated'
+
 import {
   IOracleFactory,
   Market__factory,
@@ -14,14 +17,25 @@ import {
   RiskParameterStorageLib__factory,
   VersionLib__factory,
   VersionStorageLib__factory,
+  IERC20Metadata__factory,
 } from '../types/generated'
 
 // Deploys Verifier, Market implementation, and MarketFactory
 export async function deployMarketFactory(
   owner: SignerWithAddress,
   oracleFactory: IOracleFactory,
+  dsu: IERC20Metadata,
 ): Promise<MarketFactory> {
   const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
+
+  const margin = await new Margin__factory(
+    {
+      'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
+        await new CheckpointStorageLib__factory(owner).deploy()
+      ).address,
+    },
+    owner,
+  ).deploy(dsu.address)
 
   const marketImpl = await new Market__factory(
     {
@@ -33,9 +47,6 @@ export async function deployMarketFactory(
       ).address,
       '@perennial/v2-core/contracts/libs/VersionLib.sol:VersionLib': (
         await new VersionLib__factory(owner).deploy()
-      ).address,
-      '@perennial/v2-core/contracts/types/Checkpoint.sol:CheckpointStorageLib': (
-        await new CheckpointStorageLib__factory(owner).deploy()
       ).address,
       '@perennial/v2-core/contracts/types/Global.sol:GlobalStorageLib': (
         await new GlobalStorageLib__factory(owner).deploy()
@@ -57,6 +68,12 @@ export async function deployMarketFactory(
       ).address,
     },
     owner,
-  ).deploy(verifierImpl.address)
-  return await new MarketFactory__factory(owner).deploy(oracleFactory.address, verifierImpl.address, marketImpl.address)
+  ).deploy(verifierImpl.address, margin.address)
+  const marketFactory = await new MarketFactory__factory(owner).deploy(
+    oracleFactory.address,
+    verifierImpl.address,
+    marketImpl.address,
+  )
+  await margin.connect(owner).initialize(marketFactory.address)
+  return marketFactory
 }

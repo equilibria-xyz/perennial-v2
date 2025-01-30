@@ -10,7 +10,12 @@ import {
 import { IVerifier, Verifier } from '../../types/generated'
 import { FakeContract } from '@defi-wonderland/smock'
 
-export function erc721Domain(verifier: IVerifier | Verifier | FakeContract<IVerifier>) {
+function erc721Domain(verifier: IVerifier | Verifier | FakeContract<IVerifier>): {
+  name: string
+  version: string
+  chainId: number
+  verifyingContract: string
+} {
   return {
     name: 'Perennial',
     version: '1.0.0',
