@@ -13,12 +13,16 @@ import {
   PositionStorageGlobalLib__factory,
   PositionStorageLocalLib__factory,
   RiskParameterStorageLib__factory,
+  GuaranteeStorageLocalLib__factory,
+  GuaranteeStorageGlobalLib__factory,
+  OrderStorageLocalLib__factory,
+  OrderStorageGlobalLib__factory,
   VersionLib__factory,
   VersionStorageLib__factory,
 } from '@perennial/v2-core/types/generated'
 import { IOracle } from '@perennial/v2-oracle/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { IERC20Metadata, IOracleProvider, IVerifier } from '../../types/generated'
+import { IERC20Metadata, IOracleProvider, IVerifier, Market } from '../../types/generated'
 import { parse6decimal } from '../../../common/testutil/types'
 import { MarketParameterStruct, RiskParameterStruct } from '@perennial/v2-core/types/generated/contracts/Market'
 import { smock } from '@defi-wonderland/smock'
@@ -122,6 +126,18 @@ export async function deployMarketImplementation(owner: SignerWithAddress, verif
         await new RiskParameterStorageLib__factory(owner).deploy()
       ).address,
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
+      'contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': (
+        await new GuaranteeStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Guarantee.sol:GuaranteeStorageGlobalLib': (
+        await new GuaranteeStorageGlobalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Order.sol:OrderStorageLocalLib': (
+        await new OrderStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Order.sol:OrderStorageGlobalLib': (
+        await new OrderStorageGlobalLib__factory(owner).deploy()
+      ).address,
     },
     owner,
   ).deploy(verifierAddress)
@@ -159,6 +175,18 @@ export async function mockMarket(token: Address): Promise<IMarket> {
         await new RiskParameterStorageLib__factory(owner).deploy()
       ).address,
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
+      'contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': (
+        await new GuaranteeStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Guarantee.sol:GuaranteeStorageGlobalLib': (
+        await new GuaranteeStorageGlobalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Order.sol:OrderStorageLocalLib': (
+        await new OrderStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Order.sol:OrderStorageGlobalLib': (
+        await new OrderStorageGlobalLib__factory(owner).deploy()
+      ).address,
     },
     owner,
   ).deploy(verifier.address)

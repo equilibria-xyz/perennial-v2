@@ -37,7 +37,16 @@ describe('Liquidate', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
 
     // liquidate user
-    await market.connect(userB).close(user.address, true, constants.AddressZero)
+    await expect(market.connect(userB).close(user.address, true, constants.AddressZero))
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        user.address,
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION, protection: 1, invalidation: 1 },
+        { ...DEFAULT_GUARANTEE },
+        userB.address,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
 
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
     expect(await market.liquidators(user.address, 2)).to.eq(userB.address)
@@ -112,7 +121,7 @@ describe('Liquidate', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await settle(market, user)
 
-    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-2524654460'))
+    expect((await market.locals(user.address)).collateral).to.equal(parse6decimal('-2524.654460'))
 
     await dsu.connect(userB).approve(market.address, constants.MaxUint256)
     const userCollateral = (await market.locals(user.address)).collateral
@@ -167,7 +176,7 @@ describe('Liquidate', () => {
           userBCollateral.mul(-1).sub(1),
           constants.AddressZero,
         ),
-    ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError') // underflow
+    ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralError') // underflow
 
     await market.connect(userB).close(user.address, true, constants.AddressZero) // liquidate
 
@@ -175,7 +184,7 @@ describe('Liquidate', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await settle(market, user)
 
-    const expectedCollateral = BigNumber.from('-2524654460')
+    const expectedCollateral = parse6decimal('-2524.654460')
 
     expect((await market.locals(user.address)).collateral).to.equal(expectedCollateral)
 
@@ -253,7 +262,7 @@ describe('Liquidate', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         user.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION, protection: 1 },
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION, protection: 1, invalidation: 1 },
         { ...DEFAULT_GUARANTEE },
         userB.address,
         constants.AddressZero,
@@ -361,7 +370,14 @@ describe('Liquidate', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         user.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_3, orders: 1, makerNeg: parse6decimal('5'), protection: 1 },
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_3,
+          orders: 1,
+          makerNeg: parse6decimal('5'),
+          protection: 1,
+          invalidation: 1,
+        },
         { ...DEFAULT_GUARANTEE },
         userC.address,
         constants.AddressZero,
@@ -431,6 +447,7 @@ describe('Liquidate', () => {
           makerNeg: POSITION,
           protection: 1,
           makerReferral: parse6decimal('1.2'),
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         userB.address,

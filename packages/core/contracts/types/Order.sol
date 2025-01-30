@@ -5,6 +5,7 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { OracleVersion } from "./OracleVersion.sol";
 import { Position } from "./Position.sol";
+import { Guarantee } from "./Guarantee.sol";
 import { MarketParameter } from "./MarketParameter.sol";
 
 /// @dev Order type
@@ -37,7 +38,12 @@ struct Order {
     UFixed6 shortNeg;
 
     /// @dev The protection status semaphore (local only)
+    ///      (0 = no protection, 1+ = protected)
     uint256 protection;
+
+    /// @dev The invalidation status semaphore (local only)
+    ///      (0 = no invalidation possible / intent only, 1+ = partially or fully invalidatable)
+    uint256 invalidation;
 
     /// @dev The referral fee multiplied by the size applicable to the referral
     UFixed6 makerReferral;
@@ -48,7 +54,7 @@ struct Order {
 using OrderLib for Order global;
 struct OrderStorageGlobal { uint256 slot0; uint256 slot1; uint256 slot2; } // SECURITY: must remain at (3) slots
 using OrderStorageGlobalLib for OrderStorageGlobal global;
-struct OrderStorageLocal { uint256 slot0; uint256 slot1; } // SECURITY: must remain at (2) slots
+struct OrderStorageLocal { uint256 slot0; uint256 slot1; uint256 slot2; }
 using OrderStorageLocalLib for OrderStorageLocal global;
 
 /// @title Order
@@ -67,17 +73,22 @@ library OrderLib {
     /// @param self The order object to update
     /// @param timestamp The current timestamp
     function next(Order memory self, uint256 timestamp) internal pure  {
-        invalidate(self);
-        (self.timestamp, self.orders, self.collateral, self.protection) = (timestamp, 0, Fixed6Lib.ZERO, 0);
-    }
-
-    /// @notice Invalidates the order
-    /// @param self The order object to update
-    function invalidate(Order memory self) internal pure {
         (self.makerReferral, self.takerReferral) =
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO);
         (self.makerPos, self.makerNeg, self.longPos, self.longNeg, self.shortPos, self.shortNeg) =
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+        (self.timestamp, self.orders, self.collateral, self.protection, self.invalidation) =
+            (timestamp, 0, Fixed6Lib.ZERO, 0, 0);
+    }
+
+    /// @notice Invalidates the non-guarantee portion of the order
+    /// @param self The order object to update
+    /// @param guarantee The guarantee to keep from invalidating
+    function invalidate(Order memory self, Guarantee memory guarantee) internal pure {
+        (self.makerReferral, self.takerReferral) =
+            (UFixed6Lib.ZERO, guarantee.orderReferral);
+        (self.makerPos, self.makerNeg, self.longPos, self.longNeg, self.shortPos, self.shortNeg) =
+            (UFixed6Lib.ZERO, UFixed6Lib.ZERO, guarantee.longPos, guarantee.longNeg, guarantee.shortPos, guarantee.shortNeg);
     }
 
     /// @notice Creates a new order from an intent or delta order request
@@ -96,28 +107,87 @@ library OrderLib {
         Fixed6 takerAmount,
         Fixed6 collateral,
         bool protect,
+        bool invalidatable,
         UFixed6 referralFee
     ) internal pure returns (Order memory newOrder) {
+        UFixed6 newMaker = UFixed6Lib.from(Fixed6Lib.from(position.maker).add(makerAmount));
+        Fixed6 newTaker = position.skew().add(takerAmount);
+
+        return from(
+            timestamp,
+            position,
+            collateral,
+            newMaker,
+            newTaker.max(Fixed6Lib.ZERO).abs(),
+            newTaker.min(Fixed6Lib.ZERO).abs(),
+            protect,
+            invalidatable,
+            referralFee
+        );
+    }
+
+    // TODO: Do we still need this, or can we consolidate this implementation into the method above?
+    /// @notice Creates a new order from the current position and an update request
+    /// @param timestamp The current timestamp
+    /// @param position The current position
+    /// @param collateral The change in the collateral
+    /// @param newMaker The new maker
+    /// @param newLong The new long
+    /// @param newShort The new short
+    /// @param protect Whether to protect the order
+    /// @param referralFee The referral fee
+    /// @return newOrder The resulting order
+    function from(
+        uint256 timestamp,
+        Position memory position,
+        Fixed6 collateral,
+        UFixed6 newMaker,
+        UFixed6 newLong,
+        UFixed6 newShort,
+        bool protect,
+        bool invalidatable,
+        UFixed6 referralFee
+    ) internal pure returns (Order memory newOrder) {
+        // compute side-based deltas from the current position and new position
+        (Fixed6 makerAmount, Fixed6 longAmount, Fixed6 shortAmount) = (
+            _change(position.maker, newMaker),
+            _change(position.long, newLong),
+            _change(position.short, newShort)
+        );
+
+        // populate the new order
         newOrder.timestamp = timestamp;
         newOrder.collateral = collateral;
-        newOrder.orders = makerAmount.isZero() && takerAmount.isZero() ? 0 : 1;
-        newOrder.protection = protect ? 1 : 0;
+        newOrder.makerPos = _positiveComponent(makerAmount);
+        newOrder.makerNeg = _negativeComponent(makerAmount);
+        newOrder.longPos = _positiveComponent(longAmount);
+        newOrder.longNeg = _negativeComponent(longAmount);
+        newOrder.shortPos = _positiveComponent(shortAmount);
+        newOrder.shortNeg = _negativeComponent(shortAmount);
         newOrder.makerReferral = makerAmount.abs().mul(referralFee);
-        newOrder.takerReferral = takerAmount.abs().mul(referralFee);
+        newOrder.takerReferral = longAmount.abs().add(shortAmount.abs()).mul(referralFee);
 
-        // If the order is not counter to the current position, it is opening
-        if (takerAmount.sign() == 0 || position.skew().sign() == 0 || position.skew().sign() == takerAmount.sign()) {
-            newOrder.longPos = takerAmount.max(Fixed6Lib.ZERO).abs();
-            newOrder.shortPos = takerAmount.min(Fixed6Lib.ZERO).abs();
-
-        // If the order is counter to the current position, it is closing
-        } else {
-            newOrder.shortNeg = takerAmount.max(Fixed6Lib.ZERO).abs();
-            newOrder.longNeg = takerAmount.min(Fixed6Lib.ZERO).abs();
+        // set the order and invalidation counts
+        if (protect) newOrder.protection = 1;
+        if (!isEmpty(newOrder)) {
+            newOrder.orders = 1;
+            if (invalidatable) newOrder.invalidation = 1;
         }
+    }
 
-        newOrder.makerPos = makerAmount.max(Fixed6Lib.ZERO).abs();
-        newOrder.makerNeg = makerAmount.min(Fixed6Lib.ZERO).abs();
+    /// @dev Helper function to compute the signed change between two unsigned values
+    function _change(UFixed6 fromValue, UFixed6 toValue) internal pure returns (Fixed6) {
+        return Fixed6Lib.from(toValue).sub(Fixed6Lib.from(fromValue));
+    }
+
+    /// @dev Helper function to compute the negative component of a signed value
+    function _negativeComponent(Fixed6 value) internal pure returns (UFixed6) {
+        return value.min(Fixed6Lib.ZERO).abs();
+    }
+
+    /// @dev Helper function to compute the positive component of a signed value
+    function _positiveComponent(Fixed6 value) internal pure returns (UFixed6) {
+        return value.max(Fixed6Lib.ZERO).abs();
     }
 
     /// @notice Returns whether the order increases any of the account's positions
@@ -156,6 +226,13 @@ library OrderLib {
         return !self.makerNeg.isZero() || currentMajor.gt(latestMajor);
     }
 
+    /// @notice Returns whether the order crosses zero (has delta on both the long and short sides)
+    /// @param self The Order object to check
+    /// @return Whether the order crosses zero
+    function crossesZero(Order memory self) internal pure returns (bool) {
+        return !self.longPos.add(self.longNeg).isZero() && !self.shortPos.add(self.shortNeg).isZero();
+    }
+
     /// @notice Returns whether the order is applicable for liquidity checks
     /// @param self The Order object to check
     /// @param marketParameter The market parameter
@@ -183,25 +260,7 @@ library OrderLib {
     /// @param self The order object to check
     /// @return Whether the order is empty
     function isEmpty(Order memory self) internal pure returns (bool) {
-        return pos(self).isZero() && neg(self).isZero();
-    }
-
-     /// @notice Returns the direction of the order
-    /// @dev 0 = maker, 1 = long, 2 = short
-    /// @param self The position object to check
-    /// @return The direction of the position
-    function direction(Order memory self) internal pure returns (uint256) {
-        if (!self.longPos.isZero() || !self.longNeg.isZero()) return 1;
-        if (!self.shortPos.isZero() || !self.shortNeg.isZero()) return 2;
-
-        return 0;
-    }
-
-    /// @notice Returns the magnitude of the order
-    /// @param self The order object to check
-    /// @return The magnitude of the order
-    function magnitude(Order memory self) internal pure returns (Fixed6) {
-        return maker(self).add(long(self)).add(short(self));
+        return makerTotal(self).isZero() && takerTotal(self).isZero();
     }
 
     /// @notice Returns the maker delta of the order
@@ -271,10 +330,11 @@ library OrderLib {
     /// @param self The order object to update
     /// @param order The new order
     function add(Order memory self, Order memory order) internal pure {
-        (self.orders, self.collateral, self.protection, self.makerReferral, self.takerReferral) = (
+        (self.orders, self.collateral, self.protection, self.invalidation, self.makerReferral, self.takerReferral) = (
             self.orders + order.orders,
             self.collateral.add(order.collateral),
             self.protection + order.protection,
+            self.invalidation + order.invalidation,
             self.makerReferral.add(order.makerReferral),
             self.takerReferral.add(order.takerReferral)
         );
@@ -293,10 +353,11 @@ library OrderLib {
     /// @param self The order object to update
     /// @param order The latest order
     function sub(Order memory self, Order memory order) internal pure {
-        (self.orders, self.collateral, self.protection, self.makerReferral, self.takerReferral) = (
+        (self.orders, self.collateral, self.protection, self.invalidation, self.makerReferral, self.takerReferral) = (
             self.orders - order.orders,
             self.collateral.sub(order.collateral),
             self.protection - order.protection,
+            self.invalidation - order.invalidation,
             self.makerReferral.sub(order.makerReferral),
             self.takerReferral.sub(order.takerReferral)
         );
@@ -349,20 +410,14 @@ library OrderStorageGlobalLib {
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64 - 64)) >> (256 - 64)),
             0,
+            0,
             UFixed6.wrap(uint256(slot2 << (256 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot2 << (256 - 64 - 64)) >> (256 - 64))
         );
     }
 
-    function store(OrderStorageGlobal storage self, Order memory newValue) internal {
+    function store(OrderStorageGlobal storage self, Order memory newValue) external {
         OrderStorageLib.validate(newValue);
-
-        if (newValue.makerPos.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
-        if (newValue.makerNeg.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
-        if (newValue.longPos.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
-        if (newValue.longNeg.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
-        if (newValue.shortPos.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
-        if (newValue.shortNeg.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
 
         uint256 encoded0 =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
@@ -394,64 +449,70 @@ library OrderStorageGlobalLib {
 ///         uint32 timestamp;
 ///         uint32 orders;
 ///         int64 collateral;
-///         uint2 direction;
-///         uint62 magnitudePos;
-///         uint62 magnitudeNeg;
-///         uint1 protection;
+///         uint64 makerPos;
+///         uint64 makerNeg;
 ///
 ///         /* slot 1 */
+///         uint64 longPos;
+///         uint64 longNeg;
+///         uint64 shortPos;
+///         uint64 shortNeg;
+///
+///         /* slot 2 */
 ///         uint64 takerReferral;
 ///         uint64 makerReferral;
+///         uint1 protection;
+///         uint8 invalidation;
 ///     }
 ///
 library OrderStorageLocalLib {
     function read(OrderStorageLocal storage self) internal view returns (Order memory) {
-        (uint256 slot0, uint256 slot1) = (self.slot0, self.slot1);
-
-        uint256 direction = uint256(slot0 << (256 - 32 - 32 - 64 - 2)) >> (256 - 2);
-        UFixed6 magnitudePos = UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 64 - 2 - 62)) >> (256 - 62));
-        UFixed6 magnitudeNeg = UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 64 - 2 - 62 - 62)) >> (256 - 62));
+        (uint256 slot0, uint256 slot1, uint256 slot2) = (self.slot0, self.slot1, self.slot2);
 
         return Order(
             uint256(slot0 << (256 - 32)) >> (256 - 32),
             uint256(slot0 << (256 - 32 - 32)) >> (256 - 32),
             Fixed6.wrap(int256(slot0 << (256 - 32 - 32 - 64)) >> (256 - 64)),
-            direction == 0 ? magnitudePos : UFixed6Lib.ZERO,
-            direction == 0 ? magnitudeNeg : UFixed6Lib.ZERO,
-            direction == 1 ? magnitudePos : UFixed6Lib.ZERO,
-            direction == 1 ? magnitudeNeg : UFixed6Lib.ZERO,
-            direction == 2 ? magnitudePos : UFixed6Lib.ZERO,
-            direction == 2 ? magnitudeNeg : UFixed6Lib.ZERO,
-            uint256(slot0 << (256 - 32 - 32 - 64 - 2 - 62 - 62 - 1)) >> (256 - 1),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 64 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 64 - 64 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64))
+            UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64 - 64)) >> (256 - 64)),
+            uint256(slot2 << (256 - 64 - 64 - 1)) >> (256 - 1),
+            uint256(slot2 << (256 - 64 - 64 - 1 - 8)) >> (256 - 8),
+            UFixed6.wrap(uint256(slot2 << (256 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot2 << (256 - 64 - 64)) >> (256 - 64))
         );
     }
 
-    function store(OrderStorageLocal storage self, Order memory newValue) internal {
+    function store(OrderStorageLocal storage self, Order memory newValue) external {
         OrderStorageLib.validate(newValue);
 
-        (UFixed6 magnitudePos, UFixed6 magnitudeNeg) = (newValue.pos(), newValue.neg());
-
-        if (magnitudePos.gt(UFixed6.wrap(2 ** 62 - 1))) revert OrderStorageLib.OrderStorageInvalidError();
-        if (magnitudeNeg.gt(UFixed6.wrap(2 ** 62 - 1))) revert OrderStorageLib.OrderStorageInvalidError();
         if (newValue.protection > 1) revert OrderStorageLib.OrderStorageInvalidError();
+        if (newValue.invalidation > type(uint8).max) revert OrderStorageLib.OrderStorageInvalidError();
 
         uint256 encoded0 =
             uint256(newValue.timestamp << (256 - 32)) >> (256 - 32) |
             uint256(newValue.orders << (256 - 32)) >> (256 - 32 - 32) |
             uint256(Fixed6.unwrap(newValue.collateral) << (256 - 64)) >> (256 - 32 - 32 - 64) |
-            uint256(newValue.direction() << (256 - 2)) >> (256 - 32 - 32 - 64 - 2) |
-            uint256(UFixed6.unwrap(magnitudePos) << (256 - 62)) >> (256 - 32 - 32 - 64 - 2 - 62) |
-            uint256(UFixed6.unwrap(magnitudeNeg) << (256 - 62)) >> (256 - 32 - 32 - 64 - 2 - 62 - 62) |
-            uint256(newValue.protection << (256 - 1)) >> (256 - 32 - 32 - 64 - 2 - 62 - 62 - 1);
+            uint256(UFixed6.unwrap(newValue.makerPos) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64) |
+            uint256(UFixed6.unwrap(newValue.makerNeg) << (256 - 64)) >> (256 - 32 - 32 - 64 - 64 - 64);
         uint256 encoded1 =
+            uint256(UFixed6.unwrap(newValue.longPos) << (256 - 64)) >> (256 - 64) |
+            uint256(UFixed6.unwrap(newValue.longNeg) << (256 - 64)) >> (256 - 64 - 64) |
+            uint256(UFixed6.unwrap(newValue.shortPos) << (256 - 64)) >> (256 - 64 - 64 - 64) |
+            uint256(UFixed6.unwrap(newValue.shortNeg) << (256 - 64)) >> (256 - 64 - 64 - 64 - 64);
+        uint256 encoded2 =
             uint256(UFixed6.unwrap(newValue.makerReferral) << (256 - 64)) >> (256 - 64) |
-            uint256(UFixed6.unwrap(newValue.takerReferral) << (256 - 64)) >> (256 - 64 - 64);
+            uint256(UFixed6.unwrap(newValue.takerReferral) << (256 - 64)) >> (256 - 64 - 64) |
+            uint256(newValue.protection << (256 - 1)) >> (256 - 64 - 64 - 1) |
+            uint256(newValue.invalidation << (256 - 8)) >> (256 - 64 - 64 - 1 - 8);
 
         assembly {
             sstore(self.slot, encoded0)
             sstore(add(self.slot, 1), encoded1)
+            sstore(add(self.slot, 2), encoded2)
         }
     }
 }
@@ -467,5 +528,11 @@ library OrderStorageLib {
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert OrderStorageInvalidError();
         if (newValue.makerReferral.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageInvalidError();
         if (newValue.takerReferral.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageInvalidError();
+        if (newValue.makerPos.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (newValue.makerNeg.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (newValue.longPos.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (newValue.longNeg.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (newValue.shortPos.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (newValue.shortNeg.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
     }
 }

@@ -2,12 +2,11 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import {
   ActionStruct,
   CommonStruct,
-  //CancelOrderActionStruct,
-  //PlaceOrderActionStruct,
+  CancelOrderActionStruct,
+  PlaceOrderActionStruct,
 } from '../../../types/generated/contracts/CollateralAccounts/AccountVerifier'
 import { FakeContract } from '@defi-wonderland/smock'
 import { IOrderVerifier } from '../../../types/generated'
-import { CancelOrderActionStruct } from '../../../types/generated/contracts/TriggerOrders/Manager'
 
 function eip712Domain(verifier: IOrderVerifier | FakeContract<IOrderVerifier>): {
   name: string

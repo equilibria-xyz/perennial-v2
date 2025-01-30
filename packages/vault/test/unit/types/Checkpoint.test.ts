@@ -338,15 +338,70 @@ describe('Checkpoint', () => {
   })
 
   describe('#complete', () => {
-    it('completes the checkpoint', async () => {
-      await checkpoint.store(VALID_CHECKPOINT)
+    it('completes the checkpoint (above hwm)', async () => {
+      await checkpoint.store({
+        ...VALID_CHECKPOINT,
+        assets: parse6decimal('100'),
+        shares: parse6decimal('100'),
+      })
 
-      const marketCheckpoint = { collateral: 123, tradeFee: 456, settlementFee: 78, transfer: 0 }
-      await checkpoint.complete(marketCheckpoint)
+      const marketCheckpoint = {
+        collateral: parse6decimal('900'),
+        tradeFee: 456,
+        settlementFee: 78,
+        transfer: 0,
+      }
+      const mark = ethers.utils.parseEther('5') // 5 -> 10
+      const vaultParameter = {
+        maxDeposit: 123,
+        minDeposit: 456,
+        profitShare: parse6decimal('0.2'),
+        leverageBuffer: parse6decimal('1.2'),
+      }
+
+      const [newMark, profitShares] = await checkpoint.callStatic.complete(mark, vaultParameter, marketCheckpoint)
+      await checkpoint.complete(mark, vaultParameter, marketCheckpoint)
 
       const value = await checkpoint.read()
 
-      expect(value.assets).to.equal(127)
+      expect(newMark).to.equal(ethers.utils.parseEther('10'))
+      expect(profitShares).to.equal(parse6decimal('11.111111')) // 100 out of 1000 profit assets
+      expect(value.assets).to.equal(parse6decimal('1000')) // 100 + 900
+      expect(value.shares).to.equal(parse6decimal('111.111111'))
+      expect(value.tradeFee).to.equal(456)
+      expect(value.settlementFee).to.equal(78)
+    })
+
+    it('completes the checkpoint (below hwm)', async () => {
+      await checkpoint.store({
+        ...VALID_CHECKPOINT,
+        assets: parse6decimal('100'),
+        shares: parse6decimal('100'),
+      })
+
+      const marketCheckpoint = {
+        collateral: parse6decimal('900'),
+        tradeFee: 456,
+        settlementFee: 78,
+        transfer: 0,
+      }
+      const mark = ethers.utils.parseEther('15')
+      const vaultParameter = {
+        maxDeposit: 123,
+        minDeposit: 456,
+        profitShare: parse6decimal('0.2'),
+        leverageBuffer: parse6decimal('1.2'),
+      }
+
+      const [newMark, profitShares] = await checkpoint.callStatic.complete(mark, vaultParameter, marketCheckpoint)
+      await checkpoint.complete(mark, vaultParameter, marketCheckpoint)
+
+      const value = await checkpoint.read()
+
+      expect(newMark).to.equal(ethers.utils.parseEther('15'))
+      expect(profitShares).to.equal(0)
+      expect(value.assets).to.equal(parse6decimal('1000'))
+      expect(value.shares).to.equal(parse6decimal('100'))
       expect(value.tradeFee).to.equal(456)
       expect(value.settlementFee).to.equal(78)
     })

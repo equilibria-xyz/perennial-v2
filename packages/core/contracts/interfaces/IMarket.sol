@@ -17,6 +17,8 @@ import { Checkpoint } from "../types/Checkpoint.sol";
 import { Order } from "../types/Order.sol";
 import { Guarantee } from "../types/Guarantee.sol";
 import { Intent } from "../types/Intent.sol";
+import { Fill } from "../types/Fill.sol";
+import { Take } from "../types/Take.sol";
 import { VersionAccumulationResult } from "../libs/VersionLib.sol";
 import { CheckpointAccumulationResult } from "../libs/CheckpointLib.sol";
 
@@ -160,6 +162,9 @@ interface IMarket is IInstance {
     function guaranteeReferrers(address account, uint256 id) external view returns (address);
     function settle(address account) external;
     function update(address account, Intent calldata intent, bytes memory signature) external;
+    function update(Fill calldata fill, bytes memory traderSignature, bytes memory solverSignature) external;
+    function update(Take calldata update, bytes memory signature) external;
+    function update(address account, Fixed6 takerAmount, address referrer) external;
     function update(address account, Fixed6 takerAmount, Fixed6 collateral, address referrer) external;
     function update(address account, Fixed6 makerAmount, Fixed6 takerAmount, Fixed6 collateral, address referrer) external;
     function close(address account, bool protect, address referrer) external;

@@ -14,7 +14,8 @@ import {
   IMarketFactory,
   AggregatorV3Interface,
   IVaultFactory,
-  IVault,
+  IMakerVault,
+  ISolverVault,
   IOracleProvider,
   IMultiInvoker,
 } from '../../../types/generated'
@@ -43,13 +44,15 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
     let usdc: FakeContract<IERC20>
     let dsu: FakeContract<IERC20>
     let market: FakeContract<IMarket>
-    let vault: FakeContract<IVault>
+    let makerVault: FakeContract<IMakerVault>
+    let solverVault: FakeContract<ISolverVault>
     let marketOracle: FakeContract<IOracleProvider>
     let invokerOracle: FakeContract<AggregatorV3Interface>
     let batcher: FakeContract<IBatcher>
     let reserve: FakeContract<IEmptySetReserve>
     let marketFactory: FakeContract<IMarketFactory>
-    let vaultFactory: FakeContract<IVaultFactory>
+    let makerVaultFactory: FakeContract<IVaultFactory>
+    let solverVaultFactory: FakeContract<IVaultFactory>
     let multiInvoker: MultiInvoker
 
     const multiInvokerFixture = async () => {
@@ -62,19 +65,22 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
       usdc = await smock.fake<IERC20>('IERC20')
       dsu = await smock.fake<IERC20>('IERC20')
       market = await smock.fake<IMarket>('IMarket')
-      vault = await smock.fake<IVault>('IVault')
+      makerVault = await smock.fake<IMakerVault>('IMakerVault')
+      solverVault = await smock.fake<ISolverVault>('ISolverVault')
       marketOracle = await smock.fake<IOracleProvider>('IOracleProvider')
       invokerOracle = await smock.fake<AggregatorV3Interface>('AggregatorV3Interface')
       batcher = await smock.fake<IBatcher>('IBatcher')
       reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
       marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
-      vaultFactory = await smock.fake<IVaultFactory>('IVaultFactory')
+      makerVaultFactory = await smock.fake<IVaultFactory>('IVaultFactory')
+      solverVaultFactory = await smock.fake<IVaultFactory>('IVaultFactory')
 
       multiInvoker = await new MultiInvoker__factory(owner).deploy(
         usdc.address,
         dsu.address,
         marketFactory.address,
-        vaultFactory.address,
+        makerVaultFactory.address,
+        solverVaultFactory.address,
         '0x0000000000000000000000000000000000000000',
         reserve.address,
       )
@@ -101,9 +107,10 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
 
       usdc.transferFrom.whenCalledWith(user.address).returns(true)
       marketFactory.instances.whenCalledWith(market.address).returns(true)
-      vaultFactory.instances.whenCalledWith(vault.address).returns(true)
+      makerVaultFactory.instances.whenCalledWith(makerVault.address).returns(true)
+      solverVaultFactory.instances.whenCalledWith(solverVault.address).returns(true)
 
-      dsu.approve.whenCalledWith(market.address || vault.address).returns(true)
+      dsu.approve.whenCalledWith(market.address || makerVault.address || solverVault.address).returns(true)
 
       await setup()
 
@@ -140,16 +147,19 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
         describe('#invoke', () => {
           const collateral = parse6decimal('10000')
           const dsuCollateral = collateral.mul(1e12)
-          let vaultUpdate: VaultUpdate
+          let makerVaultUpdate: VaultUpdate
+          let solverVaultUpdate: VaultUpdate
 
           const fixture = async () => {
-            vaultUpdate = { vault: vault.address }
+            makerVaultUpdate = { vault: makerVault.address }
+            solverVaultUpdate = { vault: solverVault.address }
             dsu.transferFrom.whenCalledWith(user.address, multiInvoker.address, collateral.mul(1e12)).returns(true)
             dsu.transfer.whenCalledWith(user.address, dsuCollateral).returns(true)
             usdc.transferFrom.whenCalledWith(user.address, multiInvoker.address, collateral).returns(true)
             usdc.transfer.whenCalledWith(user.address, collateral).returns(true)
 
-            vault.update.returns(true)
+            makerVault.update.returns(true)
+            solverVault.update.returns(true)
             market['update(address,int256,int256,int256,address)'].returns(true)
           }
 
@@ -233,86 +243,182 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             expect(reserve.redeem).to.have.been.calledWith(dsuCollateral)
           })
 
-          it('deposits assets to vault', async () => {
-            vaultUpdate.depositAssets = collateral
-            const v = buildUpdateVault(vaultUpdate)
+          context('maker vault', () => {
+            it('deposits assets to vault', async () => {
+              makerVaultUpdate.depositAssets = collateral
+              const v = buildUpdateVault(makerVaultUpdate)
 
-            await expect(invoke(v)).to.not.be.reverted
+              await expect(invoke(v)).to.not.be.reverted
 
-            expect(vault.update).to.have.been.calledWith(user.address, vaultUpdate.depositAssets, '0', '0')
-            expect(dsu.transferFrom).to.have.been.calledWith(user.address, multiInvoker.address, dsuCollateral)
+              expect(makerVault.update).to.have.been.calledWith(user.address, makerVaultUpdate.depositAssets, '0', '0')
+              expect(dsu.transferFrom).to.have.been.calledWith(user.address, multiInvoker.address, dsuCollateral)
+            })
+
+            it('wraps and deposits assets to vault', async () => {
+              makerVaultUpdate.depositAssets = collateral
+              makerVaultUpdate.wrap = true
+              const v = buildUpdateVault(makerVaultUpdate)
+
+              await expect(invoke(v)).to.not.be.reverted
+
+              expect(reserve.mint).to.have.been.calledWith(dsuCollateral)
+              expect(makerVault.update).to.have.been.calledWith(user.address, makerVaultUpdate.depositAssets, '0', '0')
+              expect(usdc.transferFrom).to.have.been.calledWith(
+                user.address,
+                multiInvoker.address,
+                makerVaultUpdate.depositAssets,
+              )
+            })
+
+            it('redeems from vault', async () => {
+              makerVaultUpdate.redeemShares = collateral
+              const v = buildUpdateVault(makerVaultUpdate)
+
+              await expect(invoke(v)).to.not.be.reverted
+
+              expect(makerVault.update).to.have.been.calledWith(user.address, '0', makerVaultUpdate.redeemShares, '0')
+              expect(dsu.transferFrom).to.not.have.been.called
+              expect(usdc.transferFrom).to.not.have.been.called
+            })
+
+            it('claims assets from vault', async () => {
+              makerVaultUpdate.claimAssets = collateral
+              const v = buildUpdateVault(makerVaultUpdate)
+
+              await expect(invoke(v)).to.not.be.reverted
+
+              expect(makerVault.update).to.have.been.calledWith(user.address, '0', '0', makerVaultUpdate.claimAssets)
+            })
+
+            it('claims and unwraps assets from vault', async () => {
+              makerVaultUpdate.claimAssets = collateral
+              makerVaultUpdate.wrap = true
+              const v = buildUpdateVault(makerVaultUpdate)
+
+              dsu.balanceOf.returnsAtCall(0, 0)
+              dsu.balanceOf.returnsAtCall(1, dsuCollateral)
+
+              usdc.balanceOf.returnsAtCall(0, 0)
+              usdc.balanceOf.returnsAtCall(1, collateral)
+
+              await expect(invoke(v)).to.not.be.reverted
+
+              expect(reserve.redeem).to.have.been.calledWith(dsuCollateral)
+              expect(makerVault.update).to.have.been.calledWith(user.address, '0', '0', makerVaultUpdate.claimAssets)
+            })
+
+            it('approves market and vault', async () => {
+              // approve address not deployed from either factory fails
+              let i: Actions = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [user.address]) }]
+
+              await expect(
+                multiInvoker.connect(owner)['invoke((uint8,bytes)[])'](i),
+              ).to.have.been.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
+
+              // approve market succeeds
+              i = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [market.address]) }]
+              await expect(invoke(i)).to.not.be.reverted
+              expect(dsu.approve).to.have.been.calledWith(market.address, constants.MaxUint256)
+
+              // approve vault succeeds
+              i = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [makerVault.address]) }]
+              await expect(invoke(i)).to.not.be.reverted
+              expect(dsu.approve).to.have.been.calledWith(makerVault.address, constants.MaxUint256)
+            })
           })
 
-          it('wraps and deposits assets to vault', async () => {
-            vaultUpdate.depositAssets = collateral
-            vaultUpdate.wrap = true
-            const v = buildUpdateVault(vaultUpdate)
+          context('solver vault', () => {
+            it('deposits assets to vault', async () => {
+              solverVaultUpdate.depositAssets = collateral
+              const v = buildUpdateVault(solverVaultUpdate)
 
-            await expect(invoke(v)).to.not.be.reverted
+              await expect(invoke(v)).to.not.be.reverted
 
-            expect(reserve.mint).to.have.been.calledWith(dsuCollateral)
-            expect(vault.update).to.have.been.calledWith(user.address, vaultUpdate.depositAssets, '0', '0')
-            expect(usdc.transferFrom).to.have.been.calledWith(
-              user.address,
-              multiInvoker.address,
-              vaultUpdate.depositAssets,
-            )
-          })
+              expect(solverVault.update).to.have.been.calledWith(
+                user.address,
+                solverVaultUpdate.depositAssets,
+                '0',
+                '0',
+              )
+              expect(dsu.transferFrom).to.have.been.calledWith(user.address, multiInvoker.address, dsuCollateral)
+            })
 
-          it('redeems from vault', async () => {
-            vaultUpdate.redeemShares = collateral
-            const v = buildUpdateVault(vaultUpdate)
+            it('wraps and deposits assets to vault', async () => {
+              solverVaultUpdate.depositAssets = collateral
+              solverVaultUpdate.wrap = true
+              const v = buildUpdateVault(solverVaultUpdate)
 
-            await expect(invoke(v)).to.not.be.reverted
+              await expect(invoke(v)).to.not.be.reverted
 
-            expect(vault.update).to.have.been.calledWith(user.address, '0', vaultUpdate.redeemShares, '0')
-            expect(dsu.transferFrom).to.not.have.been.called
-            expect(usdc.transferFrom).to.not.have.been.called
-          })
+              expect(reserve.mint).to.have.been.calledWith(dsuCollateral)
+              expect(solverVault.update).to.have.been.calledWith(
+                user.address,
+                solverVaultUpdate.depositAssets,
+                '0',
+                '0',
+              )
+              expect(usdc.transferFrom).to.have.been.calledWith(
+                user.address,
+                multiInvoker.address,
+                solverVaultUpdate.depositAssets,
+              )
+            })
 
-          it('claims assets from vault', async () => {
-            vaultUpdate.claimAssets = collateral
-            const v = buildUpdateVault(vaultUpdate)
+            it('redeems from vault', async () => {
+              solverVaultUpdate.redeemShares = collateral
+              const v = buildUpdateVault(solverVaultUpdate)
 
-            await expect(invoke(v)).to.not.be.reverted
+              await expect(invoke(v)).to.not.be.reverted
 
-            expect(vault.update).to.have.been.calledWith(user.address, '0', '0', vaultUpdate.claimAssets)
-          })
+              expect(solverVault.update).to.have.been.calledWith(user.address, '0', solverVaultUpdate.redeemShares, '0')
+              expect(dsu.transferFrom).to.not.have.been.called
+              expect(usdc.transferFrom).to.not.have.been.called
+            })
 
-          it('claims and unwraps assets from vault', async () => {
-            vaultUpdate.claimAssets = collateral
-            vaultUpdate.wrap = true
-            const v = buildUpdateVault(vaultUpdate)
+            it('claims assets from vault', async () => {
+              solverVaultUpdate.claimAssets = collateral
+              const v = buildUpdateVault(solverVaultUpdate)
 
-            dsu.balanceOf.returnsAtCall(0, 0)
-            dsu.balanceOf.returnsAtCall(1, dsuCollateral)
+              await expect(invoke(v)).to.not.be.reverted
 
-            usdc.balanceOf.returnsAtCall(0, 0)
-            usdc.balanceOf.returnsAtCall(1, collateral)
+              expect(solverVault.update).to.have.been.calledWith(user.address, '0', '0', solverVaultUpdate.claimAssets)
+            })
 
-            await expect(invoke(v)).to.not.be.reverted
+            it('claims and unwraps assets from vault', async () => {
+              solverVaultUpdate.claimAssets = collateral
+              solverVaultUpdate.wrap = true
+              const v = buildUpdateVault(solverVaultUpdate)
 
-            expect(reserve.redeem).to.have.been.calledWith(dsuCollateral)
-            expect(vault.update).to.have.been.calledWith(user.address, '0', '0', vaultUpdate.claimAssets)
-          })
+              dsu.balanceOf.returnsAtCall(0, 0)
+              dsu.balanceOf.returnsAtCall(1, dsuCollateral)
 
-          it('approves market and vault', async () => {
-            // approve address not deployed from either factory fails
-            let i: Actions = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [user.address]) }]
+              usdc.balanceOf.returnsAtCall(0, 0)
+              usdc.balanceOf.returnsAtCall(1, collateral)
 
-            await expect(
-              multiInvoker.connect(owner)['invoke((uint8,bytes)[])'](i),
-            ).to.have.been.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
+              await expect(invoke(v)).to.not.be.reverted
 
-            // approve market succeeds
-            i = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [market.address]) }]
-            await expect(invoke(i)).to.not.be.reverted
-            expect(dsu.approve).to.have.been.calledWith(market.address, constants.MaxUint256)
+              expect(reserve.redeem).to.have.been.calledWith(dsuCollateral)
+              expect(solverVault.update).to.have.been.calledWith(user.address, '0', '0', solverVaultUpdate.claimAssets)
+            })
 
-            // approve vault succeeds
-            i = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [vault.address]) }]
-            await expect(invoke(i)).to.not.be.reverted
-            expect(dsu.approve).to.have.been.calledWith(vault.address, constants.MaxUint256)
+            it('approves market and vault', async () => {
+              // approve address not deployed from either factory fails
+              let i: Actions = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [user.address]) }]
+
+              await expect(
+                multiInvoker.connect(owner)['invoke((uint8,bytes)[])'](i),
+              ).to.have.been.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
+
+              // approve market succeeds
+              i = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [market.address]) }]
+              await expect(invoke(i)).to.not.be.reverted
+              expect(dsu.approve).to.have.been.calledWith(market.address, constants.MaxUint256)
+
+              // approve vault succeeds
+              i = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [solverVault.address]) }]
+              await expect(invoke(i)).to.not.be.reverted
+              expect(dsu.approve).to.have.been.calledWith(solverVault.address, constants.MaxUint256)
+            })
           })
 
           it('charges an interface fee on deposit and pushes DSU from collateral to the receiver', async () => {
