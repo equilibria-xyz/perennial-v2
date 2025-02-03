@@ -223,11 +223,11 @@ abstract contract Manager is IManager, Kept {
         return true;
     }
 
-    /// @dev Transfers DSU from collateral account to manager to pay fees
-    /// @param account Address of the owner of the collateral account (not the account itself)
-    /// @param amount Quantity of DSU to transfer, converted to 18-decimal by callee
-    function _collateralAccountWithdraw(address account, UFixed6 amount) private {
-        controller.chargeFee(account, amount);
+    /// @notice Transfers DSU from margin contract to manager contract to pay keeper or interface fee
+    function _marketWithdraw(IMarket market, address account, UFixed6 amount) private {
+        // TODO: Update this to handle cross-margin use case
+        market.update(account, Fixed6Lib.ZERO, Fixed6Lib.from(-1, amount), address(0));
+        market.margin().withdraw(account, amount);
     }
 
     function _placeOrder(IMarket market, address account, uint256 orderId, TriggerOrder calldata order) private {

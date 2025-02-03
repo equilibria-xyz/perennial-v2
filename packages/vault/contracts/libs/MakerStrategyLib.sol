@@ -182,6 +182,7 @@ library MakerStrategyLib {
         marketContext.marketParameter = registration.market.parameter();
         marketContext.riskParameter = registration.market.riskParameter();
         marketContext.local = registration.market.locals(address(this));
+        marketContext.local.collateral = registration.market.margin().isolatedBalances(address(this), registration.market);
         OracleVersion memory latestVersion = registration.market.oracle().latest();
 
         marketContext.latestAccountPosition = registration.market.positions(address(this));

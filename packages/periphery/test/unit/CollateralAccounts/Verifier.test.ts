@@ -304,7 +304,7 @@ describe('Verifier', () => {
           domain: userA.address,
           nonce: nextNonce(),
           group: 0,
-          expiry: currentTime.add(60),
+          expiry: currentTime.add(30),
         },
       }
     }
@@ -312,6 +312,7 @@ describe('Verifier', () => {
     beforeEach(async () => {
       downstreamVerifier = await new Verifier__factory(owner).deploy()
       await downstreamVerifier.initialize(marketFactory.address)
+      currentTime = BigNumber.from(await currentBlockTimestamp())
     })
 
     it('verifies relayedTake messages', async () => {

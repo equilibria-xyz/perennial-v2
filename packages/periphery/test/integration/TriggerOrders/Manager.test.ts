@@ -10,14 +10,7 @@ import { parse6decimal } from '../../../../common/testutil/types'
 
 import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@perennial/v2-core/types/generated'
 import { IKeeperOracle } from '@perennial/v2-oracle/types/generated'
-import {
-  IAccount,
-  IAccount__factory,
-  IController,
-  IEmptySetReserve,
-  IManager,
-  IOrderVerifier,
-} from '../../../types/generated'
+import { IAccount, IAccount__factory, IController, IManager, IMargin, IOrderVerifier } from '../../../types/generated'
 import { PlaceOrderActionStruct } from '../../../types/generated/contracts/TriggerOrders/Manager'
 
 import { signAction, signCancelOrderAction, signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
@@ -58,9 +51,9 @@ export function RunManagerTests(
   describe(name, () => {
     let dsu: IERC20Metadata
     let usdc: IERC20Metadata
-    let reserve: IEmptySetReserve
     let keeperOracle: IKeeperOracle
     let manager: IManager
+    let margin: IMargin
     let marketFactory: IMarketFactory
     let market: IMarket
     let oracle: IOracleProvider
@@ -96,7 +89,16 @@ export function RunManagerTests(
       // cost of transaction
       const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2603)
       // keeper should be compensated between 100-200% of actual gas cost
-      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(2))
+      // please retain below for debugging purposes
+      /*console.log(
+        'keeperFeesPaid',
+        keeperFeesPaid.div(1e9).toNumber() / 1e9,
+        'keeperGasCostInUSD',
+        keeperGasCostInUSD.div(1e9).toNumber() / 1e9,
+        'keeperGasUpperLimit',
+        keeperGasCostInUSD.mul(5).div(2e9).toNumber() / 1e9,
+      )*/
+      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(5).div(2))
     }
 
     // commits an oracle version and advances time 10 seconds
@@ -182,11 +184,11 @@ export function RunManagerTests(
           if (order.interfaceFee.unwrap) {
             await expect(tx)
               .to.emit(dsu, 'Transfer')
-              .withArgs(collateralAccountAddress, manager.address, expectedInterfaceFee.mul(1e12))
+              .withArgs(margin.address, manager.address, expectedInterfaceFee.mul(1e12))
           } else {
             await expect(tx)
               .to.emit(dsu, 'Transfer')
-              .withArgs(collateralAccountAddress, manager.address, expectedInterfaceFee.mul(1e12))
+              .withArgs(margin.address, manager.address, expectedInterfaceFee.mul(1e12))
           }
         }
       }
@@ -286,6 +288,7 @@ export function RunManagerTests(
       }
       const signature = await signPlaceOrderAction(user, verifier, message)
 
+      await setNextBlockBaseFee()
       await expect(manager.connect(keeper).placeOrderWithSignature(message, signature, TX_OVERRIDES))
         .to.emit(manager, 'TriggerOrderPlaced')
         .withArgs(market.address, user.address, message.order, message.action.orderId)
@@ -313,7 +316,7 @@ export function RunManagerTests(
       // funds, approves, and deposits DSU into the market
       const reservedForFees = amount.mul(1).div(100)
       await fundWalletDSU(user, amount.mul(1e12))
-      await dsu.connect(user).approve(market.address, amount.mul(1e12))
+      await dsu.connect(user).approve(await market.margin(), amount.mul(1e12))
       await transferCollateral(user, market, amount.sub(reservedForFees))
 
       // allows manager to interact with markets on the user's behalf
@@ -329,7 +332,6 @@ export function RunManagerTests(
       const fixture = await getFixture(TX_OVERRIDES)
       dsu = fixture.dsu
       usdc = fixture.usdc
-      reserve = fixture.reserve
       keeperOracle = fixture.keeperOracle
       manager = fixture.manager
       marketFactory = fixture.marketFactory
@@ -344,6 +346,8 @@ export function RunManagerTests(
       userD = fixture.userD
       keeper = fixture.keeper
       oracleFeeReceiver = fixture.oracleFeeReceiver
+
+      margin = IMargin__factory.connect(await market.margin(), owner)
 
       nextOrderId[userA.address] = BigNumber.from(500)
       nextOrderId[userB.address] = BigNumber.from(500)

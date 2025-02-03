@@ -16,6 +16,7 @@ import {
   IAccount__factory,
   IController,
   IEmptySetReserve,
+  IMargin,
   IOrderVerifier,
   Manager_Arbitrum,
   Manager_Arbitrum__factory,
@@ -109,6 +110,11 @@ describe('Manager', () => {
     dsu.approve.whenCalledWith(manager.address).returns(true)
     dsu.transferFrom.returns(true)
     dsu.transfer.returns(true)
+
+    // fake the Margin contract, such that _marketWithdraw doesn't revert
+    const margin = await smock.fake<IMargin>('IMargin')
+    margin.withdraw.returns(true)
+    market.margin.returns(margin.address)
 
     // fake an oracle, for testing market comparison
     marketOracle = await smock.fake<IOracleProvider>('IOracleProvider')

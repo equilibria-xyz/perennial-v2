@@ -1,7 +1,14 @@
 import { CallOverrides } from 'ethers'
 import HRE from 'hardhat'
 
-import { AccountVerifier__factory, ArbGasInfo, IAccountVerifier } from '../../../types/generated'
+import {
+  AccountVerifier__factory,
+  IAccountVerifier,
+  IMargin,
+  IMargin__factory,
+  IMarket,
+  IMarket__factory,
+} from '../../../types/generated'
 import {
   createFactoriesForChain,
   deployControllerArbitrum,
@@ -30,18 +37,21 @@ async function deployProtocol(
 ): Promise<DeploymentVars> {
   const [oracleFactory, marketFactory, pythOracleFactory, chainlinkKeptFeed] = await createFactoriesForChain(owner)
   const [dsu, usdc] = await getStablecoins(owner)
+  const marketImpl: IMarket = IMarket__factory.connect(await marketFactory.implementation(), owner)
+  const margin: IMargin = IMargin__factory.connect(await marketImpl.margin(), owner)
 
   const deployment: DeploymentVars = {
     dsu,
     usdc,
     oracleFactory,
     pythOracleFactory,
+    margin,
     marketFactory,
     ethMarket: createMarketETH
-      ? await setupMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu, overrides)
+      ? await setupMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, overrides)
       : undefined,
     btcMarket: createMarketBTC
-      ? await setupMarketBTC(owner, oracleFactory, pythOracleFactory, marketFactory, dsu, overrides)
+      ? await setupMarketBTC(owner, oracleFactory, pythOracleFactory, marketFactory, overrides)
       : undefined,
     chainlinkKeptFeed,
     dsuReserve: getDSUReserve(owner),
@@ -67,14 +77,14 @@ async function deployController(
     bufferCalldata: 0,
   }
   const keepConfigBuffered = {
-    multiplierBase: ethers.utils.parseEther('1.08'),
-    bufferBase: 2_000_000, // for price commitment
+    multiplierBase: ethers.utils.parseEther('1.07'),
+    bufferBase: 1_500_000, // for price commitment
     multiplierCalldata: ethers.utils.parseEther('1.08'),
     bufferCalldata: 35_200,
   }
   const keepConfigWithdrawal = {
     multiplierBase: ethers.utils.parseEther('1.05'),
-    bufferBase: 2_000_000,
+    bufferBase: 1_500_000,
     multiplierCalldata: ethers.utils.parseEther('1.05'),
     bufferCalldata: 35_200,
   }

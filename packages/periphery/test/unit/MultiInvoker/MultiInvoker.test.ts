@@ -18,6 +18,7 @@ import {
   ISolverVault,
   IOracleProvider,
   IMultiInvoker,
+  IMargin,
 } from '../../../types/generated'
 import { loadFixture, setBalance } from '@nomicfoundation/hardhat-network-helpers'
 import {
@@ -43,6 +44,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
     let user2: SignerWithAddress
     let usdc: FakeContract<IERC20>
     let dsu: FakeContract<IERC20>
+    let margin: FakeContract<IMargin>
     let market: FakeContract<IMarket>
     let makerVault: FakeContract<IMakerVault>
     let solverVault: FakeContract<ISolverVault>
@@ -64,6 +66,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
 
       usdc = await smock.fake<IERC20>('IERC20')
       dsu = await smock.fake<IERC20>('IERC20')
+      margin = await smock.fake<IMargin>('IMargin')
       market = await smock.fake<IMarket>('IMarket')
       makerVault = await smock.fake<IMakerVault>('IMakerVault')
       solverVault = await smock.fake<ISolverVault>('ISolverVault')
@@ -101,6 +104,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
       }
 
       invokerOracle.latestRoundData.returns(aggRoundData)
+      market.margin.returns(margin.address)
       market.oracle.returns(marketOracle.address)
       marketOracle.current.returns(0)
       marketOracle.latest.returns(oracleVersion)
@@ -167,7 +171,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             await loadFixture(fixture)
           })
 
-          it('deposits collateral', async () => {
+          it('isolates collateral', async () => {
             await expect(invoke(buildUpdateMarket({ market: market.address, collateral: collateral }))).to.not.be
               .reverted
 
@@ -181,7 +185,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             )
           })
 
-          it('wraps and deposits collateral', async () => {
+          it('wraps and isolates collateral', async () => {
             dsu.balanceOf.whenCalledWith(batcher.address).returns(constants.MaxUint256)
 
             await expect(
@@ -227,7 +231,6 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             // simulate market update withdrawing collateral
             dsu.transfer.whenCalledWith(user.address, dsuCollateral).returns(true)
             dsu.transferFrom.whenCalledWith(multiInvoker.address, batcher.address).returns(true)
-            usdc.balanceOf.whenCalledWith(batcher.address).returns(collateral)
 
             dsu.balanceOf.reset()
             dsu.balanceOf.returnsAtCall(0, 0)
@@ -235,11 +238,13 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
 
             usdc.balanceOf.returnsAtCall(0, 0)
             usdc.balanceOf.returnsAtCall(1, collateral)
+            usdc.transfer.returns(true)
 
             await expect(
               invoke(buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1), handleWrap: true })),
             ).to.not.be.reverted
 
+            expect(margin.withdraw).to.have.been.calledWith(user.address, collateral)
             expect(reserve.redeem).to.have.been.calledWith(dsuCollateral)
           })
 
@@ -318,7 +323,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
               // approve market succeeds
               i = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [market.address]) }]
               await expect(invoke(i)).to.not.be.reverted
-              expect(dsu.approve).to.have.been.calledWith(market.address, constants.MaxUint256)
+              expect(dsu.approve).to.have.been.calledWith(margin.address, constants.MaxUint256)
 
               // approve vault succeeds
               i = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [makerVault.address]) }]
@@ -740,6 +745,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             const fee = parse6decimal('0.123')
             usdc.transfer.returns(true)
             market.claimFee.returns(fee)
+            margin.claim.returns(fee)
 
             usdc.balanceOf.returnsAtCall(0, 0)
             usdc.balanceOf.returnsAtCall(1, fee)
@@ -755,6 +761,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             const unwrappedFee = parse6decimal('0.121')
             usdc.transfer.returns(true)
             market.claimFee.returns(fee)
+            margin.claim.returns(fee)
 
             usdc.balanceOf.returnsAtCall(0, 0)
             usdc.balanceOf.returnsAtCall(1, unwrappedFee)
@@ -769,6 +776,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
             const fee = parse6decimal('0.0654')
             dsu.transfer.returns(true)
             market.claimFee.returns(fee)
+            margin.claim.returns(fee)
 
             await expect(invoke(buildClaimFee({ market: market.address, unwrap: false }))).to.not.be.reverted
             expect(market.claimFee).to.have.been.calledWith(user.address)

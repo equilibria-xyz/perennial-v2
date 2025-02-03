@@ -13,10 +13,7 @@ export const DSU_RESERVE = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 export const USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' // Arbitrum native USDC (not USDC.e), a 6-decimal token
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199' // Maker PSM has 520mm USDC at height 17433155
 
-export async function fundWalletDSU(
-  wallet: SignerWithAddress,
-  amount: BigNumber, // old impl defaulted to utils.parseEther('2000000')
-): Promise<void> {
+export async function fundWalletDSU(wallet: SignerWithAddress, amount: BigNumber): Promise<void> {
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
   const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, usdcHolder)
   const dsuIface = new utils.Interface(['function mint(uint256)'])
@@ -30,10 +27,7 @@ export async function fundWalletDSU(
   await dsu.transfer(wallet.address, amount)
 }
 
-export async function fundWalletUSDC(
-  wallet: SignerWithAddress,
-  amount: BigNumber, // old impl defaulted to BigNumber.from('1000000000')
-): Promise<void> {
+export async function fundWalletUSDC(wallet: SignerWithAddress, amount: BigNumber): Promise<void> {
   const usdcHolder = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
   const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, usdcHolder)
   await usdc.connect(usdcHolder).transfer(wallet.address, amount)

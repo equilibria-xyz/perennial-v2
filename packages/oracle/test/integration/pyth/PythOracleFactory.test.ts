@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { utils } from 'ethers'
-import HRE from 'hardhat'
+import HRE, { network } from 'hardhat'
 import { time } from '../../../../common/testutil'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 import {
@@ -24,6 +24,8 @@ import {
   PowerTwo__factory,
   GasOracle,
   GasOracle__factory,
+  IMargin,
+  IMargin__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
@@ -106,6 +108,7 @@ testOracles.forEach(testOracle => {
     let pythOracleFactory: PythFactory
     let oracleFactory: OracleFactory
     let marketFactory: MarketFactory
+    let margin: IMargin
     let market: IMarket
     let marketBtc: IMarket
     let market2: IMarket
@@ -245,7 +248,7 @@ testOracles.forEach(testOracle => {
         'ETH²-USD',
       )
 
-      marketFactory = await deployMarketFactory(owner, oracleFactory)
+      marketFactory = await deployMarketFactory(owner, oracleFactory, dsu)
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         maxFee: parse6decimal('0.01'),
@@ -309,45 +312,18 @@ testOracles.forEach(testOracle => {
         closed: false,
         settle: false,
       }
-      market = Market__factory.connect(
-        await marketFactory.callStatic.create({
-          token: dsu.address,
-          oracle: oracle.address,
-        }),
-        owner,
-      )
-      await marketFactory.create({
-        token: dsu.address,
-        oracle: oracle.address,
-      })
+      market = Market__factory.connect(await marketFactory.callStatic.create(oracle.address), owner)
+      await marketFactory.create(oracle.address)
       await market.updateParameter(marketParameter)
       await market.updateRiskParameter(riskParameter)
 
-      market2 = Market__factory.connect(
-        await marketFactory.callStatic.create({
-          token: dsu.address,
-          oracle: oracle2.address,
-        }),
-        owner,
-      )
-      await marketFactory.create({
-        token: dsu.address,
-        oracle: oracle2.address,
-      })
+      market2 = Market__factory.connect(await marketFactory.callStatic.create(oracle2.address), owner)
+      await marketFactory.create(oracle2.address)
       await market2.updateParameter(marketParameter)
       await market2.updateRiskParameter(riskParameter)
 
-      marketBtc = Market__factory.connect(
-        await marketFactory.callStatic.create({
-          token: dsu.address,
-          oracle: oracleBtc.address,
-        }),
-        owner,
-      )
-      await marketFactory.create({
-        token: dsu.address,
-        oracle: oracleBtc.address,
-      })
+      marketBtc = Market__factory.connect(await marketFactory.callStatic.create(oracleBtc.address), owner)
+      await marketFactory.create(oracleBtc.address)
       await marketBtc.updateParameter(marketParameter)
       await marketBtc.updateRiskParameter(riskParameter)
 
@@ -360,11 +336,13 @@ testOracles.forEach(testOracle => {
 
       await dsu.connect(user).approve(market.address, constants.MaxUint256)
       await dsu.connect(user).approve(market2.address, constants.MaxUint256)
+      margin = IMargin__factory.connect(await market.margin(), owner)
+      await dsu.connect(user).approve(margin.address, constants.MaxUint256)
+      await margin.connect(user).deposit(user.address, parse6decimal('20'))
 
       factorySigner = await impersonateWithBalance(pythOracleFactory.address, utils.parseEther('10'))
 
       await testOracle.gasMock()
-      console.log('finished creating fixture', await time.currentBlockTimestamp())
     }
 
     describe('without initial price', async () => {
@@ -482,8 +460,10 @@ testOracles.forEach(testOracle => {
       beforeEach(async () => {
         await loadFixture(fixture)
         const stagingTime = STARTING_TIME - 10
-        if ((await time.currentBlockTimestamp()) >= stagingTime)
+        if ((await time.currentBlockTimestamp()) >= stagingTime) {
+          console.log('current', await time.currentBlockTimestamp(), 'staging', stagingTime)
           throw new Error('Fork block does not allow sufficient time for test setup')
+        }
         await time.increaseTo(stagingTime)
 
         await time.includeAt(async () => {
@@ -624,7 +604,7 @@ testOracles.forEach(testOracle => {
 
           const reward = utils.parseEther('0.370586')
           expect(await dsu.balanceOf(user.address)).to.be.equal(
-            utils.parseEther('200000').sub(utils.parseEther('10')).add(reward),
+            utils.parseEther('200000').sub(utils.parseEther('20')).add(reward),
           )
 
           expect((await market.position()).timestamp).to.equal(STARTING_TIME)
@@ -663,7 +643,7 @@ testOracles.forEach(testOracle => {
 
           const reward = utils.parseEther('0.370586')
           expect(await dsu.balanceOf(user.address)).to.be.equal(
-            utils.parseEther('200000').sub(utils.parseEther('10')).add(reward),
+            utils.parseEther('200000').sub(utils.parseEther('20')).add(reward),
           )
         })
 
@@ -835,6 +815,7 @@ testOracles.forEach(testOracle => {
         })
 
         it('commits unincentivized if there are no requested or committed versions, does not incentivize keeper, updates latest', async () => {
+          const balanceBefore = await dsu.balanceOf(user.address)
           await time.increase(1)
           await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
             value: 1,
@@ -844,7 +825,7 @@ testOracles.forEach(testOracle => {
           expect(version[0].price).to.equal('1838167031')
 
           // Didn't incentivize keeper
-          expect(await dsu.balanceOf(user.address)).to.be.equal(utils.parseEther('200000'))
+          expect(await dsu.balanceOf(user.address)).to.be.equal(balanceBefore)
 
           expect(await keeperOracle.connect(user).latest()).to.deep.equal(version[0])
         })
@@ -999,7 +980,7 @@ testOracles.forEach(testOracle => {
           })
 
           // Keeper isn't incentivized because we did not go through commitRequested
-          expect(await dsu.balanceOf(user.address)).to.be.equal(utils.parseEther('200000').sub(utils.parseEther('10')))
+          expect(await dsu.balanceOf(user.address)).to.be.equal(utils.parseEther('200000').sub(utils.parseEther('20')))
         })
 
         it('can commit multiple non-requested versions, as long as they are in order', async () => {

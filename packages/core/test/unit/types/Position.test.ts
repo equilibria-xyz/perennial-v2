@@ -13,7 +13,7 @@ import {
   PositionStorageLocalLib,
   PositionStorageLocalLib__factory,
 } from '../../../types/generated'
-import { BigNumber } from 'ethers'
+import { BigNumber, constants } from 'ethers'
 import { OracleVersion, parse6decimal } from '../../../../common/testutil/types'
 import { PositionStruct } from '../../../types/generated/contracts/Market'
 
@@ -762,7 +762,7 @@ describe('Position', () => {
       })
     })
 
-    describe('view functions', () => {
+    describe('pure functions', () => {
       viewFunctions(() => ({ position, validStoredPosition: VALID_LOCAL_POSITION }))
 
       describe('#maintenance', () => {
@@ -981,7 +981,7 @@ describe('Position', () => {
       describe('#margin', () => {
         it('margin is positive', async () => {
           await position.store({ ...VALID_LOCAL_POSITION, maker: parse6decimal('6') })
-          expect(await position.margin(VALID_ORACLE_VERSION, VALID_RISK_PARAMETER)).to.equals(9000)
+          expect(await position.margin(VALID_ORACLE_VERSION, VALID_RISK_PARAMETER, 0)).to.equals(9000)
         })
       })
     })

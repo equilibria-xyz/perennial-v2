@@ -8,6 +8,7 @@ on:
       - main
       - v2.4-mini
       - v2.4
+      - ed/pe-1873-a
   workflow_dispatch:
 
 env:
