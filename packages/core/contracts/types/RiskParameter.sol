@@ -191,6 +191,7 @@ library RiskParameterStorageLib {
         if (newValue.makerFee.scale.gt(UFixed6Lib.from(type(uint48).max))) revert RiskParameterStorageInvalidError();
         if (newValue.staleAfter > uint256(type(uint16).max)) revert RiskParameterStorageInvalidError();
         if (newValue.maxLiquidationFee.gt(UFixed6.wrap(type(uint32).max))) revert RiskParameterStorageInvalidError();
+
         uint256 encoded0 =
             uint256(UFixed6.unwrap(newValue.margin)                    << (256 - 24)) >> (256 - 24) |
             uint256(UFixed6.unwrap(newValue.maintenance)               << (256 - 24)) >> (256 - 24 - 24) |
