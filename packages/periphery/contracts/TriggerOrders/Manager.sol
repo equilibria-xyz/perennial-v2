@@ -8,8 +8,8 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { IMarket, IMarketFactory } from "@perennial/v2-core/contracts/interfaces/IMarketFactory.sol";
+import { IMargin } from "@perennial/v2-core/contracts/interfaces/IMargin.sol";
 
-import { IAccount, IController } from "../CollateralAccounts/interfaces/IController.sol";
 import { IManager } from "./interfaces/IManager.sol";
 import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
 import { Action } from "./types/Action.sol";
@@ -37,7 +37,7 @@ abstract contract Manager is IManager, Kept {
     IOrderVerifier public immutable verifier;
 
     /// @dev Used for keeper compensation
-    IController public immutable controller;
+    IMargin public immutable margin;
 
     /// @dev Configuration used for keeper compensation
     KeepConfig public keepConfig;
@@ -59,21 +59,21 @@ abstract contract Manager is IManager, Kept {
     /// @param reserve_ DSU reserve contract used for unwrapping
     /// @param marketFactory_ Contract used to validate fee claims
     /// @param verifier_ Used to validate EIP712 signatures
-    /// @param controller_ Collateral Account Controller used for compensating keeper and paying interface fees
+    /// @param margin_ Margin contract used for compensating keeper and paying interface fees
     constructor(
         Token6 usdc_,
         Token18 dsu_,
         IEmptySetReserve reserve_,
         IMarketFactory marketFactory_,
         IOrderVerifier verifier_,
-        IController controller_
+        IMargin margin_
     ) {
         USDC = usdc_;
         DSU = dsu_;
         reserve = reserve_;
         marketFactory = marketFactory_;
         verifier = verifier_;
-        controller = controller_;
+        margin = margin_;
     }
 
     /// @notice Initialize the contract
@@ -190,7 +190,7 @@ abstract contract Manager is IManager, Kept {
         (IMarket market, address account, UFixed6 maxFee) = abi.decode(data, (IMarket, address, UFixed6));
         UFixed6 raisedKeeperFee = UFixed6Lib.from(amount, true).min(maxFee);
 
-        _collateralAccountWithdraw(account, raisedKeeperFee);
+        _marginWithdraw(account, raisedKeeperFee);
 
         return UFixed18Lib.from(raisedKeeperFee);
     }
@@ -216,7 +216,7 @@ abstract contract Manager is IManager, Kept {
             order.interfaceFee.amount :
             order.notionalValue(market, account).mul(order.interfaceFee.amount);
 
-        _collateralAccountWithdraw(account, feeAmount);
+        _marginWithdraw(account, feeAmount);
 
         claimable[order.interfaceFee.receiver] = claimable[order.interfaceFee.receiver].add(feeAmount);
 
@@ -224,10 +224,8 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @notice Transfers DSU from margin contract to manager contract to pay keeper or interface fee
-    function _marketWithdraw(IMarket market, address account, UFixed6 amount) private {
-        // TODO: Update this to handle cross-margin use case
-        market.update(account, Fixed6Lib.ZERO, Fixed6Lib.from(-1, amount), address(0));
-        market.margin().withdraw(account, amount);
+    function _marginWithdraw(address account, UFixed6 amount) private {
+        margin.withdraw(account, amount);
     }
 
     function _placeOrder(IMarket market, address account, uint256 orderId, TriggerOrder calldata order) private {
