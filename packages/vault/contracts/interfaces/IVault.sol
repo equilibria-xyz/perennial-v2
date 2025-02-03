@@ -5,6 +5,7 @@ import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 import { Checkpoint as PerennialCheckpoint } from "@perennial/v2-core/contracts/types/Checkpoint.sol";
 import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
 import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed18 } from "@equilibria/root/number/types/UFixed18.sol";
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Account } from "../types/Account.sol";
@@ -26,21 +27,18 @@ interface IVault is IInstance {
         VaultParameter parameter;
         Checkpoint currentCheckpoint;
         Checkpoint latestCheckpoint;
+        UFixed18 mark;
         Account global;
         Account local;
-    }
-
-    struct Target {
-        Fixed6 collateral;
-        UFixed6 position;
     }
 
     event MarketRegistered(uint256 indexed marketId, IMarket market);
     event MarketUpdated(uint256 indexed marketId, UFixed6 newWeight, UFixed6 newLeverage);
     event ParameterUpdated(VaultParameter newParameter);
+    event CoordinatorUpdated(address indexed newCoordinator);
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
     event AllowedUpdated(address indexed account, bool newAllowed);
-    event CoordinatorUpdated(address newCoordinator);
+    event MarkUpdated(UFixed18 newMark, UFixed6 profitShares);
 
     // sig: 0xa9785d3d
     error VaultDepositLimitExceededError();
@@ -81,16 +79,13 @@ interface IVault is IInstance {
     error RegistrationStorageInvalidError();
     // sig: 0x0f9f8b19
     error VaultParameterStorageInvalidError();
-    // sig: 0x97635122
-    error StrategyLibInsufficientCollateralError();
-    // sig: 0xfd9cbca5
-    error StrategyLibInsufficientAssetsError();
 
-    function initialize(Token18 asset, IMarket initialMaker, UFixed6 initialAmount, string calldata name_) external;
+    function initialize(Token18 asset, IMarket initialMaker, UFixed6 initialAmount, UFixed6 leverageBuffer, string calldata name_) external;
     function name() external view returns (string memory);
     function settle(address account) external;
     function rebalance(address account) external;
     function update(address account, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets) external;
+    function coordinator() external view returns (address);
     function asset() external view returns (Token18);
     function totalAssets() external view returns (Fixed6);
     function totalShares() external view returns (UFixed6);
@@ -101,6 +96,8 @@ interface IVault is IInstance {
     function registrations(uint256 marketId) external view returns (Registration memory);
     function accounts(address account) external view returns (Account memory);
     function checkpoints(uint256 id) external view returns (Checkpoint memory);
+    function mark() external view returns (UFixed18);
+    function updateCoordinator(address newCoordinator) external;
     function register(IMarket market) external;
     function updateLeverage(uint256 marketId, UFixed6 newLeverage) external;
     function updateWeights(UFixed6[] calldata newWeights) external;
@@ -115,7 +112,4 @@ interface IVault is IInstance {
     /// @param account The account to update
     /// @param newAllowed The new allowed status
     function updateAllowed(address account, bool newAllowed) external;
-
-    function updateCoordinator(address newCoordinator) external;
-    function coordinator() external view returns (address);
 }

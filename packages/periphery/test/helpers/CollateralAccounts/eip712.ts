@@ -14,6 +14,7 @@ import {
   RelayedGroupCancellationStruct,
   RelayedOperatorUpdateStruct,
   RelayedSignerUpdateStruct,
+  RelayedTakeStruct,
 } from '../../../types/generated/contracts/CollateralAccounts/Controller_Incentivized'
 
 function erc721Domain(verifier: IAccountVerifier | FakeContract<IAccountVerifier>): {
@@ -137,6 +138,28 @@ export async function signWithdrawal(
     ],
     ...actionType,
     ...commonType,
+  }
+
+  return await signer._signTypedData(erc721Domain(verifier), types, message)
+}
+
+export async function signRelayedTake(
+  signer: SignerWithAddress,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
+  message: RelayedTakeStruct,
+): Promise<string> {
+  const types = {
+    RelayedTake: [
+      { name: 'take', type: 'Take' },
+      { name: 'action', type: 'Action' },
+    ],
+    ...actionType,
+    ...commonType,
+    Take: [
+      { name: 'amount', type: 'int256' },
+      { name: 'referrer', type: 'address' },
+      { name: 'common', type: 'Common' },
+    ],
   }
 
   return await signer._signTypedData(erc721Domain(verifier), types, message)

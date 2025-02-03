@@ -10,7 +10,14 @@ import { parse6decimal } from '../../../../common/testutil/types'
 
 import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@perennial/v2-core/types/generated'
 import { IKeeperOracle } from '@perennial/v2-oracle/types/generated'
-import { IEmptySetReserve, IManager, IOrderVerifier } from '../../../types/generated'
+import {
+  IAccount,
+  IAccount__factory,
+  IController,
+  IEmptySetReserve,
+  IManager,
+  IOrderVerifier,
+} from '../../../types/generated'
 import { PlaceOrderActionStruct } from '../../../types/generated/contracts/TriggerOrders/Manager'
 
 import { signAction, signCancelOrderAction, signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
@@ -22,10 +29,12 @@ import {
   orderFromStructOutput,
   Side,
 } from '../../helpers/TriggerOrders/order'
+import { transferCollateral } from '../../helpers/marketHelpers'
 import { advanceToPrice } from '../../helpers/oracleHelpers'
 import { Address } from 'hardhat-deploy/dist/types'
 import { impersonate } from '../../../../common/testutil'
 import { FixtureVars } from './setupTypes'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
 const MAX_FEE = utils.parseEther('0.88')
 
@@ -41,7 +50,11 @@ const NO_INTERFACE_FEE = {
 // because we called hardhat_setNextBlockBaseFeePerGas, need this when running tests under coverage
 const TX_OVERRIDES = { maxPriorityFeePerGas: 0, maxFeePerGas: 150_000_000 }
 
-export function RunManagerTests(name: string, getFixture: (overrides?: CallOverrides) => Promise<FixtureVars>): void {
+export function RunManagerTests(
+  name: string,
+  getFixture: (overrides?: CallOverrides) => Promise<FixtureVars>,
+  fundWalletDSU: (wallet: SignerWithAddress, amount: BigNumber, overrides?: CallOverrides) => Promise<undefined>,
+): void {
   describe(name, () => {
     let dsu: IERC20Metadata
     let usdc: IERC20Metadata
@@ -52,6 +65,7 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
     let market: IMarket
     let oracle: IOracleProvider
     let verifier: IOrderVerifier
+    let controller: IController
     let owner: SignerWithAddress
     let userA: SignerWithAddress
     let userB: SignerWithAddress
@@ -119,6 +133,13 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
       }
     }
 
+    // deploys a collateral account
+    async function createCollateralAccount(user: SignerWithAddress): Promise<IAccount> {
+      const accountAddress = await controller.getAccountAddress(user.address)
+      await controller.connect(user).deployAccount(TX_OVERRIDES)
+      return IAccount__factory.connect(accountAddress, user)
+    }
+
     async function ensureNoPosition(user: SignerWithAddress) {
       const position = await market.positions(user.address)
       expect(position.maker).to.equal(0)
@@ -157,14 +178,15 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
           await expect(tx)
             .to.emit(manager, 'TriggerOrderInterfaceFeeCharged')
             .withArgs(user.address, market.address, order.interfaceFee)
+          const collateralAccountAddress = await controller.getAccountAddress(user.address)
           if (order.interfaceFee.unwrap) {
             await expect(tx)
               .to.emit(dsu, 'Transfer')
-              .withArgs(market.address, manager.address, expectedInterfaceFee.mul(1e12))
+              .withArgs(collateralAccountAddress, manager.address, expectedInterfaceFee.mul(1e12))
           } else {
             await expect(tx)
               .to.emit(dsu, 'Transfer')
-              .withArgs(market.address, manager.address, expectedInterfaceFee.mul(1e12))
+              .withArgs(collateralAccountAddress, manager.address, expectedInterfaceFee.mul(1e12))
           }
         }
       }
@@ -279,8 +301,30 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
       await HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100']) // 0.1 gwei
     }
 
-    // running tests serially; can build a few scenario scripts and test multiple things within each script
-    before(async () => {
+    // prepares an account for use with the market and manager
+    async function setupUser(
+      dsu: IERC20Metadata,
+      marketFactory: IMarketFactory,
+      market: IMarket,
+      manager: IManager,
+      user: SignerWithAddress,
+      amount: BigNumber,
+    ) {
+      // funds, approves, and deposits DSU into the market
+      const reservedForFees = amount.mul(1).div(100)
+      await fundWalletDSU(user, amount.mul(1e12))
+      await dsu.connect(user).approve(market.address, amount.mul(1e12))
+      await transferCollateral(user, market, amount.sub(reservedForFees))
+
+      // allows manager to interact with markets on the user's behalf
+      await marketFactory.connect(user).updateOperator(manager.address, true)
+
+      // set up collateral account for fee payments
+      const collateralAccount = await createCollateralAccount(user)
+      dsu.connect(user).transfer(collateralAccount.address, reservedForFees.mul(1e12))
+    }
+
+    const fixture = async () => {
       currentTime = BigNumber.from(await currentBlockTimestamp())
       const fixture = await getFixture(TX_OVERRIDES)
       dsu = fixture.dsu
@@ -292,6 +336,7 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
       market = fixture.market
       oracle = fixture.oracle
       verifier = fixture.verifier
+      controller = fixture.controller
       owner = fixture.owner
       userA = fixture.userA
       userB = fixture.userB
@@ -303,8 +348,20 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
       nextOrderId[userA.address] = BigNumber.from(500)
       nextOrderId[userB.address] = BigNumber.from(500)
 
+      // fund accounts and deposit all into market
+      const amount = parse6decimal('100000')
+      await setupUser(dsu, marketFactory, market, manager, userA, amount)
+      await setupUser(dsu, marketFactory, market, manager, userB, amount)
+      await setupUser(dsu, marketFactory, market, manager, userC, amount)
+      await setupUser(dsu, marketFactory, market, manager, userD, amount)
+
       // commit a start price
       await commitPrice(parse6decimal('4444'))
+    }
+
+    // running tests serially; can build a few scenario scripts and test multiple things within each script
+    before(async () => {
+      await loadFixture(fixture)
     })
 
     beforeEach(async () => {
@@ -659,21 +716,20 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
     // tests interaction with markets; again userA has a maker position, userB has a long position,
     // userC and userD interact only with trigger orders
     describe('funded market', () => {
-      async function changePosition(
+      async function updatePosition(
         user: SignerWithAddress,
-        newMaker: BigNumberish = constants.MaxUint256,
-        newLong: BigNumberish = constants.MaxUint256,
-        newShort: BigNumberish = constants.MaxUint256,
+        makerDelta: BigNumber,
+        longDelta: BigNumber,
+        shortDelta: BigNumber,
       ): Promise<BigNumber> {
         const tx = await market
           .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
+          ['update(address,int256,int256,int256,address)'](
             user.address,
-            newMaker,
-            newLong,
-            newShort,
-            0,
-            false,
+            makerDelta,
+            longDelta.sub(shortDelta),
+            BigNumber.from(0),
+            constants.AddressZero,
             TX_OVERRIDES,
           )
         return (await getEventArguments(tx, 'OrderCreated')).order.timestamp
@@ -684,7 +740,7 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
         await ensureNoPosition(userA)
         await ensureNoPosition(userB)
 
-        await changePosition(userA, parse6decimal('10'), 0, 0)
+        await updatePosition(userA, parse6decimal('10'), BigNumber.from(0), BigNumber.from(0))
         await commitPrice(parse6decimal('2000'))
         await market.settle(userA.address, TX_OVERRIDES)
 
@@ -700,7 +756,7 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
 
       it('can execute an order with pending position before oracle request fulfilled', async () => {
         // userB has an unsettled long 1.2 position
-        await changePosition(userB, 0, parse6decimal('1.2'), 0)
+        await updatePosition(userB, BigNumber.from(0), parse6decimal('1.2'), BigNumber.from(0))
         expect((await market.positions(userB.address)).long).to.equal(0)
         expect(await getPendingPosition(userB, Side.LONG)).to.equal(parse6decimal('1.2'))
 
@@ -725,7 +781,7 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
 
       it('can execute an order with pending position after oracle request fulfilled', async () => {
         // userC has an unsettled short 0.3 position
-        await changePosition(userC, 0, 0, parse6decimal('1.3'))
+        await updatePosition(userC, BigNumber.from(0), BigNumber.from(0), parse6decimal('1.3'))
         expect((await market.positions(userC.address)).short).to.equal(0)
         expect(await getPendingPosition(userC, Side.SHORT)).to.equal(parse6decimal('1.3'))
 
@@ -761,16 +817,16 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
         expect(canExecuteBefore).to.be.false
 
         // time passes, other users interact with market
-        let positionA = (await market.positions(userA.address)).maker
-        let positionC = (await market.positions(userC.address)).short
+        let positionDeltaA
+        let positionDeltaC
         let marketPrice = (await oracle.latest()).price
 
         while (marketPrice.gt(triggerPrice)) {
           // two users change their position
-          positionA = positionA.add(parse6decimal('0.05'))
-          const timestampA = await changePosition(userA, positionA, 0, 0)
-          positionC = positionC.sub(parse6decimal('0.04'))
-          const timestampC = await changePosition(userC, 0, 0, positionC)
+          positionDeltaA = parse6decimal('0.05')
+          const timestampA = await updatePosition(userA, positionDeltaA, BigNumber.from(0), BigNumber.from(0))
+          positionDeltaC = parse6decimal('0.04').mul(-1)
+          const timestampC = await updatePosition(userC, BigNumber.from(0), BigNumber.from(0), positionDeltaC)
 
           // oracle versions fulfilled
           marketPrice = marketPrice.sub(parse6decimal('0.35'))
@@ -871,7 +927,7 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
         const interfaceBalanceBefore = await dsu.balanceOf(userB.address)
 
         // userD starts with a long 3 position
-        await changePosition(userD, 0, parse6decimal('3'), 0)
+        await updatePosition(userD, BigNumber.from(0), parse6decimal('3'), BigNumber.from(0))
         await commitPrice(parse6decimal('2000.4'))
         await market.settle(userD.address, TX_OVERRIDES)
         expect((await market.positions(userD.address)).long).to.equal(parse6decimal('3'))
@@ -916,13 +972,18 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
         const interfaceBalanceBefore = await dsu.balanceOf(userB.address)
 
         // userD starts with a short 2 position
-        await changePosition(userD, 0, 0, parse6decimal('2'))
+        await updatePosition(userD, BigNumber.from(0), BigNumber.from(0), parse6decimal('2'))
         await commitPrice(parse6decimal('2000.5'))
         await market.settle(userD.address, TX_OVERRIDES)
         expect((await market.positions(userD.address)).short).to.equal(parse6decimal('2'))
 
         // userD reduces their position by 0.35 but does not settle
-        const negOrderTimestamp = await changePosition(userD, 0, 0, parse6decimal('1.65'))
+        const negOrderTimestamp = await updatePosition(
+          userD,
+          BigNumber.from(0),
+          BigNumber.from(0),
+          parse6decimal('0.35').mul(-1),
+        )
         expect(await getPendingPosition(userD, Side.SHORT)).to.equal(parse6decimal('1.65'))
 
         // userD closes their short position

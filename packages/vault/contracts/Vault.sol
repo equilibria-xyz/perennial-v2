@@ -2,7 +2,7 @@
 pragma solidity 0.8.24;
 
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
+import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
@@ -17,19 +17,18 @@ import { Account, AccountStorage } from "./types/Account.sol";
 import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
 import { Registration, RegistrationStorage } from "./types/Registration.sol";
 import { VaultParameter, VaultParameterStorage } from "./types/VaultParameter.sol";
-import { StrategyLib } from "./libs/StrategyLib.sol";
+import { Target } from "./types/Target.sol";
+import { MakerStrategyLib } from "./libs/MakerStrategyLib.sol";
 
 /// @title Vault
-/// @notice Deploys underlying capital by weight in maker positions across registered markets
-/// @dev Vault deploys and rebalances collateral between the registered markets, while attempting to
-///      maintain `targetLeverage` with its open maker positions at any given time. Deposits are only gated in so much
-///      as to cap the maximum amount of assets in the vault.
+/// @notice Deploys underlying capital in a specified strategy, managing the risk and return of the capital
+/// @dev Vault deploys and rebalances collateral between the registered markets per the strategy specified by the
 ///
 ///      All registered markets are expected to be on the same "clock", i.e. their oracle.current() is always equal.
 ///
 ///      The vault has a "delayed settlement" mechanism. After depositing to or redeeming from the vault, a user must
 ///      wait until the next settlement of all underlying markets in order for vault settlement to be available.
-contract Vault is IVault, Instance {
+abstract contract Vault is IVault, Instance {
     /// @dev The vault's name
     string private _name;
 
@@ -60,6 +59,12 @@ contract Vault is IVault, Instance {
     /// @dev Risk coordinator of the vault
     address public coordinator;
 
+    /// @dev High-water mark for the vault's assets vs shares ratio
+    UFixed18 public mark;
+
+    /// @dev Leave gap for future upgrades since this contract is abstract
+    bytes32[54] private __unallocated__;
+
     /// @notice Initializes the vault
     /// @param asset_ The underlying asset
     /// @param initialMarket The initial market to register
@@ -69,6 +74,7 @@ contract Vault is IVault, Instance {
         Token18 asset_,
         IMarket initialMarket,
         UFixed6 initialDeposit,
+        UFixed6 leverageBuffer,
         string calldata name_
     ) external initializer(1) {
         __Instance__initialize();
@@ -76,7 +82,7 @@ contract Vault is IVault, Instance {
         asset = asset_;
         _name = name_;
         _register(initialMarket);
-        _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO));
+        _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO, UFixed6Lib.ZERO, leverageBuffer));
 
         // permits the vault factory to make the initial deposit to prevent inflation attacks
         allowed[msg.sender] = true;
@@ -112,8 +118,10 @@ contract Vault is IVault, Instance {
     /// @notice Returns the name of the vault
     /// @return The name of the vault
     function name() external view returns (string memory) {
-        return string(abi.encodePacked("Perennial V2 Vault: ", _name));
+        return string(abi.encodePacked(_vaultName(), ": ", _name));
     }
+
+    function _vaultName() internal pure virtual returns (string memory);
 
     /// @notice Returns the total number of underlying assets at the last checkpoint
     /// @return The total number of underlying assets at the last checkpoint
@@ -151,16 +159,28 @@ contract Vault is IVault, Instance {
         return _totalShares.isZero() ? shares : shares.muldiv(_totalAssets, _totalShares);
     }
 
+    /// @notice Updates the Vault's coordinator address
+    /// @param newCoordinator The new coordinator address
+    function updateCoordinator(address newCoordinator) public virtual onlyOwner {
+        coordinator = newCoordinator;
+        emit CoordinatorUpdated(newCoordinator);
+    }
+
     /// @notice Registers a new market
     /// @param market The market to register
     function register(IMarket market) external onlyOwner {
         rebalance(address(0));
 
-        for (uint256 marketId; marketId < totalMarkets; marketId++) {
-            if (_registrations[marketId].read().market == market) revert VaultMarketExistsError();
-        }
+        if (_isRegistered(market)) revert VaultMarketExistsError();
 
         _register(market);
+    }
+
+    function _isRegistered(IMarket market) internal view returns (bool) {
+        for (uint256 marketId; marketId < totalMarkets; marketId++) {
+            if (_registrations[marketId].read().market == market) return true;
+        }
+        return false;
     }
 
     /// @notice Handles the registration for a new market
@@ -235,13 +255,6 @@ contract Vault is IVault, Instance {
     function _updateParameter(VaultParameter memory newParameter) private {
         _parameter.store(newParameter);
         emit ParameterUpdated(newParameter);
-    }
-
-    /// @notice Updates the coordinator of the vault
-    /// @param newCoordinator The new coordinator address
-    function updateCoordinator(address newCoordinator) external onlyOwner {
-        coordinator = newCoordinator;
-        emit CoordinatorUpdated(newCoordinator);
     }
 
     /// @notice Syncs `account`'s state up to current
@@ -379,7 +392,18 @@ contract Vault is IVault, Instance {
             context.global.current > context.global.latest &&
             context.latestTimestamp >= (nextCheckpoint = _checkpoints[context.global.latest + 1].read()).timestamp
         ) {
-            nextCheckpoint.complete(_checkpointAtId(context, nextCheckpoint.timestamp));
+            // process checkpoint
+            UFixed6 profitShares;
+            (context.mark, profitShares) = nextCheckpoint.complete(
+                context.mark,
+                context.parameter,
+                _checkpointAtId(context, nextCheckpoint.timestamp)
+            );
+            context.global.shares = context.global.shares.add(profitShares);
+            _credit(coordinator, profitShares);
+            emit MarkUpdated(context.mark, profitShares);
+
+            // process position
             context.global.processGlobal(
                 context.global.latest + 1,
                 nextCheckpoint,
@@ -397,12 +421,23 @@ contract Vault is IVault, Instance {
             context.local.current > context.local.latest &&
             context.latestTimestamp >= (nextCheckpoint = _checkpoints[context.local.current].read()).timestamp
         )
+            // process position
             context.local.processLocal(
                 context.local.current,
                 nextCheckpoint,
                 context.local.deposit,
                 context.local.redemption
             );
+    }
+
+    /// @notice Processes an out-of-context credit to an account
+    /// @dev Used to credit shares accrued through fee mechanics
+    /// @param account The account to credit
+    /// @param shares The amount of shares to credit
+    function _credit(address account, UFixed6 shares) internal virtual {
+        Account memory local = _accounts[account].read();
+        local.shares = local.shares.add(shares);
+        _accounts[account].store(local);
     }
 
     /// @notice Manages the internal collateral and position strategy of the vault
@@ -412,13 +447,12 @@ contract Vault is IVault, Instance {
     function _manage(Context memory context, UFixed6 deposit, UFixed6 withdrawal, bool shouldRebalance) private {
         if (context.totalCollateral.lt(Fixed6Lib.ZERO)) return;
 
-        StrategyLib.MarketTarget[] memory targets = StrategyLib
-            .load(context.registrations)
-            .allocate(
-                deposit,
-                withdrawal,
-                _ineligible(context, deposit, withdrawal)
-            );
+        Target[] memory targets = _strategy(
+            context,
+            deposit,
+            withdrawal,
+            _ineligible(context, deposit, withdrawal)
+        );
 
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
             if (targets[marketId].collateral.lt(Fixed6Lib.ZERO))
@@ -427,6 +461,13 @@ contract Vault is IVault, Instance {
             if (targets[marketId].collateral.gte(Fixed6Lib.ZERO))
                 _retarget(context.registrations[marketId], targets[marketId], shouldRebalance);
     }
+
+    function _strategy(
+        Context memory context,
+        UFixed6 deposit,
+        UFixed6 withdrawal,
+        UFixed6 ineligible
+    ) internal virtual view returns (Target[] memory targets);
 
     /// @notice Returns the amount of collateral is ineligible for allocation
     /// @param context The context to use
@@ -455,26 +496,16 @@ contract Vault is IVault, Instance {
     /// @param shouldRebalance Whether to rebalance the vault's position
     function _retarget(
         Registration memory registration,
-        StrategyLib.MarketTarget memory target,
+        Target memory target,
         bool shouldRebalance
     ) private {
-        if (shouldRebalance) {
-            registration.market.update(
-                address(this),
-                target.position,
-                UFixed6Lib.ZERO,
-                UFixed6Lib.ZERO,
-                target.collateral,
-                false
-            );
-        } else {
-            registration.market.update(
-                address(this),
-                Fixed6Lib.ZERO,
-                target.collateral,
-                address(0)
-            );
-        }
+        registration.market.update(
+            address(this),
+            shouldRebalance ? target.maker : Fixed6Lib.ZERO,
+            shouldRebalance ? target.taker : Fixed6Lib.ZERO,
+            target.collateral,
+            address(0)
+        );
     }
 
     /// @notice Loads the context for the given `account`
@@ -508,6 +539,7 @@ contract Vault is IVault, Instance {
         if (account != address(0)) context.local = _accounts[account].read();
         context.global = _accounts[address(0)].read();
         context.latestCheckpoint = _checkpoints[context.global.latest].read();
+        context.mark = mark;
     }
 
     /// @notice Saves the context into storage
@@ -517,6 +549,7 @@ contract Vault is IVault, Instance {
         if (account != address(0)) _accounts[account].store(context.local);
         _accounts[address(0)].store(context.global);
         _checkpoints[context.currentId].store(context.currentCheckpoint);
+        mark = context.mark;
     }
 
     /// @notice The maximum available deposit amount
@@ -557,7 +590,7 @@ contract Vault is IVault, Instance {
     }
 
     /// @notice Only the coordinator or factory owner can call
-    modifier onlyCoordinator {
+    modifier onlyCoordinator virtual {
         if (msg.sender != coordinator && msg.sender != factory().owner()) revert VaultNotCoordinatorError();
         _;
     }

@@ -27,6 +27,7 @@ contract MarketFactory is IMarketFactory, Factory {
     bytes32 private __unused0__;
 
     /// @dev Mapping of allowed operators per account
+    ///      Note: Operators are allowed to update an account's position and collateral
     mapping(address => mapping(address => bool)) public operators;
 
     /// @dev Registry of created markets by oracle and payoff
@@ -37,9 +38,11 @@ contract MarketFactory is IMarketFactory, Factory {
     mapping(address => UFixed6) private _referralFees;
 
     /// @dev Mapping of allowed signers for each account
+    ///      Note: Signers are allowed to update and account's position, but not collateral
     mapping(address => mapping(address => bool)) public signers;
 
     /// @dev Mapping of allowed protocol-wide operators
+    ///      Note: Extensions have operator privileges on all accounts in the protocol
     mapping(address => bool) public extensions;
 
     /// @dev The global protocol parameters

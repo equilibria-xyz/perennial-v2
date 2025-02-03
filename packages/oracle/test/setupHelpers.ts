@@ -1,14 +1,18 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import {
-  IOracleFactory,
-  Market__factory,
-  MarketFactory,
-  MarketFactory__factory,
   CheckpointLib__factory,
   CheckpointStorageLib__factory,
   GlobalStorageLib__factory,
+  GuaranteeStorageGlobalLib__factory,
+  GuaranteeStorageLocalLib__factory,
+  IOracleFactory,
   InvariantLib__factory,
+  Market__factory,
+  MarketFactory,
+  MarketFactory__factory,
   MarketParameterStorageLib__factory,
+  OrderStorageGlobalLib__factory,
+  OrderStorageLocalLib__factory,
   PositionStorageGlobalLib__factory,
   PositionStorageLocalLib__factory,
   RiskParameterStorageLib__factory,
@@ -54,6 +58,18 @@ export async function deployMarketFactory(
       ).address,
       '@perennial/v2-core/contracts/types/Version.sol:VersionStorageLib': (
         await new VersionStorageLib__factory(owner).deploy()
+      ).address,
+      '@perennial/v2-core/contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': (
+        await new GuaranteeStorageLocalLib__factory(owner).deploy()
+      ).address,
+      '@perennial/v2-core/contracts/types/Guarantee.sol:GuaranteeStorageGlobalLib': (
+        await new GuaranteeStorageGlobalLib__factory(owner).deploy()
+      ).address,
+      '@perennial/v2-core/contracts/types/Order.sol:OrderStorageLocalLib': (
+        await new OrderStorageLocalLib__factory(owner).deploy()
+      ).address,
+      '@perennial/v2-core/contracts/types/Order.sol:OrderStorageGlobalLib': (
+        await new OrderStorageGlobalLib__factory(owner).deploy()
       ).address,
     },
     owner,

@@ -118,36 +118,38 @@ export default task('check-solvency', 'Check the solvency of all markets')
 async function getLiquidations(market: string, graphURL: string): Promise<string[]> {
   const query = gql`
     query getLiqudations($market: Bytes!, $first: Int!, $skip: Int!) {
-      updateds(
+      orderCreateds(
         first: $first
         skip: $skip
-        where: { market: $market, protect: true }
+        where: { market: $market, liquidation: true }
         orderBy: blockNumber
         orderDirection: desc
       ) {
-        account
+        account {
+          id
+        }
       }
     }
   `
 
   let page = 0
-  let res: { updateds: { account: string }[] } = await request(graphURL, query, {
+  let res: { orderCreateds: { account: { id: string } }[] } = await request(graphURL, query, {
     market: market,
     first: QueryPageSize,
     skip: page * QueryPageSize,
   })
   const rawData = res
-  while (res.updateds.length === QueryPageSize) {
+  while (res.orderCreateds.length === QueryPageSize) {
     page += 1
     res = await request(graphURL, query, {
       market: market,
       first: QueryPageSize,
       skip: page * QueryPageSize,
     })
-    rawData.updateds = [...rawData.updateds, ...res.updateds]
+    rawData.orderCreateds = [...rawData.orderCreateds, ...res.orderCreateds]
   }
 
-  return rawData.updateds.map(u => u.account)
+  return rawData.orderCreateds.map(u => u.account.id)
 }
 
 function settleAndReadLocalsMulticallPayload(market: IMarket, account: string): MulticallPayload[] {

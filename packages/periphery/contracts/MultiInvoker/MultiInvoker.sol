@@ -35,7 +35,10 @@ contract MultiInvoker is IMultiInvoker, Initializable {
     IMarketFactory public immutable marketFactory;
 
     /// @dev Vault factory to validate vault approvals
-    IFactory public immutable vaultFactory;
+    IFactory public immutable makerVaultFactory;
+
+    /// @dev Vault factory to validate vault approvals
+    IFactory public immutable solverVaultFactory;
 
     /// @dev Batcher address
     IBatcher public immutable batcher;
@@ -59,21 +62,24 @@ contract MultiInvoker is IMultiInvoker, Initializable {
     /// @param usdc_ USDC stablecoin address
     /// @param dsu_ DSU address
     /// @param marketFactory_ Protocol factory to validate market approvals
-    /// @param vaultFactory_ Protocol factory to validate vault approvals
+    /// @param makerVaultFactory_ Protocol factory to validate maker vault approvals
+    /// @param solverVaultFactory_ Protocol factory to validate solver vault approvals
     /// @param batcher_ Batcher address
     /// @param reserve_ Reserve address
     constructor(
         Token6 usdc_,
         Token18 dsu_,
         IMarketFactory marketFactory_,
-        IFactory vaultFactory_,
+        IFactory makerVaultFactory_,
+        IFactory solverVaultFactory_,
         IBatcher batcher_,
         IEmptySetReserve reserve_
     ) {
         USDC = usdc_;
         DSU = dsu_;
         marketFactory = marketFactory_;
-        vaultFactory = vaultFactory_;
+        makerVaultFactory = makerVaultFactory_;
+        solverVaultFactory = solverVaultFactory_;
         batcher = batcher_;
         reserve = reserve_;
     }
@@ -124,16 +130,15 @@ contract MultiInvoker is IMultiInvoker, Initializable {
                 (
                     // update data
                     IMarket market,
-                    UFixed6 newMaker,
-                    UFixed6 newLong,
-                    UFixed6 newShort,
+                    Fixed6 maker,
+                    Fixed6 taker,
                     Fixed6 collateral,
                     bool wrap,
                     InterfaceFee memory interfaceFee1,
                     InterfaceFee memory interfaceFee2
-                ) = abi.decode(invocation.args, (IMarket, UFixed6, UFixed6, UFixed6, Fixed6, bool, InterfaceFee, InterfaceFee));
+                ) = abi.decode(invocation.args, (IMarket, Fixed6, Fixed6, Fixed6, bool, InterfaceFee, InterfaceFee));
 
-                _update(account, market, newMaker, newLong, newShort, collateral, wrap, interfaceFee1, interfaceFee2);
+                _update(account, market, maker, taker, collateral, wrap, interfaceFee1, interfaceFee2);
             } else if (invocation.action == PerennialAction.UPDATE_INTENT) {
                 (IMarket market, Intent memory intent, bytes memory signature) = abi.decode(invocation.args, (IMarket, Intent, bytes));
 
@@ -164,9 +169,8 @@ contract MultiInvoker is IMultiInvoker, Initializable {
     /// @notice Updates market on behalf of account
     /// @param account Address of account to update
     /// @param market Address of market up update
-    /// @param newMaker New maker position for account in `market`
-    /// @param newLong New long position for account in `market`
-    /// @param newShort New short position for account in `market`
+    /// @param taker change in taker position for account in `market`
+    /// @param maker change in maker position for account in `market`
     /// @param collateral Net change in collateral for account in `market`
     /// @param wrap Whether to wrap/unwrap collateral on deposit/withdrawal
     /// @param interfaceFee1 Primary interface fee to charge
@@ -174,9 +178,8 @@ contract MultiInvoker is IMultiInvoker, Initializable {
     function _update(
         address account,
         IMarket market,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort,
+        Fixed6 maker,
+        Fixed6 taker,
         Fixed6 collateral,
         bool wrap,
         InterfaceFee memory interfaceFee1,
@@ -189,11 +192,9 @@ contract MultiInvoker is IMultiInvoker, Initializable {
 
         market.update(
             account,
-            newMaker,
-            newLong,
-            newShort,
+            maker,
+            taker,
             collateral,
-            false,
             interfaceFee1.receiver == address(0) ? interfaceFee2.receiver : interfaceFee1.receiver
         );
 
@@ -256,7 +257,8 @@ contract MultiInvoker is IMultiInvoker, Initializable {
     function _approve(address target) internal {
         if (
             !marketFactory.instances(IInstance(target)) &&
-            !vaultFactory.instances(IInstance(target))
+            !makerVaultFactory.instances(IInstance(target)) &&
+            !solverVaultFactory.instances(IInstance(target))
         ) revert MultiInvokerInvalidInstanceError();
 
         DSU.approve(target);
@@ -378,7 +380,7 @@ contract MultiInvoker is IMultiInvoker, Initializable {
 
     /// @notice Target vault must be created by VaultFactory
     modifier isVaultInstance(IVault vault) {
-        if (!vaultFactory.instances(vault))
+        if (!makerVaultFactory.instances(vault) && !solverVaultFactory.instances(vault))
             revert MultiInvokerInvalidInstanceError();
         _;
     }

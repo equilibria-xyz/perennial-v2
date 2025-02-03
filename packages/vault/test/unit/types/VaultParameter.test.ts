@@ -10,7 +10,7 @@ import { VaultParameterStruct } from '../../../types/generated/contracts/Vault'
 const { ethers } = HRE
 use(smock.matchers)
 
-const VALID_VAULT_PARAMETER: VaultParameterStruct = { maxDeposit: 1, minDeposit: 2 }
+const VALID_VAULT_PARAMETER: VaultParameterStruct = { maxDeposit: 1, minDeposit: 2, profitShare: 3, leverageBuffer: 4 }
 
 describe('VaultParameter', () => {
   let owner: SignerWithAddress
@@ -31,6 +31,8 @@ describe('VaultParameter', () => {
 
       expect(value.maxDeposit).to.equal(1)
       expect(value.minDeposit).to.equal(2)
+      expect(value.profitShare).to.equal(3)
+      expect(value.leverageBuffer).to.equal(4)
     })
 
     describe('.maxDeposit', () => {
@@ -63,6 +65,41 @@ describe('VaultParameter', () => {
       it('reverts if out of range', async () => {
         await expect(
           vaultParameter.store({ ...VALID_VAULT_PARAMETER, minDeposit: BigNumber.from(2).pow(STORAGE_SIZE) }),
+        ).to.be.revertedWithCustomError(vaultParameter, 'VaultParameterStorageInvalidError')
+      })
+    })
+
+    describe('.profitShare', () => {
+      it('saves if in range', async () => {
+        await vaultParameter.store({ ...VALID_VAULT_PARAMETER, profitShare: 1e6 })
+
+        const value = await vaultParameter.read()
+        expect(value.profitShare).to.equal(1e6)
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          vaultParameter.store({ ...VALID_VAULT_PARAMETER, profitShare: 1e6 + 1 }),
+        ).to.be.revertedWithCustomError(vaultParameter, 'VaultParameterStorageInvalidError')
+      })
+    })
+
+    describe('.leverageBuffer', () => {
+      const STORAGE_SIZE = 24
+
+      it('saves if in range', async () => {
+        await vaultParameter.store({
+          ...VALID_VAULT_PARAMETER,
+          leverageBuffer: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+        })
+
+        const value = await vaultParameter.read()
+        expect(value.leverageBuffer).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+      })
+
+      it('reverts if out of range', async () => {
+        await expect(
+          vaultParameter.store({ ...VALID_VAULT_PARAMETER, leverageBuffer: BigNumber.from(2).pow(STORAGE_SIZE) }),
         ).to.be.revertedWithCustomError(vaultParameter, 'VaultParameterStorageInvalidError')
       })
     })

@@ -60,9 +60,9 @@ interface IManager {
     /// @custom:error Signer is not authorized to interact with markets for the specified user
     error ManagerInvalidSignerError();
 
-    // sig: 0x63c7e7fd
+    // sig: 0x13722df5
     /// @custom:error Operator is not authorized to interact with markets for the specified user
-    error ManagerInvalidOperatorError();
+    error ManagerNotOperatorError();
 
     /// @notice Store a new trigger order or replace an existing trigger order
     /// @param market Perennial market in which user wants to change their position

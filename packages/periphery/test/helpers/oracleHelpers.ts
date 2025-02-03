@@ -1,5 +1,4 @@
 import { BigNumber, CallOverrides, constants, ContractTransaction, utils } from 'ethers'
-import HRE from 'hardhat'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { impersonateWithBalance } from '../../../common/testutil/impersonate'
 import { currentBlockTimestamp, increaseTo } from '../../../common/testutil/time'

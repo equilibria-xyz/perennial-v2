@@ -20,7 +20,9 @@ import { Version, VersionStorage } from "./types/Version.sol";
 import { Order, OrderLib, OrderStorageGlobal, OrderStorageLocal } from "./types/Order.sol";
 import { Guarantee, GuaranteeLib, GuaranteeStorageGlobal, GuaranteeStorageLocal } from "./types/Guarantee.sol";
 import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
+import { Fill } from "./types/Fill.sol";
 import { Intent } from "./types/Intent.sol";
+import { Take } from "./types/Take.sol";
 import { OracleVersion } from "./types/OracleVersion.sol";
 import { OracleReceipt } from "./types/OracleReceipt.sol";
 import { InvariantLib } from "./libs/InvariantLib.sol";
@@ -137,6 +139,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Updates both the long and short positions of an intent order
     /// @dev - One side is specified in the signed intent, while the sender is assumed to be the counterparty
     ///      - The sender is charged the settlement fee
+    ///      - No collateral movement, signer is allowed to self-send
     /// @param account The account that is filling this intent (maker)
     /// @param intent The intent that is being filled
     /// @param signature The signature of the intent that is being filled
@@ -147,14 +150,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         _updateIntent(
             account,
-            address(0),
+            msg.sender,
             intent.amount.mul(Fixed6Lib.NEG_ONE),
             intent.price,
             address(0),
             address(0),
             UFixed6Lib.ZERO,
             UFixed6Lib.ZERO,
-            true,
             false
         ); // account
         _updateIntent(
@@ -166,23 +168,77 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             intent.solver,
             intent.fee,
             intent.collateralization,
-            false,
             true
         ); // signer
     }
 
-    /// @notice Updates the account's position and collateral
+	/// @notice Fills an intent order using a signed message
+	/// @param fill Message wrapping the Intent and identifying the solver
+	/// @param traderSignature Signature of the wrapped intent (inner)
+	/// @param solverSignature Signature of the fill message from the solver (outer)
+    function update(
+        Fill calldata fill,
+        bytes memory traderSignature,
+        bytes memory solverSignature
+    ) external nonReentrant whenNotPaused {
+        if (fill.intent.fee.gt(UFixed6Lib.ONE)) revert MarketInvalidIntentFeeError();
+
+        verifier.verifyIntent(fill.intent, traderSignature);
+        verifier.verifyFill(fill, solverSignature);
+
+        _updateIntent(
+            fill.common.account,
+            fill.common.signer,
+            fill.intent.amount.mul(Fixed6Lib.NEG_ONE),
+            fill.intent.price,
+            address(0),
+            address(0),
+            UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO,
+            false
+        ); // solver
+        _updateIntent(
+            fill.intent.common.account,
+            fill.intent.common.signer,
+            fill.intent.amount,
+            fill.intent.price,
+            fill.intent.originator,
+            fill.intent.solver,
+            fill.intent.fee,
+            fill.intent.collateralization,
+            true
+        ); // trader
+    }
+
+    /// @notice Updates the account's taker position without collateral change
+    /// @param take Message requesting change in user's taker position
+    /// @param signature Signature of taker or authorized signer
+    function update(Take calldata take, bytes memory signature) external nonReentrant whenNotPaused {
+        verifier.verifyTake(take, signature);
+        _updateMarket(take.common.account, take.common.signer, Fixed6Lib.ZERO, take.amount, Fixed6Lib.ZERO, take.referrer);
+    }
+
+    /// @notice Updates the account's position
+    /// @dev No collateral movement, signer is allowed to self-send
     /// @param account The account to operate on
-    /// @param amount The position delta of the order (positive for long, negative for short)
+    /// @param takerAmount The position delta of the order (positive for long, negative for short)
+    /// @param referrer The referrer of the order
+    function update(address account, Fixed6 takerAmount, address referrer) external nonReentrant whenNotPaused {
+       _updateMarket(account, msg.sender, Fixed6Lib.ZERO, takerAmount, Fixed6Lib.ZERO, referrer);
+    }
+
+    /// @notice Updates the account's taker position and collateral
+    /// @param account The account to operate on
+    /// @param takerAmount The position delta of the order (positive for long, negative for short)
     /// @param collateral The collateral delta of the order (positive for deposit, negative for withdrawal)
     /// @param referrer The referrer of the order
     function update(
         address account,
-        Fixed6 amount,
+        Fixed6 takerAmount,
         Fixed6 collateral,
         address referrer
-    ) external {
-        update(account, Fixed6Lib.ZERO, amount, collateral, referrer);
+    ) external nonReentrant whenNotPaused {
+        _updateMarket(account, address(0), Fixed6Lib.ZERO, takerAmount, collateral, referrer);
     }
 
     /// @notice Updates the account's position and collateral
@@ -197,79 +253,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 takerAmount,
         Fixed6 collateral,
         address referrer
-    ) public nonReentrant whenNotPaused {
-        (Context memory context, UpdateContext memory updateContext) =
-            _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
-
-        // create new order & guarantee
-        Order memory newOrder = OrderLib.from(
-            context.currentTimestamp,
-            updateContext.currentPositionLocal,
-            makerAmount,
-            takerAmount,
-            collateral,
-            false,
-            updateContext.orderReferralFee
-        );
-        Guarantee memory newGuarantee; // no guarantee is created for a market order
-
-        // process update
-        _updateAndStore(context, updateContext, newOrder, newGuarantee, referrer, address(0));
-    }
-
-    /// @notice Updates the account's position and collateral
-    /// @param account The account to operate on
-    /// @param newMaker The new maker position for the account
-    /// @param newMaker The new long position for the account
-    /// @param newMaker The new short position for the account
-    /// @param collateral The collateral amount to add or remove from the account
-    /// @param protect Whether to put the account into a protected status for liquidations
-    function update(
-        address account,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort,
-        Fixed6 collateral,
-        bool protect
-    ) external {
-        update(account, newMaker, newLong, newShort, collateral, protect, address(0));
-    }
-
-    /// @notice Updates the account's position and collateral
-    /// @param account The account to operate on
-    /// @param newMaker The new maker position for the account
-    /// @param newLong The new long position for the account
-    /// @param newShort The new short position for the account
-    /// @param collateral The collateral amount to add or remove from the account
-    /// @param protect Whether to put the account into a protected status for liquidations
-    /// @param referrer The referrer of the order
-    function update(
-        address account,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort,
-        Fixed6 collateral,
-        bool protect,
-        address referrer
-    ) public nonReentrant whenNotPaused {
-        (Context memory context, UpdateContext memory updateContext) =
-            _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
-
-        // create new order & guarantee
-        Order memory newOrder = OrderLib.from(
-            context.currentTimestamp,
-            updateContext.currentPositionLocal,
-            collateral,
-            newMaker,
-            newLong,
-            newShort,
-            protect,
-            updateContext.orderReferralFee
-        );
-        Guarantee memory newGuarantee; // no guarantee is created for a market order
-
-        // process update
-        _updateAndStore(context, updateContext, newOrder, newGuarantee, referrer, address(0));
+    ) external nonReentrant whenNotPaused {
+        _updateMarket(account, address(0), makerAmount, takerAmount, collateral, referrer);
     }
 
     /// @notice Closes the account's position
@@ -284,7 +269,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 takerAmount;
 
         UFixed6 closable = context.latestPositionLocal.magnitude().sub(context.pendingLocal.neg());
-        
+
         if (updateContext.currentPositionLocal.maker.gt(UFixed6Lib.ZERO)) {
             makerAmount = Fixed6Lib.from(-1, closable);
         } else if (updateContext.currentPositionLocal.long.gt(UFixed6Lib.ZERO)) {
@@ -301,6 +286,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             takerAmount,
             Fixed6Lib.ZERO,
             protect,
+            true,
             updateContext.orderReferralFee
         );
 
@@ -565,6 +551,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (updateContext.operator, updateContext.signer, updateContext.orderReferralFee) =
             IMarketFactory(address(factory())).authorization(context.account, msg.sender, signer, orderReferrer);
         if (guaranteeReferrer != address(0)) updateContext.guaranteeReferralFee = guaranteeReferralFee;
+
+        // load price adjustment
+        for (uint256 id = context.local.latestId + 1; id <= context.local.currentId; id++)
+            updateContext.priceAdjustment = updateContext.priceAdjustment
+                .add(_guarantees[context.account][id].read().priceAdjustment(context.latestOracleVersion.price));
     }
 
     /// @notice Stores the context for the update process
@@ -638,7 +629,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param guaranteeReferrer The referrer of the guarantee
     /// @param guaranteeReferralFee The referral fee for the guarantee
     /// @param collateralization The minimum collateralization ratio that must be maintained after the order is executed
-    /// @param chargeSettlementFee Whether to charge the settlement fee
     /// @param chargeTradeFee Whether to charge the trade fee
     function _updateIntent(
         address account,
@@ -649,7 +639,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address guaranteeReferrer,
         UFixed6 guaranteeReferralFee,
         UFixed6 collateralization,
-        bool chargeSettlementFee,
         bool chargeTradeFee
     ) private {
         (Context memory context, UpdateContext memory updateContext) =
@@ -663,17 +652,45 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             amount,
             Fixed6Lib.ZERO,
             false,
+            false,
             updateContext.orderReferralFee
         );
         Guarantee memory newGuarantee = GuaranteeLib.from(
             newOrder,
             price,
             updateContext.guaranteeReferralFee,
-            chargeSettlementFee,
             chargeTradeFee
         );
 
         _updateAndStore(context, updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
+    }
+
+    function _updateMarket(
+        address account,
+        address signer,
+        Fixed6 makerAmount,
+        Fixed6 takerAmount,
+        Fixed6 collateral,
+        address referrer
+    ) private {
+        (Context memory context, UpdateContext memory updateContext) =
+            _loadForUpdate(account, signer, referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+
+        // create new order & guarantee
+        Order memory newOrder = OrderLib.from(
+            context.currentTimestamp,
+            updateContext.currentPositionLocal,
+            makerAmount,
+            takerAmount,
+            collateral,
+            false,
+            true,
+            updateContext.orderReferralFee
+        );
+        Guarantee memory newGuarantee; // no guarantee is created for a market order
+
+        // process update
+        _updateAndStore(context, updateContext, newOrder, newGuarantee, referrer, address(0));
     }
 
     /// @notice Updates the current position with a new order
@@ -727,8 +744,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // apply referrer
         _processReferrer(updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
 
-        // request version, only request new price on position change
-        if (!newOrder.isEmpty()) oracle.request(IMarket(this), context.account);
+        // request version, only request new price on non-empty market order
+        if (!newOrder.isEmpty() && newGuarantee.isEmpty()) oracle.request(IMarket(this), context.account);
 
         // after
         InvariantLib.validate(context, updateContext, newOrder, newGuarantee);
@@ -758,7 +775,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             if (updateContext.orderReferrer == address(0)) updateContext.orderReferrer = orderReferrer;
             if (updateContext.orderReferrer != orderReferrer) revert MarketInvalidReferrerError();
         }
-        if (!newGuarantee.referral.isZero()) {
+        if (!newGuarantee.solverReferral.isZero()) {
             if (updateContext.guaranteeReferrer == address(0)) updateContext.guaranteeReferrer = guaranteeReferrer;
             if (updateContext.guaranteeReferrer != guaranteeReferrer) revert MarketInvalidReferrerError();
         }
@@ -845,10 +862,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.pendingGlobal.sub(newOrder);
 
         // if version is not valid, invalidate order data
-        if (!oracleVersion.valid) {
-            newOrder.invalidate();
-            newGuarantee.invalidate();
-        }
+        if (!oracleVersion.valid) newOrder.invalidate(newGuarantee);
 
         VersionAccumulationResponse memory accumulationResponse;
         (settlementContext.latestVersion, context.global, accumulationResponse) = VersionLib.accumulate(
@@ -893,10 +907,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         context.pendingLocal.sub(newOrder);
 
         // if version is not valid, invalidate order data
-        if (!versionTo.valid) {
-            newOrder.invalidate();
-            newGuarantee.invalidate();
-        }
+        if (!versionTo.valid) newOrder.invalidate(newGuarantee);
 
         CheckpointAccumulationResponse memory accumulationResponse;
         (settlementContext.latestCheckpoint, accumulationResponse) = CheckpointLib.accumulate(

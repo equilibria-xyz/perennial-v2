@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { RelayedTake } from "../types/RelayedTake.sol";
 import { RelayedNonceCancellation } from "../types/RelayedNonceCancellation.sol";
 import { RelayedGroupCancellation } from "../types/RelayedGroupCancellation.sol";
 import { RelayedOperatorUpdate } from "../types/RelayedOperatorUpdate.sol";
@@ -9,6 +10,16 @@ import { RelayedAccessUpdateBatch } from "../types/RelayedAccessUpdateBatch.sol"
 
 // @notice Relays messages to downstream handlers, compensating keepers for the transaction
 interface IRelayer {
+    /// @notice Relays a message to a Market to update a taker position
+    /// @param message Request with details needed for keeper compensation
+    /// @param outerSignature Signature of the RelayedTake message
+    /// @param innerSignature Signature of the embedded Take message, signed by the solver
+    function relayTake(
+        RelayedTake calldata message,
+        bytes calldata outerSignature,
+        bytes calldata innerSignature
+    ) external;
+
     /// @notice Relays a message to Verifier extension to invalidate a nonce
     /// @param message Request with details needed for keeper compensation
     /// @param outerSignature Signature of the RelayedNonceCancellation message
