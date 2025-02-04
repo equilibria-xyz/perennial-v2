@@ -159,7 +159,7 @@ export function RunIncentivizedTests(
         'keeperGasCostInUSD',
         keeperGasCostInUSD.div(1e9).toNumber() / 1e9,
         'keeperGasUpperLimit',
-        keeperGasCostInUSD.mul(5).div(2e9).toNumber() / 1e9,
+        keeperGasCostInUSD.mul(125).div(100e9).toNumber() / 1e9,
       )*/
       expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(125).div(100))
     }
