@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import 'hardhat'
-import { BigNumber, constants } from 'ethers'
+import { BigNumber, constants, utils } from 'ethers'
 
 import { InstanceVars, deployProtocol, createMarket, settle, fundWallet } from '../helpers/setupHelpers'
 import {
@@ -23,9 +23,7 @@ import {
   expectGuaranteeEq,
 } from '../../../../common/testutil/types'
 import { Market__factory } from '../../../types/generated'
-import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/v2-oracle/util/constants'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { ChainlinkContext } from '../helpers/chainlinkHelpers'
 import { IntentStruct, TakeStruct, RiskParameterStruct, FillStruct } from '../../../types/generated/contracts/Market'
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
 import {
@@ -44,6 +42,8 @@ export const TIMESTAMP_3 = 1631114005
 export const TIMESTAMP_4 = 1631115371
 export const TIMESTAMP_5 = 1631118731
 
+export const UNDERLYING_PRICE = utils.parseEther('3374.655169')
+
 export const PRICE_0 = parse6decimal('113.882975')
 export const PRICE_1 = parse6decimal('113.796498')
 export const PRICE_2 = parse6decimal('115.046259')
@@ -52,10 +52,10 @@ export const PRICE_4 = parse6decimal('117.462552')
 
 const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
 const INTENT_PROTOTYPE = `(int256,int256,uint256,address,address,uint256,${COMMON_PROTOTYPE})`
-const MARKET_UPDATE_ABSOLUTE_PROTOTYPE = 'update(address,uint256,uint256,uint256,int256,bool)'
-const MARKET_UPDATE_DELTA_PROTOTYPE = 'update(address,int256,int256,address)'
 const MARKET_UPDATE_FILL_PROTOTYPE = `update((${INTENT_PROTOTYPE},${COMMON_PROTOTYPE}),bytes,bytes)`
 const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,${COMMON_PROTOTYPE}),bytes)`
+const MARKET_UPDATE_TAKER_DELTA_PROTOTYPE = 'update(address,int256,int256,address)'
+const MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE = 'update(address,int256,int256,int256,address)'
 
 describe('Happy Path', () => {
   let instanceVars: InstanceVars
@@ -172,7 +172,7 @@ describe('Happy Path', () => {
     await expect(
       market
         .connect(user)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false),
+        ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero),
     )
       .to.emit(market, 'OrderCreated')
       .withArgs(
@@ -294,11 +294,17 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(2), 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](
+        user.address,
+        POSITION.div(2),
+        0,
+        COLLATERAL,
+        constants.AddressZero,
+      )
     await expect(
       market
         .connect(user)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, 0, false),
+        ['update(address,int256,int256,int256,address)'](user.address, POSITION.div(2), 0, 0, constants.AddressZero),
     )
       .to.emit(market, 'OrderCreated')
       .withArgs(
@@ -413,12 +419,14 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
     await chainlink.next()
 
     await expect(
-      market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+      market
+        .connect(user)
+        ['update(address,int256,int256,int256,address)'](user.address, POSITION.mul(-1), 0, 0, constants.AddressZero),
     )
       .to.emit(market, 'OrderCreated')
       .withArgs(
@@ -492,15 +500,29 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
     await chainlink.next()
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(2), 0, 0, 0, false)
+      ['update(address,int256,int256,int256,address)'](
+        user.address,
+        POSITION.div(2).mul(-1),
+        0,
+        0,
+        constants.AddressZero,
+      )
     await expect(
-      market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false),
+      market
+        .connect(user)
+        ['update(address,int256,int256,int256,address)'](
+          user.address,
+          POSITION.div(2).mul(-1),
+          0,
+          0,
+          constants.AddressZero,
+        ),
     )
       .to.emit(market, 'OrderCreated')
       .withArgs(
@@ -578,7 +600,7 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
     await expect(
       market
         .connect(userB)
@@ -720,7 +742,7 @@ describe('Happy Path', () => {
     })
   })
 
-  it('opens multiple take positions', async () => {
+  it('opens multiple long positions', async () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
@@ -740,15 +762,15 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B.div(2), 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](userB.address, POSITION_B.div(2), COLLATERAL, constants.AddressZero)
 
     await expect(
       market
         .connect(userB)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, 0, false),
+        ['update(address,int256,int256,address)'](userB.address, POSITION_B.div(2), 0, constants.AddressZero),
     )
       .to.emit(market, 'OrderCreated')
       .withArgs(
@@ -870,19 +892,21 @@ describe('Happy Path', () => {
     await expect(
       market
         .connect(userB)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, COLLATERAL, false),
+        ['update(address,int256,int256,address)'](userB.address, POSITION_B, COLLATERAL, constants.AddressZero),
     ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](userB.address, POSITION_B, COLLATERAL, constants.AddressZero)
 
     await chainlink.next()
 
     await expect(
-      market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false),
+      market
+        .connect(userB)
+        ['update(address,int256,int256,address)'](userB.address, POSITION_B.mul(-1), 0, constants.AddressZero),
     )
       .to.emit(market, 'OrderCreated')
       .withArgs(
@@ -963,23 +987,25 @@ describe('Happy Path', () => {
     await expect(
       market
         .connect(userB)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, COLLATERAL, false),
+        ['update(address,int256,int256,address)'](userB.address, POSITION_B, COLLATERAL, constants.AddressZero),
     ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](userB.address, POSITION_B, COLLATERAL, constants.AddressZero)
 
     await chainlink.next()
 
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B.div(2), 0, 0, false)
+      ['update(address,int256,int256,address)'](userB.address, POSITION_B.div(2).mul(-1), 0, constants.AddressZero)
 
     await expect(
-      market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, 0, 0, false),
+      market
+        .connect(userB)
+        ['update(address,int256,int256,address)'](userB.address, POSITION_B.div(2).mul(-1), 0, constants.AddressZero),
     )
       .to.emit(market, 'OrderCreated')
       .withArgs(
@@ -1038,6 +1064,98 @@ describe('Happy Path', () => {
     })
   })
 
+  it('closes long position with close', async () => {
+    const POSITION = parse6decimal('10')
+    const POSITION_B = parse6decimal('1')
+    const COLLATERAL = parse6decimal('1000')
+    const { user, userB, dsu, chainlink } = instanceVars
+
+    const market = await createMarket(instanceVars)
+    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+
+    await expect(
+      market
+        .connect(userB)
+        ['update(address,int256,int256,address)'](userB.address, POSITION_B, COLLATERAL, constants.AddressZero),
+    ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
+    await market
+      .connect(user)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
+    await market
+      .connect(userB)
+      ['update(address,int256,int256,address)'](userB.address, POSITION_B, COLLATERAL, constants.AddressZero)
+
+    await chainlink.next()
+
+    // close userB's position
+    await expect(market.connect(userB).close(userB.address, false, constants.AddressZero))
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_2,
+          orders: 1,
+          longNeg: POSITION_B,
+          invalidation: 1,
+        },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
+
+    // User State
+    expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 2,
+      latestId: 1,
+      collateral: COLLATERAL,
+    })
+    expectOrderEq(await market.pendingOrders(userB.address, 2), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_2,
+      orders: 1,
+      longNeg: POSITION_B,
+    })
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
+      ...DEFAULT_CHECKPOINT,
+    })
+    expectPositionEq(await market.positions(userB.address), {
+      ...DEFAULT_POSITION,
+      long: POSITION_B,
+      timestamp: TIMESTAMP_1,
+    })
+
+    // Global State
+    expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
+      currentId: 2,
+      latestId: 1,
+      latestPrice: PRICE_1,
+    })
+    expectOrderEq(await market.pendingOrder(2), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_2,
+      orders: 1,
+      longNeg: POSITION_B,
+    })
+    expectPositionEq(await market.position(), {
+      ...DEFAULT_POSITION,
+      maker: POSITION,
+      long: POSITION_B,
+      timestamp: TIMESTAMP_1,
+    })
+    expectVersionEq(await market.versions(TIMESTAMP_1), {
+      ...DEFAULT_VERSION,
+      price: PRICE_1,
+      makerValue: { _value: 0 },
+      longValue: { _value: 0 },
+      shortValue: { _value: 0 },
+    })
+  })
+
   it('settle no op (gas test)', async () => {
     const { user } = instanceVars
 
@@ -1056,7 +1174,7 @@ describe('Happy Path', () => {
     await expect(
       market
         .connect(user)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, parse6decimal('1000'), false),
+        ['update(address,int256,int256,address)'](user.address, 0, parse6decimal('1000'), constants.AddressZero),
     ).to.be.revertedWithCustomError(market, 'InstancePausedError')
 
     await expect(settle(market, user)).to.be.revertedWithCustomError(market, 'InstancePausedError')
@@ -1152,7 +1270,7 @@ describe('Happy Path', () => {
     await expect(
       market
         .connect(user)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, parse6decimal('1000'), false),
+        ['update(address,int256,int256,address)'](user.address, 0, parse6decimal('1000'), constants.AddressZero),
     ).to.be.revertedWithCustomError(market, 'MarketSettleOnlyError')
   })
 
@@ -1176,11 +1294,11 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
     await expect(
       market
         .connect(userB)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, COLLATERAL, false),
+        ['update(address,int256,int256,address)'](userB.address, POSITION_B, COLLATERAL, constants.AddressZero),
     )
       .to.emit(market, 'OrderCreated')
       .withArgs(
@@ -1232,11 +1350,11 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
     await expect(
       market
         .connect(userB)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, 0, POSITION_B, COLLATERAL, false),
+        ['update(address,int256,int256,address)'](userB.address, POSITION_B.mul(-1), COLLATERAL, constants.AddressZero),
     )
       .to.emit(market, 'OrderCreated')
       .withArgs(
@@ -1273,7 +1391,7 @@ describe('Happy Path', () => {
 
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink, beneficiaryB } = instanceVars
+    const { user, userB, dsu, chainlink } = instanceVars
 
     const riskParameter = {
       margin: parse6decimal('0.3'),
@@ -1331,20 +1449,26 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(3), 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](
+        user.address,
+        POSITION.div(4),
+        0,
+        COLLATERAL,
+        constants.AddressZero,
+      )
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION.div(3), 0, COLLATERAL, false) // 0 -> 1
+      ['update(address,int256,int256,address)'](userB.address, POSITION.div(4), COLLATERAL, constants.AddressZero) // 0 -> 1
 
     await chainlink.next()
     await chainlink.next()
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION.div(2), 0, 0, 0, false) // 2 -> 3
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION.div(4), 0, 0, constants.AddressZero) // 2 -> 3
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION.div(2), 0, 0, false)
+      ['update(address,int256,int256,address)'](userB.address, POSITION.div(4), 0, constants.AddressZero)
 
     // Ensure a->b->c
     await chainlink.next()
@@ -1353,7 +1477,7 @@ describe('Happy Path', () => {
     await expect(
       market
         .connect(user)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, -1, false),
+        ['update(address,int256,int256,int256,address)'](user.address, POSITION.div(2), 0, -1, constants.AddressZero),
     ) // 4 -> 5
       .to.emit(market, 'OrderCreated')
       .withArgs(
@@ -1377,7 +1501,7 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 3,
       latestId: 2,
-      collateral: '871368068',
+      collateral: '873156333',
     })
     expectOrderEq(await market.pendingOrders(user.address, 3), {
       ...DEFAULT_ORDER,
@@ -1400,7 +1524,7 @@ describe('Happy Path', () => {
       ...DEFAULT_GLOBAL,
       currentId: 3,
       latestId: 2,
-      protocolFee: '172527179',
+      protocolFee: '173005296',
       latestPrice: PRICE_4,
     })
     expectOrderEq(await market.pendingOrder(3), {
@@ -1419,8 +1543,8 @@ describe('Happy Path', () => {
     expectVersionEq(await market.versions(TIMESTAMP_4), {
       ...DEFAULT_VERSION,
       price: PRICE_4,
-      makerValue: { _value: '-3538257' },
-      longValue: { _value: '3620965' },
+      makerValue: { _value: '-3451030' },
+      longValue: { _value: '3620966' },
       shortValue: { _value: 0 },
     })
   })
@@ -1437,10 +1561,10 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, 0, POSITION_B, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](userB.address, POSITION_B, COLLATERAL, constants.AddressZero)
 
     await chainlink.nextWithPriceModification(price => price.mul(10))
 
@@ -1477,7 +1601,7 @@ describe('Happy Path', () => {
       },
       minMargin: parse6decimal('500'),
       minMaintenance: parse6decimal('500'),
-      staleAfter: 100000, // enable long delays for testing
+      staleAfter: 64800, // enable long delays for testing
       makerReceiveOnly: false,
     }
     const parameter = {
@@ -1540,19 +1664,19 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
 
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
     await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
 
     await market
       .connect(userC)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
     const intent: IntentStruct = {
       amount: POSITION.div(2),
@@ -1702,19 +1826,19 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
 
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
     await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
 
     await market
       .connect(userC)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
     const intent: IntentStruct = {
       amount: POSITION.div(2),
@@ -1795,19 +1919,19 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
 
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
     await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
 
     await market
       .connect(userC)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
     const intent: IntentStruct = {
       amount: POSITION.div(2),
@@ -1893,13 +2017,17 @@ describe('Happy Path', () => {
 
     // user and userB deposit collateral
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await market.connect(user)[MARKET_UPDATE_DELTA_PROTOTYPE](user.address, 0, COLLATERAL, constants.AddressZero)
+    await market.connect(user)[MARKET_UPDATE_TAKER_DELTA_PROTOTYPE](user.address, 0, COLLATERAL, constants.AddressZero)
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-    await market.connect(userB)[MARKET_UPDATE_DELTA_PROTOTYPE](userB.address, 0, COLLATERAL, constants.AddressZero)
+    await market
+      .connect(userB)
+      [MARKET_UPDATE_TAKER_DELTA_PROTOTYPE](userB.address, 0, COLLATERAL, constants.AddressZero)
 
     // userC opens a maker position adding liquidity to the market
     await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
-    await market.connect(userC)[MARKET_UPDATE_ABSOLUTE_PROTOTYPE](userC.address, POSITION, 0, 0, COLLATERAL, false)
+    await market
+      .connect(userC)
+      [MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE](userC.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
     // userD, a delegated signer for user, signs an intent to open a short position for user
     await marketFactory.connect(user).updateSigner(userD.address, true)
@@ -2092,7 +2220,7 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
     const operatorUpdate = {
       access: {
@@ -2232,7 +2360,7 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
     // try to update extension using incorrect owner
     await expect(marketFactory.connect(userB).updateExtension(user.address, true))
@@ -2344,11 +2472,15 @@ describe('Happy Path', () => {
 
     // user opens a maker position adding liquidity to the market
     await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12).mul(2))
-    await market.connect(user)[MARKET_UPDATE_ABSOLUTE_PROTOTYPE](user.address, POSITION, 0, 0, COLLATERAL, false)
+    await market
+      .connect(user)
+      [MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
     // userB deposits some collateral
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12).mul(2))
-    await market.connect(userB)[MARKET_UPDATE_DELTA_PROTOTYPE](userB.address, 0, COLLATERAL, constants.AddressZero)
+    await market
+      .connect(userB)
+      [MARKET_UPDATE_TAKER_DELTA_PROTOTYPE](userB.address, 0, COLLATERAL, constants.AddressZero)
 
     // settle user's maker position
     await chainlink.next()
@@ -2598,17 +2730,17 @@ describe('Happy Path', () => {
 
     await market
       .connect(userC)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
 
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
     await market
       .connect(userC)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
     const intent: IntentStruct = {
       amount: POSITION.div(2),
@@ -2713,17 +2845,17 @@ describe('Happy Path', () => {
 
     await market
       .connect(userC)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
 
     await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
 
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
     await market
       .connect(userC)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
     const intent: IntentStruct = {
       amount: POSITION.div(2),
@@ -2804,7 +2936,7 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
     await expect(
       market
         .connect(userB)
@@ -2948,15 +3080,14 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
 
-    const chainlink = await new ChainlinkContext(
-      CHAINLINK_CUSTOM_CURRENCIES.ETH,
-      CHAINLINK_CUSTOM_CURRENCIES.USD,
-      { decimals: 0 },
-      delay,
-    ).init(BigNumber.from(0), BigNumber.from(0))
+    const { user, userB, dsu, chainlink } = instanceVars
 
-    const instanceVars = await deployProtocol(chainlink)
-    const { user, userB, dsu, beneficiaryB, payoff } = instanceVars
+    // set delay
+    chainlink.delay = delay
+
+    const nextWithConstantPrice = async () => {
+      return instanceVars.chainlink.nextWithPriceModification(() => UNDERLYING_PRICE)
+    }
 
     const riskParameter = {
       margin: parse6decimal('0.3'),
@@ -2989,7 +3120,7 @@ describe('Happy Path', () => {
       },
       minMargin: parse6decimal('500'),
       minMaintenance: parse6decimal('500'),
-      staleAfter: 100000, // enable long delays for testing
+      staleAfter: 64800, // enable long delays for testing
       makerReceiveOnly: false,
     }
     const parameter = {
@@ -3015,31 +3146,28 @@ describe('Happy Path', () => {
     for (let i = 0; i < delay; i++) {
       await market
         .connect(user)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](
+        ['update(address,int256,int256,int256,address)'](
           user.address,
-          POSITION.sub(delay - i),
-          0,
+          i == 0 ? POSITION : 1,
           0,
           i == 0 ? COLLATERAL : 0,
-          false,
+          constants.AddressZero,
         )
       await market
         .connect(userB)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](
+        ['update(address,int256,int256,address)'](
           userB.address,
-          0,
-          POSITION.sub(delay - i),
-          0,
+          i == 0 ? POSITION : 1,
           i == 0 ? COLLATERAL : 0,
-          false,
+          constants.AddressZero,
         )
 
-      await chainlink.next()
+      await nextWithConstantPrice()
     }
 
     // ensure all pending can settle
-    for (let i = 0; i < delay - 1; i++) await chainlink.next()
-    if (sync) await chainlink.next()
+    for (let i = 0; i < delay - 1; i++) await nextWithConstantPrice()
+    if (sync) await nextWithConstantPrice()
 
     // const currentVersion = delay + delay + delay - (sync ? 0 : 1)
     // const latestVersion = delay + delay - (sync ? 0 : 1)
@@ -3047,7 +3175,7 @@ describe('Happy Path', () => {
     await expect(
       market
         .connect(user)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, -1, false),
+        ['update(address,int256,int256,int256,address)'](user.address, 1, 0, -1, constants.AddressZero),
     )
       .to.emit(market, 'OrderCreated')
       .withArgs(
@@ -3056,11 +3184,14 @@ describe('Happy Path', () => {
           ...DEFAULT_ORDER,
           timestamp: await chainlink.oracle.current(),
           orders: 1,
-          makerPos: POSITION,
+          makerPos: 1,
           collateral: -1,
           invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
       )
 
     // Check user is in the correct state
@@ -3072,8 +3203,10 @@ describe('Happy Path', () => {
     })
     expectOrderEq(await market.pendingOrders(user.address, delay + 1), {
       ...DEFAULT_ORDER,
+      orders: 1,
       timestamp: await chainlink.oracle.current(),
-      makerNeg: 1,
+      collateral: -1,
+      makerPos: 1,
     })
     expectCheckpointEq(await market.checkpoints(user.address, delay + 1), {
       ...DEFAULT_CHECKPOINT,
@@ -3082,7 +3215,7 @@ describe('Happy Path', () => {
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
       timestamp: (await chainlink.oracle.latest()).timestamp,
-      maker: POSITION.sub(1),
+      maker: POSITION.add(delay - 1),
     })
 
     // Check global state
@@ -3100,12 +3233,13 @@ describe('Happy Path', () => {
       timestamp: await chainlink.oracle.current(),
       orders: 1,
       makerPos: 1,
+      collateral: -1,
     })
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
       timestamp: (await chainlink.oracle.latest()).timestamp,
-      maker: POSITION.sub(1),
-      long: POSITION.sub(1),
+      maker: POSITION.add(delay - 1),
+      long: POSITION.add(delay - 1),
     })
   })
 })

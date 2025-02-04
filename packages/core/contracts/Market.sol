@@ -26,7 +26,6 @@ import { Take } from "./types/Take.sol";
 import { OracleVersion } from "./types/OracleVersion.sol";
 import { OracleReceipt } from "./types/OracleReceipt.sol";
 import { InvariantLib } from "./libs/InvariantLib.sol";
-import { MagicValueLib } from "./libs/MagicValueLib.sol";
 import { VersionAccumulationResponse, VersionLib } from "./libs/VersionLib.sol";
 import { CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
 
@@ -173,6 +172,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ); // signer
     }
 
+	/// @notice Fills an intent order using a signed message
+	/// @param fill Message wrapping the Intent and identifying the solver
+	/// @param traderSignature Signature of the wrapped intent (inner)
+	/// @param solverSignature Signature of the fill message from the solver (outer)
     function update(
         Fill calldata fill,
         bytes memory traderSignature,
@@ -218,24 +221,24 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Updates the account's position
     /// @dev No collateral movement, signer is allowed to self-send
     /// @param account The account to operate on
-    /// @param amount The position delta of the order (positive for long, negative for short)
+    /// @param takerAmount The position delta of the order (positive for long, negative for short)
     /// @param referrer The referrer of the order
-    function update(address account, Fixed6 amount, address referrer) external nonReentrant whenNotPaused {
-       _updateMarket(account, msg.sender, Fixed6Lib.ZERO, amount, Fixed6Lib.ZERO, referrer);
+    function update(address account, Fixed6 takerAmount, address referrer) external nonReentrant whenNotPaused {
+       _updateMarket(account, msg.sender, Fixed6Lib.ZERO, takerAmount, Fixed6Lib.ZERO, referrer);
     }
 
-    /// @notice Updates the account's position and collateral
+    /// @notice Updates the account's taker position and collateral
     /// @param account The account to operate on
-    /// @param amount The position delta of the order (positive for long, negative for short)
+    /// @param takerAmount The position delta of the order (positive for long, negative for short)
     /// @param collateral The collateral delta of the order (positive for deposit, negative for withdrawal)
     /// @param referrer The referrer of the order
     function update(
         address account,
-        Fixed6 amount,
+        Fixed6 takerAmount,
         Fixed6 collateral,
         address referrer
     ) external nonReentrant whenNotPaused {
-        _updateMarket(account, address(0), Fixed6Lib.ZERO, amount, collateral, referrer);
+        _updateMarket(account, address(0), Fixed6Lib.ZERO, takerAmount, collateral, referrer);
     }
 
     /// @notice Updates the account's position and collateral
@@ -254,60 +257,39 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _updateMarket(account, address(0), makerAmount, takerAmount, collateral, referrer);
     }
 
-    /// @notice Updates the account's position and collateral
+    /// @notice Closes the account's position
     /// @param account The account to operate on
-    /// @param newMaker The new maker position for the account
-    /// @param newMaker The new long position for the account
-    /// @param newMaker The new short position for the account
-    /// @param collateral The collateral amount to add or remove from the account
-    /// @param protect Whether to put the account into a protected status for liquidations
-    function update(
-        address account,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort,
-        Fixed6 collateral,
-        bool protect
-    ) external {
-        update(account, newMaker, newLong, newShort, collateral, protect, address(0));
-    }
-
-    /// @notice Updates the account's position and collateral
-    /// @param account The account to operate on
-    /// @param newMaker The new maker position for the account
-    /// @param newLong The new long position for the account
-    /// @param newShort The new short position for the account
-    /// @param collateral The collateral amount to add or remove from the account
     /// @param protect Whether to put the account into a protected status for liquidations
     /// @param referrer The referrer of the order
-    function update(
-        address account,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort,
-        Fixed6 collateral,
-        bool protect,
-        address referrer
-    ) public nonReentrant whenNotPaused {
+    function close(address account, bool protect, address referrer) external {
         (Context memory context, UpdateContext memory updateContext) =
             _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 
-        // magic values
-        (collateral, newMaker, newLong, newShort) =
-            MagicValueLib.process(context, updateContext, collateral, newMaker, newLong, newShort);
+        Fixed6 makerAmount;
+        Fixed6 takerAmount;
+
+        UFixed6 closable = context.latestPositionLocal.magnitude().sub(context.pendingLocal.neg());
+
+        if (updateContext.currentPositionLocal.maker.gt(UFixed6Lib.ZERO)) {
+            makerAmount = Fixed6Lib.from(-1, closable);
+        } else if (updateContext.currentPositionLocal.long.gt(UFixed6Lib.ZERO)) {
+            takerAmount = Fixed6Lib.from(-1, closable);
+        } else {
+            takerAmount = Fixed6Lib.from(1, closable);
+        }
 
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(
             context.currentTimestamp,
             updateContext.currentPositionLocal,
-            collateral,
-            newMaker,
-            newLong,
-            newShort,
+            makerAmount,
+            takerAmount,
+            Fixed6Lib.ZERO,
             protect,
             true,
             updateContext.orderReferralFee
         );
+
         Guarantee memory newGuarantee; // no guarantee is created for a market order
 
         // process update
@@ -569,6 +551,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (updateContext.operator, updateContext.signer, updateContext.orderReferralFee) =
             IMarketFactory(address(factory())).authorization(context.account, msg.sender, signer, orderReferrer);
         if (guaranteeReferrer != address(0)) updateContext.guaranteeReferralFee = guaranteeReferralFee;
+
+        // load price adjustment
+        for (uint256 id = context.local.latestId + 1; id <= context.local.currentId; id++)
+            updateContext.priceAdjustment = updateContext.priceAdjustment
+                .add(_guarantees[context.account][id].read().priceAdjustment(context.latestOracleVersion.price));
     }
 
     /// @notice Stores the context for the update process
@@ -769,8 +756,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // fund
         if (newOrder.collateral.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(newOrder.collateral.abs()));
         if (newOrder.collateral.sign() == -1) token.push(msg.sender, UFixed18Lib.from(newOrder.collateral.abs()));
-
-        // events
     }
 
     /// @notice Processes the referrer for the given order

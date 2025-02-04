@@ -25,7 +25,6 @@ import { signCancelOrderAction, signCommon, signPlaceOrderAction } from '../../h
 import { OracleVersionStruct } from '../../../types/generated/contracts/TriggerOrders/test/TriggerOrderTester'
 import { Compare, compareOrders, DEFAULT_TRIGGER_ORDER, Side } from '../../helpers/TriggerOrders/order'
 import { deployController } from '../../helpers/setupHelpers'
-import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 
 const { ethers } = HRE
 
@@ -49,7 +48,7 @@ const MAKER_ORDER = {
   maxFee: MAX_FEE,
 }
 
-const MARKET_UPDATE_ABSOLUTE_REF_PROTOTYPE = 'update(address,uint256,uint256,uint256,int256,bool,address)'
+const MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE = 'update(address,int256,int256,int256,address)'
 
 describe('Manager', () => {
   let usdc: FakeContract<IERC20>
@@ -244,13 +243,11 @@ describe('Manager', () => {
       await manager.connect(keeper).executeOrder(market.address, userA.address, nonce1)
       expect(market.settle).to.have.been.calledWith(userA.address)
       expect(market.positions).to.have.been.calledWith(userA.address)
-      expect(market[MARKET_UPDATE_ABSOLUTE_REF_PROTOTYPE]).to.have.been.calledWith(
+      expect(market[MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE]).to.have.been.calledWith(
         userA.address,
         MAKER_ORDER.delta,
         0,
         0,
-        0,
-        false,
         constants.AddressZero,
       )
       expect(dsu.transferFrom).to.have.been.calledWith(collateralAccountA.address, manager.address, 0)
@@ -270,13 +267,11 @@ describe('Manager', () => {
       await manager.connect(keeper).executeOrder(market.address, userB.address, nonce2)
       expect(market.settle).to.have.been.calledWith(userB.address)
       expect(market.positions).to.have.been.calledWith(userB.address)
-      expect(market[MARKET_UPDATE_ABSOLUTE_REF_PROTOTYPE]).to.have.been.calledWith(
+      expect(market[MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE]).to.have.been.calledWith(
         userB.address,
         0,
         longOrder.delta,
         0,
-        0,
-        false,
         constants.AddressZero,
       )
       expect(dsu.transferFrom).to.have.been.calledWith(collateralAccountB.address, manager.address, 0)

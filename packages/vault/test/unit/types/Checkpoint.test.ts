@@ -352,7 +352,12 @@ describe('Checkpoint', () => {
         transfer: 0,
       }
       const mark = ethers.utils.parseEther('5') // 5 -> 10
-      const vaultParameter = { maxDeposit: 123, minDeposit: 456, profitShare: parse6decimal('0.2') }
+      const vaultParameter = {
+        maxDeposit: 123,
+        minDeposit: 456,
+        profitShare: parse6decimal('0.2'),
+        leverageBuffer: parse6decimal('1.2'),
+      }
 
       const [newMark, profitShares] = await checkpoint.callStatic.complete(mark, vaultParameter, marketCheckpoint)
       await checkpoint.complete(mark, vaultParameter, marketCheckpoint)
@@ -381,7 +386,12 @@ describe('Checkpoint', () => {
         transfer: 0,
       }
       const mark = ethers.utils.parseEther('15')
-      const vaultParameter = { maxDeposit: 123, minDeposit: 456, profitShare: parse6decimal('0.2') }
+      const vaultParameter = {
+        maxDeposit: 123,
+        minDeposit: 456,
+        profitShare: parse6decimal('0.2'),
+        leverageBuffer: parse6decimal('1.2'),
+      }
 
       const [newMark, profitShares] = await checkpoint.callStatic.complete(mark, vaultParameter, marketCheckpoint)
       await checkpoint.complete(mark, vaultParameter, marketCheckpoint)

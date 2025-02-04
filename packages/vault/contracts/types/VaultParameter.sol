@@ -13,13 +13,17 @@ struct VaultParameter {
 
     /// @dev The profit share percentage with the coordinator
     UFixed6 profitShare;
+
+    /// @dev The buffer for the leverage
+    UFixed6 leverageBuffer;
 }
 struct StoredVaultParameter {
     /* slot 0 */
     uint64 maxDeposit;
     uint64 minDeposit;
     uint24 profitShare;
-    bytes13 __unallocated0__;
+    uint24 leverageBuffer;
+    bytes10 __unallocated0__;
 }
 struct VaultParameterStorage { StoredVaultParameter value; } // SECURITY: must remain at (1) slots
 using VaultParameterStorageLib for VaultParameterStorage global;
@@ -35,8 +39,8 @@ library VaultParameterStorageLib {
         return VaultParameter(
             UFixed6.wrap(uint256(storedValue.maxDeposit)),
             UFixed6.wrap(uint256(storedValue.minDeposit)),
-            UFixed6.wrap(uint256(storedValue.profitShare))
-
+            UFixed6.wrap(uint256(storedValue.profitShare)),
+            UFixed6.wrap(uint256(storedValue.leverageBuffer))
         );
     }
 
@@ -44,12 +48,14 @@ library VaultParameterStorageLib {
         if (newValue.maxDeposit.gt(UFixed6.wrap(type(uint64).max))) revert VaultParameterStorageInvalidError();
         if (newValue.minDeposit.gt(UFixed6.wrap(type(uint64).max))) revert VaultParameterStorageInvalidError();
         if (newValue.profitShare.gt(UFixed6Lib.ONE)) revert VaultParameterStorageInvalidError();
+        if (newValue.leverageBuffer.gt(UFixed6.wrap(type(uint24).max))) revert VaultParameterStorageInvalidError();
 
         self.value = StoredVaultParameter(
             uint64(UFixed6.unwrap(newValue.maxDeposit)),
             uint64(UFixed6.unwrap(newValue.minDeposit)),
             uint24(UFixed6.unwrap(newValue.profitShare)),
-            bytes13(0)
+            uint24(UFixed6.unwrap(newValue.leverageBuffer)),
+            bytes10(0)
         );
     }
 }

@@ -5,9 +5,9 @@ import { Address } from 'hardhat-deploy/dist/types'
 import { BigNumber, CallOverrides, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { currentBlockTimestamp } from '../../../../../common/testutil/time'
-import { getEventArguments } from '../../../../../common/testutil/transaction'
-import { parse6decimal } from '../../../../../common/testutil/types'
+import { currentBlockTimestamp } from '../../../../common/testutil/time'
+import { getEventArguments } from '../../../../common/testutil/transaction'
+import { parse6decimal } from '../../../../common/testutil/types'
 import {
   Account,
   Account__factory,
@@ -15,17 +15,17 @@ import {
   Controller,
   IAccountVerifier,
   IERC20Metadata,
-} from '../../../../types/generated'
+} from '../../../types/generated'
 import { IMarket, IMarketFactory } from '@perennial/v2-core/types/generated'
 import {
   signDeployAccount,
   signMarketTransfer,
   signRebalanceConfigChange,
   signWithdrawal,
-} from '../../../helpers/CollateralAccounts/eip712'
-import { deployController, MarketWithOracle } from '../../../helpers/setupHelpers'
+} from '../../helpers/CollateralAccounts/eip712'
+import { deployController, MarketWithOracle } from '../../helpers/setupHelpers'
 import { DeploymentVars } from './setupTypes'
-import { advanceToPrice } from '../../../helpers/oracleHelpers'
+import { advanceToPrice } from '../../helpers/oracleHelpers'
 
 const { ethers } = HRE
 
@@ -112,19 +112,18 @@ export function RunControllerBaseTests(
     // updates the market and returns the version timestamp
     async function changePosition(
       user: SignerWithAddress,
-      newMaker = constants.MaxUint256,
-      newLong = constants.MaxUint256,
-      newShort = constants.MaxUint256,
+      makerDelta: BigNumber,
+      longDelta: BigNumber,
+      shortDelta: BigNumber,
     ): Promise<BigNumber> {
       const tx = await ethMarket
         .connect(user)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](
+        ['update(address,int256,int256,int256,address)'](
           user.address,
-          newMaker,
-          newLong,
-          newShort,
-          0,
-          false,
+          makerDelta,
+          longDelta.sub(shortDelta),
+          BigNumber.from(0),
+          constants.AddressZero,
           TX_OVERRIDES,
         )
       return (await getEventArguments(tx, 'OrderCreated')).order.timestamp
@@ -142,6 +141,8 @@ export function RunControllerBaseTests(
         amount: amount,
         ...createAction(user.address, signer.address),
       }
+
+      // sign the message
       const signature = await signMarketTransfer(signer, verifier, marketTransferMessage)
 
       // determine expected event parameters
@@ -150,14 +151,12 @@ export function RunControllerBaseTests(
         // deposits transfer from collateral account into market
         expectedFrom = accountA.address
         expectedTo = market.address
-        if (amount === constants.MaxInt256) expectedAmount = await dsu.balanceOf(accountA.address)
-        else expectedAmount = amount.mul(1e12)
+        expectedAmount = amount.mul(1e12)
       } else {
         // withdrawals transfer from market into account
         expectedFrom = market.address
         expectedTo = accountA.address
-        if (amount === constants.MinInt256) expectedAmount = (await market.locals(user.address)).collateral.mul(1e12)
-        else expectedAmount = amount.mul(-1e12)
+        expectedAmount = amount.mul(-1e12)
       }
 
       // perform transfer
@@ -516,7 +515,7 @@ export function RunControllerBaseTests(
         await transfer(depositAmount, userA)
 
         // sign a message to fully withdraw from the market
-        await transfer(constants.MinInt256, userA)
+        await transfer(depositAmount.mul(-1), userA)
 
         // verify balances
         await expectMarketCollateralBalance(userA, constants.Zero)
@@ -529,7 +528,7 @@ export function RunControllerBaseTests(
         await transfer(depositAmount, userA)
 
         // create a maker position
-        currentTime = await changePosition(userA, parse6decimal('1.5'))
+        currentTime = await changePosition(userA, parse6decimal('1.5'), parse6decimal('0'), parse6decimal('0'))
 
         await advanceAndSettle(userA, receiver)
         expect((await ethMarket.positions(userA.address)).maker).to.equal(parse6decimal('1.5'))
@@ -537,7 +536,7 @@ export function RunControllerBaseTests(
         // sign a message to fully withdraw from the market
         const marketTransferMessage = {
           market: ethMarket.address,
-          amount: constants.MinInt256,
+          amount: (await ethMarket.locals(userA.address)).collateral.mul(-1),
           ...createAction(userA.address),
         }
         const signature = await signMarketTransfer(userA, verifier, marketTransferMessage)

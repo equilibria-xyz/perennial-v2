@@ -3,7 +3,7 @@ import HRE from 'hardhat'
 import { CallOverrides, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { parse6decimal } from '../../../../../common/testutil/types'
+import { parse6decimal } from '../../../../common/testutil/types'
 import {
   Account,
   Account__factory,
@@ -13,7 +13,7 @@ import {
   IController,
   IERC20Metadata,
   IMarketFactory,
-} from '../../../../types/generated'
+} from '../../../types/generated'
 import { DeploymentVars } from './setupTypes'
 
 const { ethers } = HRE
@@ -143,6 +143,18 @@ export function RunAccountTests(
           .to.emit(usdc, 'Transfer')
           .withArgs(account.address, userA.address, parse6decimal('300'))
         expect(await dsu.balanceOf(account.address)).to.equal(utils.parseEther('500'))
+        expect(await usdc.balanceOf(account.address)).to.equal(0)
+      })
+
+      it('unwraps only what is necessary', async () => {
+        await dsu.connect(userA).transfer(account.address, utils.parseEther('0.3'))
+        await usdc.connect(userA).transfer(account.address, parse6decimal('0.9'))
+
+        // should only unwrap the 0.1 DSU needed to satisfy the withdrawal
+        await expect(account.withdraw(parse6decimal('1'), true))
+          .to.emit(usdc, 'Transfer')
+          .withArgs(account.address, userA.address, parse6decimal('1'))
+        expect(await dsu.balanceOf(account.address)).to.equal(utils.parseEther('0.2'))
         expect(await usdc.balanceOf(account.address)).to.equal(0)
       })
 

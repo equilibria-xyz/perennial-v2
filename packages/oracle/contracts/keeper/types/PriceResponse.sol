@@ -68,17 +68,6 @@ library PriceResponseLib {
     function settlementFee(PriceResponse memory self, uint256 callbacks) internal pure returns (UFixed6) {
         return self.syncFee.add(self.asyncFee.mul(UFixed6Lib.from(callbacks)));
     }
-
-    /// @notice Scales down sync and async fees if they exceed the maximum settlement fee
-    /// @param self The price response object
-    /// @param maxSettlementFee The maximum settlement fee
-    function applyFeeMaximum(PriceResponse memory self, UFixed6 maxSettlementFee, uint256 callbacks) internal pure {
-        UFixed6 totalSettlementFee = settlementFee(self, callbacks);
-        if (totalSettlementFee.gt(maxSettlementFee)) {
-            self.syncFee = self.syncFee.muldiv(maxSettlementFee, totalSettlementFee);
-            self.asyncFee = self.asyncFee.muldiv(maxSettlementFee, totalSettlementFee);
-        }
-    }
 }
 
 /// @dev (external-safe): this library is safe to externalize

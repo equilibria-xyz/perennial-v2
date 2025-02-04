@@ -23,8 +23,8 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @dev The verifier contract
     IVerifier public immutable verifier;
 
-    /// @dev The global protocol parameters
-    ProtocolParameterStorage private _parameter;
+    /// @dev DEPRECATED SLOT -- previously the protocol parameter storage
+    bytes32 private __unused0__;
 
     /// @dev Mapping of allowed operators per account
     ///      Note: Operators are allowed to update an account's position and collateral
@@ -44,6 +44,9 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @dev Mapping of allowed protocol-wide operators
     ///      Note: Extensions have operator privileges on all accounts in the protocol
     mapping(address => bool) public extensions;
+
+    /// @dev The global protocol parameters
+    ProtocolParameterStorage private _parameter;
 
     /// @notice Constructs the contract
     /// @param oracleFactory_ The oracle factory

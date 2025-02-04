@@ -10,6 +10,7 @@ import 'hardhat-deploy'
 import 'hardhat-dependency-compiler'
 import 'hardhat-tracer'
 import 'solidity-coverage'
+import 'solidity-docgen'
 
 import { getChainId, isArbitrum, isBase, isOptimism, SupportedChain } from './testutil/network'
 
@@ -222,6 +223,9 @@ export default function defaultConfig({
       slow: 1000,
       timeout: 4800000,
       retries: Number(MOCHA_RETRY_COUNT),
+    },
+    docgen: {
+      pages: 'files',
     },
     contractSizer: {
       alphaSort: true,

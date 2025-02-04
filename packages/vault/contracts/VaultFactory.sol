@@ -18,8 +18,8 @@ contract VaultFactory is IVaultFactory, Factory {
     /// @dev The market factory
     IMarketFactory public immutable marketFactory;
 
-    /// @dev Mapping of allowed operators for each account
-    mapping(address => mapping(address => bool)) public operators;
+    /// @dev DEPRECATED SLOT -- previously the operators mapping
+    bytes32 private __unused0__;
 
     /// @notice Constructs the contract
     /// @param marketFactory_ The market factory
@@ -47,11 +47,12 @@ contract VaultFactory is IVaultFactory, Factory {
     function create(
         Token18 asset,
         IMarket initialMarket,
+        UFixed6 leverageBuffer,
         string calldata name
     ) external onlyOwner returns (IVault newVault) {
         // create vault
         newVault = IVault(address(
-            _create(abi.encodeCall(IVault.initialize, (asset, initialMarket, initialAmount, name)))));
+            _create(abi.encodeCall(IVault.initialize, (asset, initialMarket, initialAmount, leverageBuffer, name)))));
 
         // deposit and lock initial amount of the underlying asset to prevent inflation attacks
         asset.pull(msg.sender, UFixed18Lib.from(initialAmount));
@@ -59,13 +60,5 @@ contract VaultFactory is IVaultFactory, Factory {
         newVault.update(address(this), initialAmount, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 
         emit VaultCreated(newVault, asset, initialMarket);
-    }
-
-    /// @notice Updates the status of an operator for the caller
-    /// @param operator The operator to update
-    /// @param newEnabled The new status of the operator
-    function updateOperator(address operator, bool newEnabled) external {
-        operators[msg.sender][operator] = newEnabled;
-        emit OperatorUpdated(msg.sender, operator, newEnabled);
     }
 }

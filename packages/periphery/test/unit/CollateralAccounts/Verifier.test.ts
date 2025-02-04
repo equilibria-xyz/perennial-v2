@@ -32,7 +32,13 @@ import { impersonate } from '../../../../common/testutil'
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { Verifier, Verifier__factory } from '@perennial/v2-core/types/generated'
-import { AccountVerifier, AccountVerifier__factory, IController, IMarketFactory } from '../../../types/generated'
+import {
+  AccountVerifier,
+  AccountVerifier__factory,
+  IController,
+  IMarket,
+  IMarketFactory,
+} from '../../../types/generated'
 import {
   RelayedTakeStruct,
   TakeStruct,

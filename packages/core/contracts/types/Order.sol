@@ -91,12 +91,13 @@ library OrderLib {
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO, guarantee.longPos, guarantee.longNeg, guarantee.shortPos, guarantee.shortNeg);
     }
 
-    /// @notice Creates a new order from an intent order request or market update message
+    /// @notice Creates a new order from an intent or delta order request
     /// @param timestamp The current timestamp
     /// @param position The current position
     /// @param makerAmount The magnitude and direction of maker position
     /// @param takerAmount The magnitude and direction of taker position
     /// @param collateral The change in the collateral
+    /// @param protect True when liquidating the position
     /// @param referralFee The referral fee
     /// @return newOrder The resulting order
     function from(
@@ -125,6 +126,7 @@ library OrderLib {
         );
     }
 
+    // TODO: Do we still need this, or can we consolidate this implementation into the method above?
     /// @notice Creates a new order from the current position and an update request
     /// @param timestamp The current timestamp
     /// @param position The current position

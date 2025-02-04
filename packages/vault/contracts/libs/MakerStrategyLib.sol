@@ -69,13 +69,22 @@ struct MarketMakerStrategyContext {
 ///      - Deploys collateral first to satisfy the margin of each market, then deploys the rest by weight.
 ///      - Positions are then targeted based on the amount of collateral that ends up deployed to each market.
 library MakerStrategyLib {
+    /// @dev Encapsulates parameters to _allocateMarket to avoid a "Stack too deep" error
+    struct AllocateMarketParams {
+        /// @dev The total margin requirement of the vault
+        UFixed6 totalMargin;
+        /// @dev The total amount of collateral of the vault
+        UFixed6 collateral;
+        /// @dev The total amount of collateral of the vault
+        UFixed6 assets;
+        /// @dev Ensures a minimum amount of leverage is preserved
+        UFixed6 leverageBuffer;
+    }
+
     // sig: 0xf90641dc
     error MakerStrategyInsufficientCollateralError();
     // sig: 0xb86270e3
     error MakerStrategyInsufficientAssetsError();
-
-    /// @dev The maximum multiplier that is allowed for leverage
-    UFixed6 public constant LEVERAGE_BUFFER = UFixed6.wrap(1.2e6);
 
     /// @notice Compute the target allocation for each market
     /// @param registrations The registrations of the underlying markets
@@ -86,7 +95,8 @@ library MakerStrategyLib {
         Registration[] memory registrations,
         UFixed6 deposit,
         UFixed6 withdrawal,
-        UFixed6 ineligible
+        UFixed6 ineligible,
+        UFixed6 leverageBuffer
     ) internal view returns (Target[] memory targets) {
         MakerStrategyContext memory context = _load(registrations);
 
@@ -100,12 +110,13 @@ library MakerStrategyLib {
         UFixed6 totalMarketCollateral;
         for (uint256 marketId; marketId < context.markets.length; marketId++) {
             UFixed6 marketCollateral;
-            (targets[marketId], marketCollateral) = _allocateMarket(
-                context.markets[marketId],
-                context.totalMargin,
-                collateral,
-                assets
-            );
+            AllocateMarketParams memory params = AllocateMarketParams({
+                totalMargin: context.totalMargin,
+                collateral: collateral,
+                assets: assets,
+                leverageBuffer: leverageBuffer
+            });
+            (targets[marketId], marketCollateral) = _allocateMarket(context.markets[marketId], params);
             totalMarketCollateral = totalMarketCollateral.add(marketCollateral);
         }
 
@@ -115,21 +126,17 @@ library MakerStrategyLib {
 
     /// @notice Compute the target allocation for a market
     /// @param marketContext The context of the market
-    /// @param totalMargin The total margin requirement of the vault
-    /// @param collateral The total amount of collateral of the vault
-    /// @param assets The total amount of collateral available for allocation
+    /// @param params See `AllocateMarketParams`
     function _allocateMarket(
         MarketMakerStrategyContext memory marketContext,
-        UFixed6 totalMargin,
-        UFixed6 collateral,
-        UFixed6 assets
+        AllocateMarketParams memory params
     ) private pure returns (Target memory target, UFixed6 marketCollateral) {
         marketCollateral = marketContext.margin
-            .add(collateral.sub(totalMargin).mul(marketContext.registration.weight));
+            .add(params.collateral.sub(params.totalMargin).mul(marketContext.registration.weight));
 
-        UFixed6 marketAssets = assets
+        UFixed6 marketAssets = params.assets
             .mul(marketContext.registration.weight)
-            .min(marketCollateral.mul(LEVERAGE_BUFFER));
+            .min(marketCollateral.mul(params.leverageBuffer));
 
         target.collateral = Fixed6Lib.from(marketCollateral).sub(marketContext.local.collateral);
 
@@ -202,5 +209,14 @@ library MakerStrategyLib {
                 .unsafeSub(marketContext.currentPosition.skew().abs()).min(marketContext.closable));
         marketContext.maxPosition = marketContext.currentAccountPosition.maker
             .add(marketContext.riskParameter.makerLimit.unsafeSub(marketContext.currentPosition.maker));
+    }
+
+    function _getTargetPosition(MarketMakerStrategyContext memory marketContext, UFixed6 marketAssets) private pure returns (Fixed6) {
+        UFixed6 newMaker = marketAssets
+            .muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs())
+            .max(marketContext.minPosition)
+            .min(marketContext.maxPosition);
+
+        return Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(marketContext.currentAccountPosition.maker));
     }
 }

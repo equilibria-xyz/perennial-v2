@@ -7,6 +7,7 @@ on:
     branches:
       - main
       - v2.4-mini
+      - v2.4
   workflow_dispatch:
 
 env:

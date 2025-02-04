@@ -12,7 +12,6 @@ import {
   IFactory,
   Market__factory,
   MarketFactory,
-  MarketFactory__factory,
   Oracle,
   Oracle__factory,
   OracleFactory,
@@ -23,26 +22,13 @@ import {
   KeeperOracle__factory,
   KeeperOracle,
   PowerTwo__factory,
-  CheckpointLib__factory,
-  CheckpointStorageLib__factory,
-  GlobalStorageLib__factory,
-  InvariantLib__factory,
-  MarketParameterStorageLib__factory,
-  PositionStorageGlobalLib__factory,
-  PositionStorageLocalLib__factory,
-  RiskParameterStorageLib__factory,
-  GuaranteeStorageLocalLib__factory,
-  GuaranteeStorageGlobalLib__factory,
-  OrderStorageLocalLib__factory,
-  OrderStorageGlobalLib__factory,
-  VersionLib__factory,
-  VersionStorageLib__factory,
   GasOracle,
   GasOracle__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
 import { IInstance } from '../../../types/generated/@equilibria/root/attribute/interfaces'
+import { deployMarketFactory } from '../../setupHelpers'
 
 const { ethers } = HRE
 const { constants } = ethers
@@ -149,7 +135,8 @@ testOracles.forEach(testOracle => {
       await oracleFactory.initialize()
       await oracleFactory.connect(owner).updateParameter({
         maxGranularity: 10000,
-        maxSettlementFee: parse6decimal('1000'),
+        maxSyncFee: parse6decimal('500'),
+        maxAsyncFee: parse6decimal('500'),
         maxOracleFee: parse6decimal('0.5'),
       })
 
@@ -258,61 +245,7 @@ testOracles.forEach(testOracle => {
         'ETH²-USD',
       )
 
-      const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
-
-      // TODO: refactor Market implementation deployment into a helper
-      const marketImpl = await new Market__factory(
-        {
-          '@perennial/v2-core/contracts/libs/CheckpointLib.sol:CheckpointLib': (
-            await new CheckpointLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/libs/InvariantLib.sol:InvariantLib': (
-            await new InvariantLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/libs/VersionLib.sol:VersionLib': (
-            await new VersionLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Checkpoint.sol:CheckpointStorageLib': (
-            await new CheckpointStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Global.sol:GlobalStorageLib': (
-            await new GlobalStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-            await new MarketParameterStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Position.sol:PositionStorageGlobalLib': (
-            await new PositionStorageGlobalLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Position.sol:PositionStorageLocalLib': (
-            await new PositionStorageLocalLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-            await new RiskParameterStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Version.sol:VersionStorageLib': (
-            await new VersionStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': (
-            await new GuaranteeStorageLocalLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Guarantee.sol:GuaranteeStorageGlobalLib': (
-            await new GuaranteeStorageGlobalLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Order.sol:OrderStorageLocalLib': (
-            await new OrderStorageLocalLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Order.sol:OrderStorageGlobalLib': (
-            await new OrderStorageGlobalLib__factory(owner).deploy()
-          ).address,
-        },
-        owner,
-      ).deploy(verifierImpl.address)
-      marketFactory = await new MarketFactory__factory(owner).deploy(
-        oracleFactory.address,
-        verifierImpl.address,
-        marketImpl.address,
-      )
+      marketFactory = await deployMarketFactory(owner, oracleFactory)
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         maxFee: parse6decimal('0.01'),
@@ -324,6 +257,7 @@ testOracles.forEach(testOracle => {
         referralFee: 0,
         minScale: parse6decimal('0.001'),
         maxStaleAfter: 7200,
+        minMinMaintenance: 0,
       })
 
       const riskParameter = {
@@ -663,13 +597,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ),
             STARTING_TIME,
           )
@@ -702,13 +635,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market2
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ),
             STARTING_TIME,
           )
@@ -740,13 +672,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ),
             STARTING_TIME,
           )
@@ -773,13 +704,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ),
             STARTING_TIME,
           )
@@ -792,13 +722,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ),
             STARTING_TIME,
           )
@@ -809,7 +738,7 @@ testOracles.forEach(testOracle => {
           })
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 2, 0, 0, 0, false) // make request to oracle (new price)
+            ['update(address,int256,int256,int256,address)'](user.address, 2, 0, 0, constants.AddressZero) // make request to oracle (new price)
           await expect(
             pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
               value: 1,
@@ -822,13 +751,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ),
             STARTING_TIME,
           )
@@ -846,13 +774,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ),
             STARTING_TIME,
           )
@@ -860,7 +787,7 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 2, 0, 0, 0, false), // make request to oracle (new price)
+                ['update(address,int256,int256,int256,address)'](user.address, 2, 0, 0, constants.AddressZero), // make request to oracle (new price)
             STARTING_TIME + 1,
           )
 
@@ -879,13 +806,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ),
             STARTING_TIME,
           )
@@ -893,7 +819,7 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 2, 0, 0, 0, false), // make request to oracle (new price)
+                ['update(address,int256,int256,int256,address)'](user.address, 2, 0, 0, constants.AddressZero), // make request to oracle (new price)
             STARTING_TIME + 60,
           )
           expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
@@ -941,7 +867,13 @@ testOracles.forEach(testOracle => {
           await time.increase(30)
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, parse6decimal('10'), false) // make request to oracle (new price)
+            ['update(address,int256,int256,int256,address)'](
+              user.address,
+              1,
+              0,
+              parse6decimal('10'),
+              constants.AddressZero,
+            ) // make request to oracle (new price)
           await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
             value: 1,
           })
@@ -952,13 +884,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ),
             STARTING_TIME,
           )
@@ -978,13 +909,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ),
             STARTING_TIME,
           )
@@ -994,7 +924,7 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 2, 0, 0, 0, false), // make request to oracle (new price)
+                ['update(address,int256,int256,int256,address)'](user.address, 2, 0, 0, constants.AddressZero), // make request to oracle (new price)
             1686199141,
           )
           const secondRequestedVersion = await time.currentBlockTimestamp()
@@ -1027,13 +957,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ),
             STARTING_TIME + 2,
           )
@@ -1053,13 +982,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ),
             STARTING_TIME + 1,
           )
@@ -1092,13 +1020,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ),
             STARTING_TIME,
           )
@@ -1119,13 +1046,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ),
             STARTING_TIME,
           )
@@ -1153,13 +1079,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ),
             STARTING_TIME,
           )
@@ -1175,10 +1100,22 @@ testOracles.forEach(testOracle => {
           await time.includeAt(async () => {
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, parse6decimal('10'), false)
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                1,
+                0,
+                parse6decimal('10'),
+                constants.AddressZero,
+              )
             await market2
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, parse6decimal('10'), false)
+              ['update(address,int256,int256,int256,address)'](
+                user.address,
+                1,
+                0,
+                parse6decimal('10'),
+                constants.AddressZero,
+              )
           }, STARTING_TIME)
 
           expect(await keeperOracle.localCallbacks(STARTING_TIME)).to.deep.eq([user.address])
@@ -1219,13 +1156,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ), // make request to oracle (new price)
             STARTING_TIME,
           )
@@ -1260,13 +1196,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ), // make request to oracle (new price)
             STARTING_TIME,
           )
@@ -1288,13 +1223,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ), // make request to oracle (new price)
             STARTING_TIME,
           )
@@ -1313,7 +1247,13 @@ testOracles.forEach(testOracle => {
         it('returns the correct versions', async () => {
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, parse6decimal('10'), false) // make request to oracle (new price)
+            ['update(address,int256,int256,int256,address)'](
+              user.address,
+              1,
+              0,
+              parse6decimal('10'),
+              constants.AddressZero,
+            ) // make request to oracle (new price)
           await pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME, VAA, {
             value: 1,
           })
@@ -1333,13 +1273,12 @@ testOracles.forEach(testOracle => {
               async () =>
                 await market
                   .connect(user)
-                  ['update(address,uint256,uint256,uint256,int256,bool)'](
+                  ['update(address,int256,int256,int256,address)'](
                     user.address,
                     1,
                     0,
-                    0,
                     parse6decimal('10'),
-                    false,
+                    constants.AddressZero,
                   ), // make request to oracle (new price)
               STARTING_TIME,
             ),
@@ -1359,7 +1298,13 @@ testOracles.forEach(testOracle => {
           expect((await keeperOracle.global()).currentIndex).to.equal(0)
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, parse6decimal('10'), false) // make request to oracle (new price)
+            ['update(address,int256,int256,int256,address)'](
+              user.address,
+              1,
+              0,
+              parse6decimal('10'),
+              constants.AddressZero,
+            ) // make request to oracle (new price)
           const currentTimestamp = await pythOracleFactory.current()
 
           // Now there is exactly one requested version
@@ -1385,10 +1330,16 @@ testOracles.forEach(testOracle => {
 
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, parse6decimal('10'), false) // make request to oracle (new price)
+            ['update(address,int256,int256,int256,address)'](
+              user.address,
+              1,
+              0,
+              parse6decimal('10'),
+              constants.AddressZero,
+            ) // make request to oracle (new price)
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 2, 0, 0, 0, false) // make request to oracle (new price)
+            ['update(address,int256,int256,int256,address)'](user.address, 2, 0, 0, constants.AddressZero) // make request to oracle (new price)
 
           await ethers.provider.send('evm_mine', [])
 
@@ -1404,13 +1355,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ), // make request to oracle (new price)
             STARTING_TIME,
           )
@@ -1557,13 +1507,12 @@ testOracles.forEach(testOracle => {
             async () =>
               await market
                 .connect(user)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](
+                ['update(address,int256,int256,int256,address)'](
                   user.address,
                   1,
                   0,
-                  0,
                   parse6decimal('10'),
-                  false,
+                  constants.AddressZero,
                 ), // make request to oracle (new price)
             STARTING_TIME + 1,
           )
@@ -1587,7 +1536,13 @@ testOracles.forEach(testOracle => {
         it('returns invalid version if that version was requested but not committed', async () => {
           await market
             .connect(user)
-            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, parse6decimal('10'), false) // make request to oracle (new price)
+            ['update(address,int256,int256,int256,address)'](
+              user.address,
+              1,
+              0,
+              parse6decimal('10'),
+              constants.AddressZero,
+            ) // make request to oracle (new price)
           const version = await keeperOracle.connect(user).at(STARTING_TIME)
           expect(version[0].valid).to.be.false
         })

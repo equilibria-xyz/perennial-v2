@@ -1,16 +1,14 @@
 import { ethers } from 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
-import { Address } from 'hardhat-deploy/dist/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { parse6decimal } from '../../../../../common/testutil/types'
+import { parse6decimal } from '../../../../common/testutil/types'
 
 import { ChainlinkContext } from '@perennial/v2-core/test/integration/helpers/chainlinkHelpers'
 import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
 import { CHAINLINK_CUSTOM_CURRENCIES } from '@perennial/v2-oracle/util/constants'
 
-import { IERC20Metadata__factory, IOracle__factory, KeeperOracle, PythFactory } from '../../../../types/generated'
+import { IERC20Metadata__factory, IOracle__factory, KeeperOracle, PythFactory } from '../../../types/generated'
 import { RunInvokerTests } from './Invoke.test'
-import { RunOrderTests } from './Orders.test'
 import { RunPythOracleTests } from './Pyth.test'
 import { createInvoker, deployProtocol, InstanceVars } from './setupHelpers'
 import {
@@ -22,9 +20,9 @@ import {
   fundWalletUSDC,
   PYTH_ADDRESS,
   USDC_ADDRESS,
-} from '../../../helpers/mainnetHelpers'
-import { createPythOracle, PYTH_ETH_USD_PRICE_FEED } from '../../../helpers/oracleHelpers'
-import { deployPythOracleFactory } from '../../../helpers/setupHelpers'
+} from '../../helpers/mainnetHelpers'
+import { createPythOracle, PYTH_ETH_USD_PRICE_FEED } from '../../helpers/oracleHelpers'
+import { deployPythOracleFactory } from '../../helpers/oracleHelpers'
 
 const ORACLE_STARTING_TIMESTAMP = BigNumber.from(1646456563)
 
@@ -77,13 +75,13 @@ const fixture = async (): Promise<InstanceVars> => {
   return vars
 }
 
-async function getFixture(): Promise<InstanceVars> {
-  return loadFixture(fixture)
-}
-
 async function advanceToPrice(price?: BigNumber): Promise<void> {
   if (price) await chainlink.nextWithPriceModification(() => price)
   else await chainlink.next()
+}
+
+async function getFixture(): Promise<InstanceVars> {
+  return loadFixture(fixture)
 }
 
 async function getKeeperOracle(): Promise<[PythFactory, KeeperOracle]> {
@@ -116,7 +114,6 @@ if (process.env.FORK_NETWORK === undefined) {
     INITIAL_ORACLE_VERSION_ETH,
     INITIAL_ORACLE_VERSION_BTC,
   )
-  RunOrderTests(getFixture, createInvoker, advanceToPrice, true)
   RunPythOracleTests(getFixture, createInvoker, getKeeperOracle, fundWalletDSU, {
     startingTime: 1686198981, // block time at test 1686197771
     vaaValid:

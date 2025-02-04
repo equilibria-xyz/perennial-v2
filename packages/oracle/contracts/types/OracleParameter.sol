@@ -7,8 +7,11 @@ struct OracleParameter {
     /// @dev The cap for the granularity setting in seconds
     uint256 maxGranularity;
 
-    /// @dev the cap for the settle fee in absolute terms
-    UFixed6 maxSettlementFee;
+    /// @dev the cap for the sync fee in absolute terms
+    UFixed6 maxSyncFee;
+
+    /// @dev the cap for the async fee in absolute terms
+    UFixed6 maxAsyncFee;
 
     /// @dev The cap for the oracle fee in relative terms
     UFixed6 maxOracleFee;
@@ -16,7 +19,8 @@ struct OracleParameter {
 struct StoredOracleParameter {
     /* slot 0 */
     uint16 maxGranularity;      // <= 65k
-    uint48 maxSettlementFee;    // <= 281m
+    uint48 maxSyncFee;          // <= 281m
+    uint48 maxAsyncFee;         // <= 281m
     uint24 maxOracleFee;        // <= 100%
 }
 struct OracleParameterStorage { StoredOracleParameter value; }
@@ -31,7 +35,8 @@ library OracleParameterStorageLib {
         StoredOracleParameter memory storedValue = self.value;
         return OracleParameter(
             uint256(storedValue.maxGranularity),
-            UFixed6.wrap(uint256(storedValue.maxSettlementFee)),
+            UFixed6.wrap(uint256(storedValue.maxSyncFee)),
+            UFixed6.wrap(uint256(storedValue.maxAsyncFee)),
             UFixed6.wrap(uint256(storedValue.maxOracleFee))
         );
     }
@@ -45,12 +50,14 @@ library OracleParameterStorageLib {
         validate(newValue);
 
         if (newValue.maxGranularity > type(uint16).max) revert OracleParameterStorageInvalidError();
-        if (newValue.maxSettlementFee.gt(UFixed6.wrap(type(uint48).max))) revert OracleParameterStorageInvalidError();
+        if (newValue.maxSyncFee.gt(UFixed6.wrap(type(uint48).max))) revert OracleParameterStorageInvalidError();
+        if (newValue.maxAsyncFee.gt(UFixed6.wrap(type(uint48).max))) revert OracleParameterStorageInvalidError();
         if (newValue.maxOracleFee.gt(UFixed6.wrap(type(uint24).max))) revert OracleParameterStorageInvalidError();
 
         self.value = StoredOracleParameter(
             uint16(newValue.maxGranularity),
-            uint48(UFixed6.unwrap(newValue.maxSettlementFee)),
+            uint48(UFixed6.unwrap(newValue.maxSyncFee)),
+            uint48(UFixed6.unwrap(newValue.maxAsyncFee)),
             uint24(UFixed6.unwrap(newValue.maxOracleFee))
         );
     }

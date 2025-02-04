@@ -471,8 +471,6 @@ async function deployExtensions(hre: HardhatRuntimeEnvironment) {
     (await get('VaultFactory')).address,
     (await getOrNull('DSUBatcher'))?.address ?? ethers.constants.AddressZero,
     (await get('DSUReserve')).address,
-    1_500_000, // Full Order Commit uses about 1.5M gas
-    commitBuffer,
   ]
   await deploy('MultiInvokerImpl', {
     contract: multiInvokerContract,

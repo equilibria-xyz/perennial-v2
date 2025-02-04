@@ -3,8 +3,6 @@ import { IMarket, PositionStruct } from '../../../types/generated/@perennial/v2-
 import { FakeContract } from '@defi-wonderland/smock'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { LocalStruct } from '@perennial/v2-core/types/generated/contracts/Market'
-import { InterfaceFeeStruct, TriggerOrderStruct } from '../../../types/generated/contracts/MultiInvoker/MultiInvoker'
-import { parse6decimal } from '../../../../common/testutil/types'
 
 export function setMarketPosition(
   market: FakeContract<IMarket>,
@@ -34,49 +32,6 @@ export enum Compare {
   BELOW_MARKET = 1, // order is executable when the oracle price is <= order price
 }
 
-export type TriggerOrder = {
-  side: number
-  fee: BigNumberish
-  price: BigNumberish
-  delta: BigNumberish
-}
-
-export const openTriggerOrder = ({
-  delta,
-  price,
-  side,
-  comparison,
-  fee,
-  interfaceFee1,
-  interfaceFee2,
-}: {
-  delta: BigNumberish
-  price: BigNumberish
-  side: Dir | number
-  comparison: Compare | number
-  fee?: BigNumberish
-  interfaceFee1?: InterfaceFeeStruct
-  interfaceFee2?: InterfaceFeeStruct
-}): TriggerOrderStruct => {
-  return {
-    side: side,
-    comparison: comparison,
-    fee: fee ?? parse6decimal('10'),
-    price: price,
-    delta: delta,
-    interfaceFee1: interfaceFee1 ?? {
-      amount: 0,
-      receiver: constants.AddressZero,
-      unwrap: false,
-    },
-    interfaceFee2: interfaceFee2 ?? {
-      amount: 0,
-      receiver: constants.AddressZero,
-      unwrap: false,
-    },
-  }
-}
-
 export const changePosition = ({
   position,
   makerDelta,
@@ -101,7 +56,6 @@ export const changePosition = ({
 module.exports = {
   setMarketPosition,
   setGlobalPrice,
-  openTriggerOrder,
   changePosition,
   Compare,
   Dir,

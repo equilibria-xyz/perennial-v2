@@ -13,6 +13,7 @@
     "build": "yarn compile",
     "compile": "OPTIMIZER_ENABLED=true hardhat compile",
     "deploy": "OPTIMIZER_ENABLED=true hardhat deploy",
+    "doc": "hardhat docgen",
     "verify": "hardhat etherscan-verify --sleep --solc-input",
     "gasReport": "REPORT_GAS=true OPTIMIZER_ENABLED=true yarn test:integration",
     "test": "hardhat test test/unit/**/*",

@@ -11,7 +11,6 @@ import {
   IERC20Metadata__factory,
   Market__factory,
   MarketFactory,
-  MarketFactory__factory,
   Oracle,
   Oracle__factory,
   OracleFactory,
@@ -23,25 +22,12 @@ import {
   ChainlinkFactory,
   PowerTwo__factory,
   PowerTwo,
-  CheckpointLib__factory,
-  CheckpointStorageLib__factory,
-  GlobalStorageLib__factory,
-  InvariantLib__factory,
-  MarketParameterStorageLib__factory,
-  PositionStorageGlobalLib__factory,
-  PositionStorageLocalLib__factory,
-  RiskParameterStorageLib__factory,
-  GuaranteeStorageLocalLib__factory,
-  GuaranteeStorageGlobalLib__factory,
-  OrderStorageLocalLib__factory,
-  OrderStorageGlobalLib__factory,
-  VersionLib__factory,
-  VersionStorageLib__factory,
   GasOracle,
   GasOracle__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
+import { deployMarketFactory } from '../../setupHelpers'
 
 const { ethers } = HRE
 
@@ -198,7 +184,8 @@ testOracles.forEach(testOracle => {
       await oracleFactory.initialize()
       await oracleFactory.connect(owner).updateParameter({
         maxGranularity: 10000,
-        maxSettlementFee: parse6decimal('1000'),
+        maxSyncFee: parse6decimal('500'),
+        maxAsyncFee: parse6decimal('500'),
         maxOracleFee: parse6decimal('0.5'),
       })
 
@@ -270,60 +257,7 @@ testOracles.forEach(testOracle => {
       )
       await oracleFactory.create(CHAINLINK_BTC_USD_PRICE_FEED, chainlinkOracleFactory.address, 'BTC-USD')
 
-      const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
-
-      const marketImpl = await new Market__factory(
-        {
-          '@perennial/v2-core/contracts/libs/CheckpointLib.sol:CheckpointLib': (
-            await new CheckpointLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/libs/InvariantLib.sol:InvariantLib': (
-            await new InvariantLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/libs/VersionLib.sol:VersionLib': (
-            await new VersionLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Checkpoint.sol:CheckpointStorageLib': (
-            await new CheckpointStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Global.sol:GlobalStorageLib': (
-            await new GlobalStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-            await new MarketParameterStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Position.sol:PositionStorageGlobalLib': (
-            await new PositionStorageGlobalLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Position.sol:PositionStorageLocalLib': (
-            await new PositionStorageLocalLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-            await new RiskParameterStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Version.sol:VersionStorageLib': (
-            await new VersionStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': (
-            await new GuaranteeStorageLocalLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Guarantee.sol:GuaranteeStorageGlobalLib': (
-            await new GuaranteeStorageGlobalLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Order.sol:OrderStorageLocalLib': (
-            await new OrderStorageLocalLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Order.sol:OrderStorageGlobalLib': (
-            await new OrderStorageGlobalLib__factory(owner).deploy()
-          ).address,
-        },
-        owner,
-      ).deploy(verifierImpl.address)
-      marketFactory = await new MarketFactory__factory(owner).deploy(
-        oracleFactory.address,
-        verifierImpl.address,
-        marketImpl.address,
-      )
+      marketFactory = await deployMarketFactory(owner, oracleFactory)
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         maxFee: parse6decimal('0.01'),
@@ -335,6 +269,7 @@ testOracles.forEach(testOracle => {
         referralFee: 0,
         minScale: parse6decimal('0.001'),
         maxStaleAfter: 7200,
+        minMinMaintenance: 0,
       })
 
       const riskParameter = {
@@ -488,13 +423,12 @@ testOracles.forEach(testOracle => {
           async () =>
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 user.address,
                 1,
                 0,
-                0,
                 parse6decimal('10'),
-                false,
+                constants.AddressZero,
               ),
           STARTING_TIME,
         )
@@ -527,13 +461,12 @@ testOracles.forEach(testOracle => {
           async () =>
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 user.address,
                 1,
                 0,
-                0,
                 parse6decimal('10'),
-                false,
+                constants.AddressZero,
               ),
           STARTING_TIME,
         )
@@ -562,13 +495,12 @@ testOracles.forEach(testOracle => {
           async () =>
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 user.address,
                 1,
                 0,
-                0,
                 parse6decimal('10'),
-                false,
+                constants.AddressZero,
               ),
           BATCH_STARTING_TIME,
         )

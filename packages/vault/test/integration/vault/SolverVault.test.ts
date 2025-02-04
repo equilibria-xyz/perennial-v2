@@ -1,5 +1,4 @@
 import HRE from 'hardhat'
-import { impersonate } from '../../../../common/testutil'
 import { deployProductOnFork } from '../helpers/setupHelpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
@@ -20,13 +19,11 @@ import {
   IMarketFactory,
 } from '../../../types/generated'
 import { BigNumber, constants } from 'ethers'
-import { deployProtocol, fundWallet, settle } from '@perennial/v2-core/test/integration/helpers/setupHelpers'
+import { deployProtocol, fundWallet } from '@perennial/v2-core/test/integration/helpers/setupHelpers'
 import { OracleReceipt, DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
 import {
   IMarketFactory__factory,
   IVerifier__factory,
-  MarketFactory,
-  ProxyAdmin,
   TransparentUpgradeableProxy__factory,
 } from '@perennial/v2-core/types/generated'
 import { IOracle, IOracle__factory, OracleFactory } from '@perennial/v2-oracle/types/generated'
@@ -302,20 +299,21 @@ describe('SolverVault', () => {
     await fundWallet(asset, owner)
     await asset.approve(vaultFactory.address, ethers.constants.MaxUint256)
     vault = ISolverVault__factory.connect(
-      await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, 'Blue Chip'),
+      await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, parse6decimal('1.2'), 'Blue Chip'),
       owner,
     )
-    await vaultFactory.create(instanceVars.dsu.address, market.address, 'Blue Chip')
+    await vaultFactory.create(instanceVars.dsu.address, market.address, parse6decimal('1.2'), 'Blue Chip')
     await vault.register(btcMarket.address)
-    await vault.updateLeverage(0, leverage)
-    await vault.updateLeverage(1, leverage)
-    await vault.updateWeights([0.8e6, 0.2e6])
-    await vault.updateParameter({
+    await vault.connect(owner).updateCoordinator(coordinator.address)
+    await vault.connect(coordinator).updateLeverage(0, leverage)
+    await vault.connect(coordinator).updateLeverage(1, leverage)
+    await vault.connect(coordinator).updateWeights([0.8e6, 0.2e6])
+    await vault.connect(owner).updateParameter({
       maxDeposit: maxCollateral,
       minDeposit: 0,
       profitShare: 0,
+      leverageBuffer: parse6decimal('1.2'),
     })
-    await vault.updateCoordinator(coordinator.address)
 
     await Promise.all([
       asset.connect(liquidator).approve(vault.address, ethers.constants.MaxUint256),
@@ -343,46 +341,45 @@ describe('SolverVault', () => {
       asset.connect(other).approve(btcMarket.address, ethers.constants.MaxUint256),
     ])
 
+    // allow all accounts to interact with the vault
+    await vault.connect(owner).updateAllowed(constants.AddressZero, true)
+
     // Seed markets with some activity
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](
+      ['update(address,int256,int256,int256,address)'](
         user.address,
         parse6decimal('200'),
         0,
-        0,
         parse6decimal('100000'),
-        false,
+        constants.AddressZero,
       )
     await market
       .connect(user2)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](
+      ['update(address,int256,int256,int256,address)'](
         user2.address,
         0,
         parse6decimal('100'),
-        0,
         parse6decimal('100000'),
-        false,
+        constants.AddressZero,
       )
     await btcMarket
       .connect(btcUser1)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](
+      ['update(address,int256,int256,int256,address)'](
         btcUser1.address,
         parse6decimal('20'),
         0,
-        0,
         parse6decimal('100000'),
-        false,
+        constants.AddressZero,
       )
     await btcMarket
       .connect(btcUser2)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](
+      ['update(address,int256,int256,int256,address)'](
         btcUser2.address,
         0,
         parse6decimal('10'),
-        0,
         parse6decimal('100000'),
-        false,
+        constants.AddressZero,
       )
 
     return { instanceVars, vaultFactoryProxy, rootOracle }
@@ -425,7 +422,9 @@ describe('SolverVault', () => {
 
   describe('#initialize', () => {
     it('cant re-initialize', async () => {
-      await expect(vault.initialize(asset.address, market.address, parse6decimal('5'), 'Blue Chip'))
+      await expect(
+        vault.initialize(asset.address, market.address, parse6decimal('5'), parse6decimal('1.2'), 'Blue Chip'),
+      )
         .to.revertedWithCustomError(vault, 'InitializableAlreadyInitializedError')
         .withArgs(1)
     })
@@ -583,6 +582,7 @@ describe('SolverVault', () => {
         maxDeposit: parse6decimal('1000000'),
         minDeposit: parse6decimal('10'),
         profitShare: parse6decimal('0.1'),
+        leverageBuffer: parse6decimal('1.2'),
       }
       await expect(vault.connect(owner).updateParameter(newParameter))
         .to.emit(vault, 'ParameterUpdated')
@@ -599,6 +599,7 @@ describe('SolverVault', () => {
         maxDeposit: parse6decimal('1000000'),
         minDeposit: parse6decimal('10'),
         profitShare: parse6decimal('0.1'),
+        leverageBuffer: parse6decimal('1.2'),
       }
       await expect(vault.connect(user).updateParameter(newParameter)).to.be.revertedWithCustomError(
         vault,
@@ -609,37 +610,39 @@ describe('SolverVault', () => {
 
   describe('#updateLeverage', () => {
     it('updates correctly', async () => {
-      await expect(vault.connect(owner).updateLeverage(1, parse6decimal('3')))
+      await expect(vault.connect(coordinator).updateLeverage(1, parse6decimal('3')))
         .to.emit(vault, 'MarketUpdated')
         .withArgs(1, 0.2e6, parse6decimal('3'))
 
       expect((await vault.registrations(1)).weight).to.eq(0.2e6)
       expect((await vault.registrations(1)).leverage).to.eq(parse6decimal('3'))
 
-      await expect(vault.connect(owner).updateLeverage(1, 0)).to.emit(vault, 'MarketUpdated').withArgs(1, 0.2e6, 0)
+      await expect(vault.connect(coordinator).updateLeverage(1, 0))
+        .to.emit(vault, 'MarketUpdated')
+        .withArgs(1, 0.2e6, 0)
 
       expect((await vault.registrations(1)).weight).to.eq(0.2e6)
       expect((await vault.registrations(1)).leverage).to.eq(0)
     })
 
     it('reverts when invalid marketId', async () => {
-      await expect(vault.connect(owner).updateLeverage(2, parse6decimal('1'))).to.be.revertedWithCustomError(
+      await expect(vault.connect(coordinator).updateLeverage(2, parse6decimal('1'))).to.be.revertedWithCustomError(
         vault,
         'VaultMarketDoesNotExistError',
       )
     })
 
-    it('reverts when not owner', async () => {
+    it('reverts when not coordinator', async () => {
       await expect(vault.connect(user).updateLeverage(2, parse6decimal('1'))).to.be.revertedWithCustomError(
         vault,
-        'InstanceNotOwnerError',
+        'SolverVaultNotCoordinatorError',
       )
     })
   })
 
   describe('#updateWeights', () => {
     it('updates correctly', async () => {
-      await expect(vault.connect(owner).updateWeights([parse6decimal('0.4'), parse6decimal('0.6')]))
+      await expect(vault.connect(coordinator).updateWeights([parse6decimal('0.4'), parse6decimal('0.6')]))
         .to.emit(vault, 'MarketUpdated')
         .withArgs(0, parse6decimal('0.4'), parse6decimal('4'))
         .to.emit(vault, 'MarketUpdated')
@@ -652,7 +655,7 @@ describe('SolverVault', () => {
     })
 
     it('reverts when too few', async () => {
-      await expect(vault.connect(owner).updateWeights([parse6decimal('1.0')])).to.be.revertedWithCustomError(
+      await expect(vault.connect(coordinator).updateWeights([parse6decimal('1.0')])).to.be.revertedWithCustomError(
         vault,
         'VaultMarketDoesNotExistError',
       )
@@ -660,20 +663,20 @@ describe('SolverVault', () => {
 
     it('reverts when too many', async () => {
       await expect(
-        vault.connect(owner).updateWeights([parse6decimal('0.2'), parse6decimal('0.2'), parse6decimal('0.6')]),
+        vault.connect(coordinator).updateWeights([parse6decimal('0.2'), parse6decimal('0.2'), parse6decimal('0.6')]),
       ).to.be.revertedWithCustomError(vault, 'VaultMarketDoesNotExistError')
     })
 
     it('reverts when invalid aggregate', async () => {
       await expect(
-        vault.connect(owner).updateWeights([parse6decimal('0.5'), parse6decimal('0.4')]),
+        vault.connect(coordinator).updateWeights([parse6decimal('0.5'), parse6decimal('0.4')]),
       ).to.be.revertedWithCustomError(vault, 'VaultAggregateWeightError')
     })
 
-    it('reverts when not owner', async () => {
+    it('reverts when not coordinator', async () => {
       await expect(
         vault.connect(user).updateWeights([parse6decimal('0.4'), parse6decimal('0.6')]),
-      ).to.be.revertedWithCustomError(vault, 'InstanceNotOwnerError')
+      ).to.be.revertedWithCustomError(vault, 'SolverVaultNotCoordinatorError')
     })
   })
 
@@ -1245,6 +1248,7 @@ describe('SolverVault', () => {
         maxDeposit: maxCollateral,
         minDeposit: 0,
         profitShare: parse6decimal('0.5'),
+        leverageBuffer: parse6decimal('1.2'),
       })
       await vault.updateCoordinator(coordinator.address)
 
@@ -1568,7 +1572,7 @@ describe('SolverVault', () => {
         expect(currentPosition1.long).to.equal(collateral.mul(4).mul(1e6).div(originalOraclePrice))
         expect(currentPosition1.short).to.equal(0)
 
-        await vault.updateLeverage(0, 0)
+        await vault.connect(coordinator).updateLeverage(0, 0)
 
         await updateOracle()
         await vault.connect(user).update(user.address, 0, 1, 0) // trigger rebalance

@@ -1,48 +1,27 @@
-import { expect } from 'chai'
-import { BigNumber, CallOverrides, utils } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { smock } from '@defi-wonderland/smock'
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
 
 import {
-  ArbGasInfo,
   IEmptySetReserve__factory,
   IERC20Metadata__factory,
   Manager_Arbitrum__factory,
   OrderVerifier__factory,
-} from '../../../../types/generated'
-import { impersonate } from '../../../../../common/testutil'
-import {
-  createMarketETH,
-  deployController,
-  deployProtocol,
-  deployPythOracleFactory,
-} from '../../../helpers/setupHelpers'
+} from '../../../types/generated'
+import { deployPythOracleFactory } from '../../helpers/oracleHelpers'
+import { createMarketETH, deployController, deployProtocol } from '../../helpers/setupHelpers'
 import { RunManagerTests } from './Manager.test'
 import { FixtureVars } from './setupTypes'
 import {
   CHAINLINK_ETH_USD_FEED,
   DSU_ADDRESS,
-  DSU_HOLDER,
   DSU_RESERVE,
+  fundWalletDSU,
+  mockGasInfo,
   PYTH_ADDRESS,
   USDC_ADDRESS,
-} from '../../../helpers/arbitrumHelpers'
+} from '../../helpers/arbitrumHelpers'
 
 const { ethers } = HRE
-
-export async function fundWalletDSU(
-  wallet: SignerWithAddress,
-  amount: BigNumber,
-  overrides?: CallOverrides,
-): Promise<undefined> {
-  const dsuOwner = await impersonate.impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
-  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, dsuOwner)
-
-  expect(await dsu.balanceOf(DSU_HOLDER)).to.be.greaterThan(amount)
-  await dsu.transfer(wallet.address, amount, overrides ?? {})
-}
 
 const fixture = async (): Promise<FixtureVars> => {
   // deploy the protocol and create a market
@@ -106,14 +85,6 @@ const fixture = async (): Promise<FixtureVars> => {
 async function getFixture(): Promise<FixtureVars> {
   const vars = loadFixture(fixture)
   return vars
-}
-
-async function mockGasInfo() {
-  // Hardhat fork does not support Arbitrum built-ins; Kept produces "invalid opcode" error without this
-  const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
-    address: '0x000000000000000000000000000000000000006C',
-  })
-  gasInfo.getL1BaseFeeEstimate.returns(1)
 }
 
 if (process.env.FORK_NETWORK === 'arbitrum') RunManagerTests('Manager_Arbitrum', getFixture, fundWalletDSU)
