@@ -17250,6 +17250,7 @@ describe('Market', () => {
               orders: 1,
               shortNeg: POSITION.div(2),
               protection: 1,
+              invalidation: 1,
             },
             { ...DEFAULT_GUARANTEE },
             liquidator.address,
