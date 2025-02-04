@@ -43,7 +43,7 @@ const fixture = async (): Promise<FixtureVars> => {
     DSU_RESERVE,
     marketFactory.address,
     verifier.address,
-    controller.address,
+    await market.margin(),
   )
 
   const keepConfig = {

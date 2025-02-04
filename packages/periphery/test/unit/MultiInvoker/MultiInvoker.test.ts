@@ -417,7 +417,7 @@ export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): 
               // approve market succeeds
               i = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [market.address]) }]
               await expect(invoke(i)).to.not.be.reverted
-              expect(dsu.approve).to.have.been.calledWith(market.address, constants.MaxUint256)
+              expect(dsu.approve).to.have.been.calledWith(margin.address, constants.MaxUint256)
 
               // approve vault succeeds
               i = [{ action: 8, args: utils.defaultAbiCoder.encode(['address'], [solverVault.address]) }]
