@@ -178,7 +178,7 @@ abstract contract Manager is IManager, Kept {
         else DSU.push(msg.sender, UFixed18Lib.from(claimableAmount));
     }
 
-    /// @notice Transfers DSU from market to manager to compensate keeper
+    /// @notice Transfers DSU from margin contract to manager to compensate keeper
     /// @param amount Keeper fee as calculated
     /// @param data Identifies the market from and user for which funds should be withdrawn,
     ///             and the user-defined fee cap
@@ -190,7 +190,7 @@ abstract contract Manager is IManager, Kept {
         (IMarket market, address account, UFixed6 maxFee) = abi.decode(data, (IMarket, address, UFixed6));
         UFixed6 raisedKeeperFee = UFixed6Lib.from(amount, true).min(maxFee);
 
-        _marginWithdraw(market, account, raisedKeeperFee);
+        _marginWithdraw(account, raisedKeeperFee);
 
         return UFixed18Lib.from(raisedKeeperFee);
     }
@@ -216,7 +216,7 @@ abstract contract Manager is IManager, Kept {
             order.interfaceFee.amount :
             order.notionalValue(market, account).mul(order.interfaceFee.amount);
 
-        _marginWithdraw(market, account, feeAmount);
+        _marginWithdraw(account, feeAmount);
 
         claimable[order.interfaceFee.receiver] = claimable[order.interfaceFee.receiver].add(feeAmount);
 
@@ -224,8 +224,7 @@ abstract contract Manager is IManager, Kept {
     }
 
     /// @notice Transfers DSU from margin contract to manager contract to pay keeper or interface fee
-    function _marginWithdraw(IMarket market, address account, UFixed6 amount) private {
-        market.update(account, Fixed6Lib.ZERO, Fixed6Lib.from(amount).mul(Fixed6Lib.NEG_ONE), address(0));
+    function _marginWithdraw(address account, UFixed6 amount) private {
         margin.withdraw(account, amount);
     }
 

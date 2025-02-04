@@ -152,6 +152,15 @@ export function RunIncentivizedTests(
       // TODO: Support different ETH price on different chains (currently 2620 on Base fork)
       const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2603)
       // keeper should be compensated between 100-125% of actual gas cost
+      // please retain below for debugging purposes
+      /*console.log(
+        'keeperFeesPaid',
+        keeperFeesPaid.div(1e9).toNumber() / 1e9,
+        'keeperGasCostInUSD',
+        keeperGasCostInUSD.div(1e9).toNumber() / 1e9,
+        'keeperGasUpperLimit',
+        keeperGasCostInUSD.mul(5).div(2e9).toNumber() / 1e9,
+      )*/
       expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(125).div(100))
     }
 

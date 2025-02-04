@@ -10,7 +10,7 @@ import { parse6decimal } from '../../../../common/testutil/types'
 
 import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@perennial/v2-core/types/generated'
 import { IKeeperOracle, IMargin__factory } from '@perennial/v2-oracle/types/generated'
-import { IAccount, IAccount__factory, IController, IManager, IMargin, IOrderVerifier } from '../../../types/generated'
+import { IController, IManager, IMargin, IOrderVerifier } from '../../../types/generated'
 import { PlaceOrderActionStruct } from '../../../types/generated/contracts/TriggerOrders/Manager'
 
 import { signAction, signCancelOrderAction, signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
@@ -22,7 +22,6 @@ import {
   orderFromStructOutput,
   Side,
 } from '../../helpers/TriggerOrders/order'
-import { transferCollateral } from '../../helpers/marketHelpers'
 import { advanceToPrice } from '../../helpers/oracleHelpers'
 import { Address } from 'hardhat-deploy/dist/types'
 import { impersonate } from '../../../../common/testutil'
@@ -88,7 +87,7 @@ export function RunManagerTests(
 
       // cost of transaction
       const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2603)
-      // keeper should be compensated between 100-200% of actual gas cost
+      // keeper should be compensated between 100-250% of actual gas cost
       // please retain below for debugging purposes
       /*console.log(
         'keeperFeesPaid',
@@ -133,13 +132,6 @@ export function RunManagerTests(
           },
         },
       }
-    }
-
-    // deploys a collateral account
-    async function createCollateralAccount(user: SignerWithAddress): Promise<IAccount> {
-      const accountAddress = await controller.getAccountAddress(user.address)
-      await controller.connect(user).deployAccount(TX_OVERRIDES)
-      return IAccount__factory.connect(accountAddress, user)
     }
 
     async function ensureNoPosition(user: SignerWithAddress) {
@@ -317,14 +309,11 @@ export function RunManagerTests(
       const reservedForFees = amount.mul(1).div(100)
       await fundWalletDSU(user, amount.mul(1e12))
       await dsu.connect(user).approve(await market.margin(), amount.mul(1e12))
-      await transferCollateral(user, market, amount.sub(reservedForFees))
+      await margin.connect(user).deposit(user.address, amount)
+      await margin.connect(user).isolate(user.address, market.address, amount.sub(reservedForFees))
 
       // allows manager to interact with markets on the user's behalf
       await marketFactory.connect(user).updateOperator(manager.address, true)
-
-      // set up collateral account for fee payments
-      const collateralAccount = await createCollateralAccount(user)
-      dsu.connect(user).transfer(collateralAccount.address, reservedForFees.mul(1e12))
     }
 
     const fixture = async () => {

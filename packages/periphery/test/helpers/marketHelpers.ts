@@ -1,6 +1,5 @@
 import { ethers } from 'hardhat'
 import { BigNumber, CallOverrides, utils, constants } from 'ethers'
-import { Address } from 'hardhat-deploy/dist/types'
 import {
   CheckpointLib__factory,
   CheckpointStorageLib__factory,
@@ -25,12 +24,11 @@ import {
 } from '@perennial/v2-core/types/generated'
 import { IOracle } from '@perennial/v2-oracle/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { ERC20, IERC20Metadata, IMargin, IOracleProvider, IVerifier, Market } from '../../types/generated'
+import { ERC20, IERC20Metadata, IOracleProvider, IVerifier } from '../../types/generated'
 import { parse6decimal } from '../../../common/testutil/types'
 import { MarketParameterStruct, RiskParameterStruct } from '@perennial/v2-core/types/generated/contracts/Market'
 import { MockContract, smock } from '@defi-wonderland/smock'
 import { impersonateWithBalance } from '../../../common/testutil/impersonate'
-import { IMargin__factory } from '@perennial/v2-vault/types/generated'
 
 export async function createMarket(
   owner: SignerWithAddress,
@@ -217,16 +215,4 @@ export async function mockMarket(): Promise<IMarket> {
 
   await market.connect(factorySigner).initialize(oracle.address)
   return market
-}
-
-// Deposits collateral to (amount > 0) or withdraws collateral from (amount < 0) a market
-export async function transferCollateral(user: SignerWithAddress, market: IMarket, amount: BigNumber) {
-  const margin: IMargin = IMargin__factory.connect(await market.margin(), user)
-  if (amount.gt(0)) {
-    await margin.deposit(user.address, amount)
-    await margin.isolate(user.address, market.address, amount)
-  } else if (amount.lt(0)) {
-    await margin.isolate(user.address, market.address, amount)
-    await margin.withdraw(user.address, amount.mul(-1))
-  }
 }

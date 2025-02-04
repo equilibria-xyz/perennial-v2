@@ -47,15 +47,15 @@ const fixture = async (): Promise<FixtureVars> => {
   )
 
   const keepConfig = {
-    multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 600_000, // buffer for withdrawing keeper fee from margin contract
-    multiplierCalldata: ethers.utils.parseEther('1'),
+    multiplierBase: ethers.utils.parseEther('0.01'),
+    bufferBase: 50_000, // buffer for withdrawing keeper fee from margin contract
+    multiplierCalldata: ethers.utils.parseEther('0.01'),
     bufferCalldata: 0,
   }
   const keepConfigBuffered = {
-    multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 700_000, // for price commitment
-    multiplierCalldata: ethers.utils.parseEther('1'),
+    multiplierBase: ethers.utils.parseEther('0.05'),
+    bufferBase: 1_500_000, // for price commitment
+    multiplierCalldata: ethers.utils.parseEther('0.05'),
     bufferCalldata: 0,
   }
   await manager.initialize(CHAINLINK_ETH_USD_FEED, keepConfig, keepConfigBuffered)
@@ -93,8 +93,8 @@ async function mockGasInfo() {
     address: '0x420000000000000000000000000000000000000F',
   })
   gasInfo.getL1GasUsed.returns(1600)
-  gasInfo.l1BaseFee.returns(18476655731)
-  gasInfo.baseFeeScalar.returns(2768304)
+  gasInfo.l1BaseFee.returns(96617457705)
+  gasInfo.baseFeeScalar.returns(13841697)
   gasInfo.decimals.returns(6)
 }
 
