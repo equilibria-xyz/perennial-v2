@@ -9,7 +9,7 @@ import { getEventArguments, getTimestamp } from '../../../../common/testutil/tra
 import { parse6decimal } from '../../../../common/testutil/types'
 
 import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@perennial/v2-core/types/generated'
-import { IKeeperOracle } from '@perennial/v2-oracle/types/generated'
+import { IKeeperOracle, IMargin__factory } from '@perennial/v2-oracle/types/generated'
 import { IAccount, IAccount__factory, IController, IManager, IMargin, IOrderVerifier } from '../../../types/generated'
 import { PlaceOrderActionStruct } from '../../../types/generated/contracts/TriggerOrders/Manager'
 
@@ -927,6 +927,7 @@ export function RunManagerTests(
         expect((await market.positions(userD.address)).long).to.equal(parse6decimal('0'))
       })
 
+      // FIXME: This test is failing in checkCompensation
       it('charges notional interface fee on whole position when closing', async () => {
         const interfaceBalanceBefore = await dsu.balanceOf(userB.address)
 
