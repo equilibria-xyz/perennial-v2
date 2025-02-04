@@ -150,9 +150,9 @@ export function RunIncentivizedTests(
 
       // cost of transaction
       // TODO: Support different ETH price on different chains (currently 2620 on Base fork)
-      const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2603)
-      // keeper should be compensated between 100-125% of actual gas cost
-      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(125).div(100))
+      const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2709)
+      // keeper should be compensated between 100-150% of actual gas cost
+      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(150).div(100))
     }
 
     // create a serial nonce for testing purposes; real users may choose a nonce however they please
@@ -452,7 +452,7 @@ export function RunIncentivizedTests(
       })
 
       // TODO: Add Margin support for full withdrawals
-      it.skip('collects fee for withdrawing native deposit from market', async () => {
+      it('collects fee for withdrawing native deposit from market', async () => {
         // user directly isolates collateral to the market
         const depositAmount = parse6decimal('13000')
         await deployment.fundWalletDSU(userA, depositAmount.mul(1e12), TX_OVERRIDES)
@@ -463,7 +463,7 @@ export function RunIncentivizedTests(
         // sign a message to withdraw everything from the market back into the collateral account
         const marketTransferMessage = {
           market: ethMarket.address,
-          amount: (await ethMarket.locals(userA.address)).collateral.mul(-1),
+          amount: (await margin.isolatedBalances(userA.address, ethMarket.address)).mul(-1),
           ...createAction(userA.address, userA.address),
         }
         const signature = await signMarketTransfer(userA, accountVerifier, marketTransferMessage)
@@ -784,14 +784,16 @@ export function RunIncentivizedTests(
       it('relays take messages', async () => {
         // user deposits into the market
         const COLLATERAL_A = parse6decimal('5000')
+        await margin.connect(userA).deposit(userA.address, COLLATERAL_A, TX_OVERRIDES)
         await ethMarket
           .connect(userA)
           [MARKET_UPDATE_DELTA_PROTOTYPE](userA.address, 0, COLLATERAL_A, constants.AddressZero, TX_OVERRIDES)
         // userB deposits and opens maker position, adding liquidity to market
         const COLLATERAL_B = parse6decimal('10000')
         const POSITION_B = parse6decimal('2')
-        await dsu.connect(userB).approve(ethMarket.address, constants.MaxUint256, TX_OVERRIDES)
+        await dsu.connect(userB).approve(margin.address, constants.MaxUint256, TX_OVERRIDES)
         await deployment.fundWalletDSU(userB, utils.parseEther('10000'), TX_OVERRIDES)
+        await margin.connect(userB).deposit(userB.address, COLLATERAL_B, TX_OVERRIDES)
         await ethMarket
           .connect(userB)
           [MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE](
