@@ -1811,7 +1811,7 @@ describe('SolverVault', () => {
 
       expect(await collateralInVault()).to.equal(parse6decimal('4005'))
       expect(await btcCollateralInVault()).to.equal(parse6decimal('5005'))
-      expect((await market3.locals(vault.address)).collateral).to.equal(parse6decimal('1000'))
+      expect(await margin.isolatedBalances(vault.address, market3.address)).to.equal(parse6decimal('1000'))
 
       await updateOracle()
       await _updateOracle(oracle3)
@@ -1824,7 +1824,7 @@ describe('SolverVault', () => {
 
       expect(await collateralInVault()).to.equal(parse6decimal('2004.5005'))
       expect(await btcCollateralInVault()).to.equal(parse6decimal('2505'))
-      expect((await market3.locals(vault.address)).collateral).to.equal(parse6decimal('500.4995'))
+      expect(await margin.isolatedBalances(vault.address, market3.address)).to.equal(parse6decimal('500.4995'))
     })
   })
 })
