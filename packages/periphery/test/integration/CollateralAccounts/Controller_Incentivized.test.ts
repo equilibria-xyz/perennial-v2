@@ -150,9 +150,9 @@ export function RunIncentivizedTests(
 
       // cost of transaction
       // TODO: Support different ETH price on different chains (currently 2620 on Base fork)
-      const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2709)
-      // keeper should be compensated between 100-150% of actual gas cost
-      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(150).div(100))
+      const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2603)
+      // keeper should be compensated between 100-125% of actual gas cost
+      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(125).div(100))
     }
 
     // create a serial nonce for testing purposes; real users may choose a nonce however they please
