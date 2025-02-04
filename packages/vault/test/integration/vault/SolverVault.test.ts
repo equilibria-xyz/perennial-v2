@@ -652,7 +652,7 @@ describe('SolverVault', () => {
   })
 
   describe('#settle', () => {
-    it.only('simple deposits and redemptions', async () => {
+    it('simple deposits and redemptions', async () => {
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
       expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
 
@@ -753,7 +753,6 @@ describe('SolverVault', () => {
         parse6decimal('10010').add(VAULT_PNL).add(fundingAmount),
       )
 
-      // FIXME: reverts with MarginInsufficientCrossedBalance
       await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
       return
 
