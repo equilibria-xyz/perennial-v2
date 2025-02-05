@@ -62,6 +62,7 @@ interface IMarket is IInstance {
         Guarantee guaranteeGlobal;
         Guarantee guaranteeLocal;
         UFixed6 collateralization;
+        Fixed6 priceAdjustment;
     }
 
     event OrderCreated(address indexed account, Order order, Guarantee guarantee, address liquidator, address orderReferrer, address guaranteeReferrer);

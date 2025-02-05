@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { IMarket } from "../interfaces/IMarket.sol";
 import { PositionLib } from "../types/Position.sol";
@@ -89,7 +90,9 @@ library InvariantLib {
                 context.latestOracleVersion,
                 context.riskParameter,
                 updateContext.collateralization,
-                context.local.collateral.add(newGuarantee.priceAdjustment(context.latestOracleVersion.price)) // apply price override adjustment from intent if present
+                context.local.collateral
+                    .add(updateContext.priceAdjustment)                                     // apply price override adjustment from pending intents if present
+                    .add(newGuarantee.priceAdjustment(context.latestOracleVersion.price))   // apply price override adjustment from new intent if present
             )
         ) revert IMarket.MarketInsufficientMarginError();
 
@@ -128,6 +131,8 @@ library InvariantLib {
         )) return false; // latest position is properly maintained
 
         if (!newOrder.collateral.eq(Fixed6Lib.ZERO)) return false; // the order is modifying collateral
+
+        if (!newOrder.pos().eq(UFixed6Lib.ZERO)) return false; // the order is increasing position
 
         return true;
     }
