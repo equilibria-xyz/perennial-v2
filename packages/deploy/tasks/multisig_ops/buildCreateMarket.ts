@@ -1,7 +1,7 @@
 import '@nomiclabs/hardhat-ethers'
 import { task } from 'hardhat/config'
 import { HardhatRuntimeEnvironment, TaskArguments } from 'hardhat/types'
-import { PAYOFFS } from '../../deploy/002_deploy_payoff'
+import { PAYOFFS } from '../../deploy/002_deploy_payoff_and_verifier'
 import { PopulatedTransaction, utils } from 'ethers'
 import { NewMarketParameter, NewRiskParams } from './constants'
 
@@ -15,6 +15,7 @@ export default task('multisig_ops:buildCreateMarket', 'Builds the create market 
   .addOptionalParam('nonceOffset', 'The nonce offset to use if launching multiple markets')
   .addFlag('pyth', 'Use Pyth oracle factory')
   .addFlag('cryptex', 'Use Cryptex oracle factory')
+  .addFlag('stork', 'Use Stork oracle factory')
   .setAction(async (args: TaskArguments, HRE: HardhatRuntimeEnvironment) => {
     console.log('[Multisig Ops: Create Market] Building Create Market Transaction')
 
@@ -34,11 +35,12 @@ export default task('multisig_ops:buildCreateMarket', 'Builds the create market 
     const nonceOffset = Number(args.nonceOffset || 0)
     const oracleFactory = await ethers.getContractAt('OracleFactory', (await get('OracleFactory')).address)
 
-    if (!args.pyth && !args.cryptex) throw new Error('Only Pyth or Cryptex oracle factory is supported')
+    if (!args.pyth && !args.cryptex && !args.stork)
+      throw new Error('Only Pyth or Cryptex or Stork oracle factory is supported')
     const keeperFactory = await ethers.getContractAt(
       'KeeperFactory',
       (
-        await get(args.pyth ? 'PythFactory' : 'CryptexFactory')
+        await get(args.pyth ? 'PythFactory' : args.cryptex ? 'CryptexFactory' : 'StorkFactory')
       ).address,
     )
 

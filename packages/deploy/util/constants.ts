@@ -13,6 +13,7 @@ export const DEFAULT_PROTOCOL_PARAMETER = {
   minEfficiency: utils.parseUnits('0.25', 6), // 25%
   referralFee: 0,
   maxStaleAfter: 7200, // 2 hours
+  minScale: utils.parseUnits('0.04', 6),
 }
 
 export const DEFAULT_MARKET_PARAMETER = {

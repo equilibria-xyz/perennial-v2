@@ -35,6 +35,7 @@ const OPTIMISM_GOERLI_NODE_URL = process.env.OPTIMISM_GOERLI_NODE_URL || ''
 const ARBITRUM_GOERLI_NODE_URL = process.env.ARBITRUM_GOERLI_NODE_URL || ''
 const BASE_GOERLI_NODE_URL = process.env.BASE_GOERLI_NODE_URL || ''
 const ARBITRUM_SEPOLIA_NODE_URL = process.env.ARBITRUM_SEPOLIA_NODE_URL || ''
+const PERENNIAL_SEPOLIA_NODE_URL = process.env.PERENNIAL_SEPOLIA_NODE_URL || ''
 
 const FORK_ENABLED = process.env.FORK_ENABLED === 'true' || false
 const FORK_NETWORK = process.env.FORK_NETWORK || 'mainnet'
@@ -71,6 +72,8 @@ function getUrl(networkName: SupportedChain): string {
       return ARBITRUM_SEPOLIA_NODE_URL
     case 'baseGoerli':
       return BASE_GOERLI_NODE_URL
+    case 'perennialSepolia':
+      return PERENNIAL_SEPOLIA_NODE_URL
     default:
       return ''
   }
@@ -146,6 +149,10 @@ export default function defaultConfig({
       arbitrum: createNetworkConfig('arbitrum'),
       optimism: createNetworkConfig('optimism'),
       base: createNetworkConfig('base'),
+      perennialSepolia: {
+        ...createNetworkConfig('perennialSepolia'),
+        gasPrice: 100000,
+      },
     },
     solidity: {
       compilers: [
@@ -185,6 +192,7 @@ export default function defaultConfig({
         optimisticGoerli: getEtherscanApiConfig('optimismGoerli').apiKey,
         arbitrumGoerli: getEtherscanApiConfig('arbitrumGoerli').apiKey,
         arbitrumSepolia: getEtherscanApiConfig('arbitrumSepolia').apiKey,
+        perennialSepolia: 'foobar',
         // baseGoerli: getEtherscanApiConfig('baseGoerli').apiKey,
       },
       customChains: [
@@ -202,6 +210,14 @@ export default function defaultConfig({
           urls: {
             apiURL: 'https://api.basescan.org/api',
             browserURL: 'https://basescan.io',
+          },
+        },
+        {
+          network: 'perennialSepolia',
+          chainId: getChainId('perennialSepolia'),
+          urls: {
+            apiURL: 'https://explorer-perennial-testnet-op-base-tia-dphnnr04wr.t.conduit.xyz/api',
+            browserURL: 'https://explorer-perennial-testnet-op-base-tia-dphnnr04wr.t.conduit.xyz',
           },
         },
       ],
@@ -242,6 +258,7 @@ export default function defaultConfig({
         arbitrum: ['external/deployments/arbitrum', ...(externalDeployments?.arbitrum || [])],
         optimism: ['external/deployments/optimism', ...(externalDeployments?.optimism || [])],
         base: ['external/deployments/base', ...(externalDeployments?.base || [])],
+        perennialSepolia: ['external/deployments/perennialSepolia', ...(externalDeployments?.perennialSepolia || [])],
         hardhat: [
           FORK_ENABLED ? `external/deployments/${FORK_NETWORK}` : '',
           FORK_ENABLED && FORK_USE_REAL_DEPLOYS ? `deployments/${FORK_NETWORK}` : '',

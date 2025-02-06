@@ -8,6 +8,7 @@ export const ALL_CHAINS = [
   'arbitrumGoerli',
   'arbitrumSepolia',
   'baseGoerli',
+  'perennialSepolia',
   'hardhat',
   'localhost',
 ] as const
@@ -22,12 +23,14 @@ export const TESTNETS: SupportedChain[] = [
   'optimismGoerli',
   'baseGoerli',
   'arbitrumSepolia',
+  'perennialSepolia',
 ]
 export const DEVNETS: SupportedChain[] = ['hardhat', 'localhost']
 export const ETHEREUM_NETS: SupportedChain[] = ['mainnet', 'goerli']
 export const ARBITRUM_NETS: SupportedChain[] = ['arbitrum', 'arbitrumGoerli', 'arbitrumSepolia']
 export const OPTIMISM_NETS: SupportedChain[] = ['optimism', 'optimismGoerli']
 export const BASE_NETS: SupportedChain[] = ['base', 'baseGoerli']
+export const PERENNIAL_NETS: SupportedChain[] = ['perennialSepolia']
 
 export function isSupported(networkName: string): networkName is SupportedChain {
   return ALL_CHAINS.includes(networkName as SupportedChain)
@@ -38,6 +41,8 @@ export function getChainId(networkName: string): number {
   switch (networkName) {
     case 'mainnet':
       return 1
+    case 'perennialSepolia':
+      return 60850
     case 'arbitrum':
       return 42161
     case 'optimism':
@@ -82,6 +87,12 @@ export function isBase(networkName: string): boolean {
   if (!isSupported(networkName)) return false
   if (isLocalhost(networkName)) return isFork() && BASE_NETS.includes(forkNetwork() as SupportedChain)
   return BASE_NETS.includes(networkName)
+}
+
+export function isPerennial(networkName: string): boolean {
+  if (!isSupported(networkName)) return false
+  if (isLocalhost(networkName)) return isFork() && PERENNIAL_NETS.includes(forkNetwork() as SupportedChain)
+  return PERENNIAL_NETS.includes(networkName)
 }
 
 export function isTestnet(networkName: string): boolean {
