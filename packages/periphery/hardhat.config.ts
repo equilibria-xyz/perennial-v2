@@ -29,6 +29,7 @@ export const solidityOverrides = {
 const config = defaultConfig({
   solidityOverrides,
   dependencyPaths: [
+    '@openzeppelin/contracts/token/ERC20/ERC20.sol',
     '@perennial/v2-core/contracts/MarketFactory.sol',
     '@perennial/v2-core/contracts/Market.sol',
     '@perennial/v2-vault/contracts/MakerVault.sol',

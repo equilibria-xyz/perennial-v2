@@ -699,10 +699,9 @@ describe('Controller', () => {
   })
 
   describe('#transfer', () => {
-    it('reverts attempting to transfer to a non-DSU market', async () => {
-      // create a market with a non-DSU collateral token
-      const weth = await smock.fake<IERC20Metadata>('IERC20Metadata')
-      const market = await mockMarket(weth.address)
+    it('reverts attempting to transfer to a market from a different factory', async () => {
+      // create a market from a different factory
+      const market = await mockMarket()
 
       // create a collateral account
       await createCollateralAccount(userA)

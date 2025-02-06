@@ -18,9 +18,7 @@ import {
   DEFAULT_VERSION,
   DEFAULT_GUARANTEE,
   parse6decimal,
-  Guarantee,
   DEFAULT_ORACLE_RECEIPT,
-  DEFAULT_CHECKPOINT,
   DEFAULT_CONTEXT,
   DEFAULT_SETTLEMENT_CONTEXT,
 } from '../../../../common/testutil/types'

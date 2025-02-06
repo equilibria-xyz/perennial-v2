@@ -16,6 +16,7 @@ import {
   IAccount__factory,
   IController,
   IEmptySetReserve,
+  IMargin,
   IOrderVerifier,
   Manager_Arbitrum,
   Manager_Arbitrum__factory,
@@ -56,27 +57,19 @@ describe('Manager', () => {
   let reserve: FakeContract<IEmptySetReserve>
   let manager: Manager_Arbitrum
   let marketFactory: FakeContract<IMarketFactory>
+  let margin: FakeContract<IMargin>
   let market: FakeContract<IMarket>
   let marketOracle: FakeContract<IOracleProvider>
   let verifier: IOrderVerifier
-  let controller: IController
   let ethOracle: FakeContract<AggregatorV3Interface>
   let owner: SignerWithAddress
   let userA: SignerWithAddress
-  let collateralAccountA: IAccount
   let userB: SignerWithAddress
   let keeper: SignerWithAddress
   let nextOrderId = FIRST_ORDER_ID
 
   function advanceOrderId(): BigNumber {
     return (nextOrderId = nextOrderId.add(BigNumber.from(1)))
-  }
-
-  // deploys a collateral account
-  async function createCollateralAccount(user: SignerWithAddress): Promise<IAccount> {
-    const accountAddress = await controller.getAccountAddress(user.address)
-    await controller.connect(user).deployAccount()
-    return IAccount__factory.connect(accountAddress, user)
   }
 
   function createOracleVersion(price: BigNumber, valid = true): OracleVersionStruct {
@@ -94,7 +87,11 @@ describe('Manager', () => {
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     market = await smock.fake<IMarket>('IMarket')
     verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
-    controller = await deployController(owner, usdc.address, dsu.address, reserve.address, marketFactory.address)
+
+    // fake the Margin contract, such that _marketWithdraw doesn't revert
+    margin = await smock.fake<IMargin>('IMargin')
+    margin.withdraw.returns(true)
+    market.margin.returns(margin.address)
 
     // deploy the order manager
     manager = await new Manager_Arbitrum__factory(owner).deploy(
@@ -103,7 +100,7 @@ describe('Manager', () => {
       reserve.address,
       marketFactory.address,
       verifier.address,
-      controller.address,
+      margin.address,
     )
 
     dsu.approve.whenCalledWith(manager.address).returns(true)
@@ -130,8 +127,7 @@ describe('Manager', () => {
     // no need for meaningful keep configs, as keeper compensation is not tested here
     await manager.initialize(ethOracle.address, KEEP_CONFIG, KEEP_CONFIG)
 
-    // however users still need a collateral account, and manager must be operator
-    collateralAccountA = await createCollateralAccount(userA)
+    // manager must be operator
     marketFactory.operators.whenCalledWith(userA.address, manager.address).returns(true)
   }
 
@@ -250,19 +246,10 @@ describe('Manager', () => {
         0,
         constants.AddressZero,
       )
-      expect(dsu.transferFrom).to.have.been.calledWith(collateralAccountA.address, manager.address, 0)
-
-      // reverts if not manager not operator
-      await expect(
-        manager.connect(keeper).executeOrder(market.address, userB.address, nonce2),
-      ).to.be.revertedWithCustomError(controller, 'ControllerNotOperatorError')
-
-      // reverts if no collateral account created
-      marketFactory.operators.whenCalledWith(userB.address, manager.address).returns(true)
-      await expect(manager.connect(keeper).executeOrder(market.address, userB.address, nonce2)).to.be.reverted
+      const marginAddress = await market.margin()
+      expect(margin.withdraw).to.have.been.calledWith(userA.address, 0)
 
       // execute userB's order
-      const collateralAccountB = await createCollateralAccount(userB)
       marketFactory.operators.whenCalledWith(userB.address, manager.address).returns(true)
       await manager.connect(keeper).executeOrder(market.address, userB.address, nonce2)
       expect(market.settle).to.have.been.calledWith(userB.address)
@@ -274,7 +261,7 @@ describe('Manager', () => {
         0,
         constants.AddressZero,
       )
-      expect(dsu.transferFrom).to.have.been.calledWith(collateralAccountB.address, manager.address, 0)
+      expect(margin.withdraw).to.have.been.calledWith(userB.address, 0)
     })
 
     it('cannot cancel an executed maker order', async () => {
@@ -585,7 +572,6 @@ describe('Manager', () => {
       const signature = await signPlaceOrderAction(userB, verifier, message)
 
       // keeper places the order
-      await createCollateralAccount(userB)
       await marketFactory.operators.whenCalledWith(userB.address, manager.address).returns(true)
       await expect(manager.connect(keeper).placeOrderWithSignature(message, signature))
         .to.emit(manager, 'TriggerOrderPlaced')
