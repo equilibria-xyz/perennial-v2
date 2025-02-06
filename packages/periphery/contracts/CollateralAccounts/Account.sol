@@ -80,7 +80,7 @@ contract Account is IAccount, Instance {
                 UFixed18Lib.from(amount.sub(usdcBalance)).min(DSU.balanceOf());
             unwrap(unwrapAmount);
         }
-        UFixed6 pushAmount = amount.eq(UFixed6Lib.MAX) ? USDC.balanceOf() : amount;
+        UFixed6 pushAmount = amount.min(USDC.balanceOf());
         USDC.push(owner, pushAmount);
     }
 
@@ -99,8 +99,10 @@ contract Account is IAccount, Instance {
     }
 
     /// @inheritdoc IAccount
-    function unwrap(UFixed18 amount) public ownerOrController {
+    function unwrap(UFixed18 amount) public ownerOrController returns (UFixed6 amountUnwrapped) {
+        UFixed6 balanceBefore = USDC.balanceOf(address(this));
         reserve.redeem(amount);
+        amountUnwrapped = USDC.balanceOf(address(this)).sub(balanceBefore);
     }
 
     /// @dev Reverts if not called by the owner of the collateral account, or the collateral account controller
