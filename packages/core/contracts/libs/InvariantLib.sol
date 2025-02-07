@@ -33,10 +33,7 @@ library InvariantLib {
             updateContext.guaranteeReferrer
         );
 
-        if (
-            context.pendingLocal.invalidation != 0 &&                              // pending orders are partially invalidatable
-            context.pendingLocal.neg().gt(context.latestPositionLocal.magnitude()) // total pending close is greater than latest position
-        ) revert IMarket.MarketOverCloseError();
+        if (!_validateOverClose(context, newOrder)) revert IMarket.MarketOverCloseError();
 
         if (newOrder.protected() && !_validateProtection(context, newOrder))
             revert IMarket.MarketInvalidProtectionError();
@@ -134,6 +131,19 @@ library InvariantLib {
 
         if (!newOrder.pos().eq(UFixed6Lib.ZERO)) return false; // the order is increasing position
 
+        return true;
+    }
+
+    function _validateOverClose(IMarket.Context memory context, Order memory newOrder) private pure returns (bool) {
+        if (newOrder.protected() && newOrder.isEmpty() && context.pendingLocal.crossesZero()) {
+            // liquidate and pending zero-cross, total pending close is greater than latest position and pending open
+            if (context.pendingLocal.neg().gt(context.latestPositionLocal.magnitude().add(context.pendingLocal.pos()))) return false;
+        } else {
+            if (
+                context.pendingLocal.invalidation != 0 &&
+                context.pendingLocal.neg().gt(context.latestPositionLocal.magnitude())
+            ) return false; // no pending zero-cross and liquidate, check only negative pending position
+        }
         return true;
     }
 }
