@@ -2047,6 +2047,40 @@ describe('MakerVault', () => {
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
     })
 
+    it('credits profit shares when account is coordinator', async () => {
+      await fundWallet(asset, coordinator),
+        asset.connect(coordinator).approve(vault.address, ethers.constants.MaxUint256),
+        await vault.updateParameter({
+          maxDeposit: maxCollateral,
+          minDeposit: 0,
+          profitShare: parse6decimal('0.2'),
+        })
+      await vault.updateCoordinator(coordinator.address)
+
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
+
+      // User and coordinator make deposits
+      const deposit = parse6decimal('10000')
+      await vault.connect(user).update(user.address, deposit.mul(2).div(3), 0, 0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+
+      await vault.connect(coordinator).update(coordinator.address, deposit.div(3), 0, 0)
+      await updateOracle()
+      await vault.rebalance(coordinator.address)
+
+      // Confirm positions were opened
+      expect(await position()).to.be.equal(deposit.mul(leverage).mul(4).div(5).div(originalOraclePrice))
+      expect(await btcPosition()).to.be.equal(deposit.mul(leverage).div(5).div(btcOriginalOraclePrice))
+
+      const shares1 = deposit.mul(2).div(3)
+      expect((await vault.accounts(user.address)).shares).to.equal(shares1)
+      const shares2 = parse6decimal('3333.273688')
+      const profitShares = BigNumber.from('29821')
+      expect((await vault.accounts(coordinator.address)).shares).to.equal(shares2.add(profitShares))
+    })
+
     it('reverts when paused', async () => {
       await vaultFactory.connect(owner).pause()
       await expect(vault.rebalance(user.address)).to.revertedWithCustomError(vault, 'InstancePausedError')
