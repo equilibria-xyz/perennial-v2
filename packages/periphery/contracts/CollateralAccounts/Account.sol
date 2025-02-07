@@ -80,7 +80,7 @@ contract Account is IAccount, Instance {
                 UFixed18Lib.from(amount.sub(usdcBalance)).min(DSU.balanceOf());
             unwrap(unwrapAmount);
         }
-        UFixed6 pushAmount = amount.eq(UFixed6Lib.MAX) ? USDC.balanceOf() : amount;
+        UFixed6 pushAmount = amount.min(USDC.balanceOf());
         USDC.push(owner, pushAmount);
     }
 

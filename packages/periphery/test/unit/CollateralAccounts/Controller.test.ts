@@ -750,6 +750,29 @@ describe('Controller', () => {
     })
   })
 
+  describe('#withdrawal', () => {
+    it('unwraps when DSU reserve redeemPrice is not 1', async () => {
+      // create a collateral account with 100 DSU
+      const accountA = await createCollateralAccount(userA)
+      const dsuBalance = utils.parseEther('100')
+      usdc.balanceOf.reset()
+      dsu.balanceOf.whenCalledWith(accountA.address).returns(dsuBalance)
+      usdc.transfer.returns(true)
+
+      // exchange rate is not 1:1
+      // (future implementations of reserve.redeem will return amount unwrapped)
+      const usdcRedeemed = parse6decimal('99.5')
+      reserve.redeem.whenCalledWith(dsuBalance).returns(usdcRedeemed)
+      usdc.balanceOf.returnsAtCall(0, 0)
+      usdc.balanceOf.returnsAtCall(1, usdcRedeemed)
+
+      // user unwraps and withdraws all possible
+      await expect(accountA.connect(userA).withdraw(parse6decimal('100'), true)).to.not.be.reverted
+      expect(reserve.redeem).to.have.been.calledWith(dsuBalance)
+      expect(usdc.transfer).to.have.been.calledWith(userA.address, usdcRedeemed)
+    })
+  })
+
   describe('#messaging', () => {
     it('rejects verification of message signed by unauthorized signer', async () => {
       // specify an unauthorized signer in the message

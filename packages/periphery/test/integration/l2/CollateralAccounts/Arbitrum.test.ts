@@ -65,7 +65,7 @@ async function deployController(
 
   const keepConfig = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 385_000, // buffer for handling the keeper fee
+    bufferBase: 400_000, // buffer for handling the keeper fee
     multiplierCalldata: ethers.utils.parseEther('1'),
     bufferCalldata: 0,
   }
