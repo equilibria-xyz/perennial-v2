@@ -436,6 +436,8 @@ abstract contract Vault is IVault, Instance {
 
         Target[] memory targets = _strategy(context, deposit, withdrawal, _ineligible(context, deposit, withdrawal));
 
+        if (targets.length != context.registrations.length) revert VaultTargetLengthMismatchError();
+
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
             if (targets[marketId].collateral.lt(Fixed6Lib.ZERO))
                 _retarget(context.registrations[marketId], targets[marketId], shouldRebalance);

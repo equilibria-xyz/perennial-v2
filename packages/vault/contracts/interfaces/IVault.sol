@@ -63,6 +63,8 @@ interface IVault is IInstance {
     error VaultAggregateWeightError();
     // sig: 0x50ad85d6
     error VaultCurrentOutOfSyncError();
+    // sig: 0x64bbeb56
+    error VaultTargetLengthMismatchError();
 
     // sig: 0xb8a09499
     error AccountStorageInvalidError();
