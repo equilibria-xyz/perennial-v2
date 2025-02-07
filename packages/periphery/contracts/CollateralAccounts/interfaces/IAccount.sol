@@ -43,6 +43,5 @@ interface IAccount {
 
     /// @notice Converts a specified amount of DSU to USDC
     /// @param amount Quantity of DSU to burn, in 18-decimal precision
-    /// @param amountUnwrapped Quantity of USDC received from DSU burnt
-    function unwrap(UFixed18 amount) external returns (UFixed6 amountUnwrapped);
+    function unwrap(UFixed18 amount) external;
 }

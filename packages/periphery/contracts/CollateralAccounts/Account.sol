@@ -99,10 +99,8 @@ contract Account is IAccount, Instance {
     }
 
     /// @inheritdoc IAccount
-    function unwrap(UFixed18 amount) public ownerOrController returns (UFixed6 amountUnwrapped) {
-        UFixed6 balanceBefore = USDC.balanceOf(address(this));
+    function unwrap(UFixed18 amount) public ownerOrController {
         reserve.redeem(amount);
-        amountUnwrapped = USDC.balanceOf(address(this)).sub(balanceBefore);
     }
 
     /// @dev Reverts if not called by the owner of the collateral account, or the collateral account controller

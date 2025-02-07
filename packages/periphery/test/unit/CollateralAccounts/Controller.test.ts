@@ -751,32 +751,6 @@ describe('Controller', () => {
   })
 
   describe('#withdrawal', () => {
-    it('unwrap returns redeemed amount', async () => {
-      // create a collateral account with 50 DSU
-      const accountA = await createCollateralAccount(userA)
-      const dsuBalance = utils.parseEther('50')
-      usdc.balanceOf.reset()
-
-      // unwrap half at even exchange rate
-      let usdcRedeemed = parse6decimal('25')
-      reserve.redeem.whenCalledWith(dsuBalance.div(2)).returns(usdcRedeemed)
-      usdc.balanceOf.returnsAtCall(0, 0)
-      usdc.balanceOf.returnsAtCall(1, usdcRedeemed)
-      expect(await accountA.connect(userA).callStatic.unwrap(dsuBalance.div(2))).to.equal(usdcRedeemed)
-      await expect(accountA.connect(userA).unwrap(dsuBalance.div(2))).to.not.be.reverted
-      expect(reserve.redeem).to.have.been.calledWith(dsuBalance.div(2))
-
-      // unwrap remaining at lower exchange rate
-      reserve.redeem.reset()
-      usdcRedeemed = parse6decimal('24.5')
-      usdc.balanceOf.reset()
-      usdc.balanceOf.returnsAtCall(0, 0)
-      usdc.balanceOf.returnsAtCall(1, usdcRedeemed)
-      expect(await accountA.connect(userA).callStatic.unwrap(dsuBalance.div(2))).to.equal(usdcRedeemed)
-      await expect(accountA.connect(userA).unwrap(dsuBalance.div(2))).to.not.be.reverted
-      expect(reserve.redeem).to.have.been.calledWith(dsuBalance.div(2))
-    })
-
     it('unwraps when DSU reserve redeemPrice is not 1', async () => {
       // create a collateral account with 100 DSU
       const accountA = await createCollateralAccount(userA)
@@ -790,9 +764,7 @@ describe('Controller', () => {
       const usdcRedeemed = parse6decimal('99.5')
       reserve.redeem.whenCalledWith(dsuBalance).returns(usdcRedeemed)
       usdc.balanceOf.returnsAtCall(0, 0)
-      usdc.balanceOf.returnsAtCall(1, 0)
-      usdc.balanceOf.returnsAtCall(2, usdcRedeemed)
-      usdc.balanceOf.returnsAtCall(3, usdcRedeemed)
+      usdc.balanceOf.returnsAtCall(1, usdcRedeemed)
 
       // user unwraps and withdraws all possible
       await expect(accountA.connect(userA).withdraw(parse6decimal('100'), true)).to.not.be.reverted
