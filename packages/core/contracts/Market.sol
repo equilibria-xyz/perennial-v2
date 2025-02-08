@@ -574,6 +574,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         for (uint256 id = context.local.latestId + 1; id <= context.local.currentId; id++)
             updateContext.priceAdjustment = updateContext.priceAdjustment
                 .add(_guarantees[context.account][id].read().priceAdjustment(context.latestOracleVersion.price));
+
+        // load max pending magnitude
+        Position memory pendingPosition = context.latestPositionLocal.clone();
+        updateContext.maxPendingMagnitude = context.latestPositionLocal.magnitude();
+        for (uint256 id = context.local.latestId + 1; id <= context.local.currentId; id++) {
+            pendingPosition.update(_pendingOrders[context.account][id].read());
+            updateContext.maxPendingMagnitude = updateContext.maxPendingMagnitude.max(pendingPosition.magnitude());
+        }
     }
 
     /// @notice Stores the context for the update process

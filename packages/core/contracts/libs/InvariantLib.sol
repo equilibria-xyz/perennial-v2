@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { IMarket } from "../interfaces/IMarket.sol";
 import { PositionLib } from "../types/Position.sol";
 import { Order } from "../types/Order.sol";
 import { Guarantee } from "../types/Guarantee.sol";
+import { Position } from "../types/Position.sol";
 
 /// @title InvariantLib
 /// @dev (external-safe): this library is safe to externalize
@@ -38,7 +39,7 @@ library InvariantLib {
             context.pendingLocal.neg().gt(context.latestPositionLocal.magnitude()) // total pending close is greater than latest position
         ) revert IMarket.MarketOverCloseError();
 
-        if (newOrder.protected() && !_validateProtection(context, newOrder))
+        if (newOrder.protected() && !_validateProtection(context, updateContext, newOrder, newGuarantee))
             revert IMarket.MarketInvalidProtectionError();
 
         if (
@@ -86,7 +87,7 @@ library InvariantLib {
 
         if (
             !PositionLib.margined(
-                updateContext.currentPositionLocal.magnitude(),
+                _worstCasePendingLocal(context, updateContext),
                 context.latestOracleVersion,
                 context.riskParameter,
                 updateContext.collateralization,
@@ -117,7 +118,33 @@ library InvariantLib {
             revert IMarket.MarketInsufficientCollateralError();
     }
 
-    function _validateProtection(IMarket.Context memory context, Order memory newOrder) private pure returns (bool) {
+    /// @notice Returns the worst case pending position magnitude
+    /// @dev For AMM pending orders, this is calculated by assuming all closing orders will be invalidated
+    ///      For intent pending orders, this is the maximum position magnitude at any pending version
+    /// @param context The context to use
+    /// @param updateContext The update context to use
+    /// @return The worst case pending position magnitude
+    function _worstCasePendingLocal(
+        IMarket.Context memory context,
+        IMarket.UpdateContext memory updateContext
+    ) private pure returns (UFixed6) {
+        return context.pendingLocal.invalidation != 0
+            ? context.latestPositionLocal.magnitude().add(context.pendingLocal.pos())   // contains an amm order, use worst case w/ invalidation
+            : updateContext.maxPendingMagnitude;                                        // does not contain an amm order, use max pending magnitude
+    }
+
+    /// @notice Validates the protection of the market
+    /// @param context The context to use
+    /// @param updateContext The update context to use
+    /// @param newOrder The new order to validate the protection for
+    /// @param newGuarantee The new guarantee to validate the protection for
+    /// @return True if the protection is valid, false otherwise
+    function _validateProtection(
+        IMarket.Context memory context,
+        IMarket.UpdateContext memory updateContext,
+        Order memory newOrder,
+        Guarantee memory newGuarantee
+    ) private pure returns (bool) {
         if (context.pendingLocal.crossesZero()) {
             if (!newOrder.isEmpty()) return false; // pending zero-cross, liquidate (lock) with no-op order
         } else {
@@ -128,6 +155,8 @@ library InvariantLib {
             context.latestOracleVersion,
             context.riskParameter,
             context.local.collateral
+                .add(updateContext.priceAdjustment)                                     // apply price override adjustment from pending intents if present
+                .add(newGuarantee.priceAdjustment(context.latestOracleVersion.price))   // apply price override adjustment from new intent if present
         )) return false; // latest position is properly maintained
 
         if (!newOrder.collateral.eq(Fixed6Lib.ZERO)) return false; // the order is modifying collateral
