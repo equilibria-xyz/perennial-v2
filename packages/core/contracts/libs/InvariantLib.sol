@@ -129,8 +129,8 @@ library InvariantLib {
         IMarket.UpdateContext memory updateContext
     ) private pure returns (UFixed6) {
         return context.pendingLocal.invalidation != 0
-            ? context.latestPositionLocal.magnitude().add(context.pendingLocal.pos())   // contains an amm order, use worst case w/ invalidation
-            : updateContext.maxPendingMagnitude;                                        // does not contain an amm order, use max pending magnitude
+            ? context.latestPositionLocal.magnitude().add(context.pendingLocal.pos())                   // contains an amm order, use worst case w/ invalidation
+            : updateContext.currentPositionLocal.magnitude().max(updateContext.maxPendingMagnitude);    // does not contain an amm order, use max pending magnitude
     }
 
     /// @notice Validates the protection of the market

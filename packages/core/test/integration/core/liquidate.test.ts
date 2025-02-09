@@ -116,7 +116,7 @@ describe('Liquidate', () => {
           userBCollateral.mul(-1).sub(1),
           false,
         ),
-    ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralError') // underflow
+    ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError') // under margin
 
     await market.connect(userB)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true) // liquidate
 
@@ -124,10 +124,23 @@ describe('Liquidate', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await settle(market, user)
 
-    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-2524654460'))
+    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-2524654460')) // 2524154460
 
     await dsu.connect(userB).approve(market.address, constants.MaxUint256)
     const userCollateral = (await market.locals(user.address)).collateral
+
+    await expect(
+      market
+        .connect(userB)
+        ['update(address,uint256,uint256,uint256,int256,bool)'](
+          userB.address,
+          0,
+          0,
+          0,
+          userCollateral.mul(-1).sub(1),
+          false,
+        ),
+    ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralError') // still negative
 
     await market
       .connect(userB)
