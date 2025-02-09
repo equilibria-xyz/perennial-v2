@@ -2,7 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
-import { Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
+import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { IMarket } from "../interfaces/IMarket.sol";
 import { PositionLib } from "../types/Position.sol";
 import { Order } from "../types/Order.sol";
@@ -91,9 +91,7 @@ library InvariantLib {
                 context.latestOracleVersion,
                 context.riskParameter,
                 updateContext.collateralization,
-                context.local.collateral
-                    .add(updateContext.priceAdjustment)                                     // apply price override adjustment from pending intents if present
-                    .add(newGuarantee.priceAdjustment(context.latestOracleVersion.price))   // apply price override adjustment from new intent if present
+                _effectiveCollateral(context, updateContext, newGuarantee)
             )
         ) revert IMarket.MarketInsufficientMarginError();
 
@@ -114,7 +112,7 @@ library InvariantLib {
             newOrder.decreasesLiquidity(updateContext.currentPositionGlobal)
         ) revert IMarket.MarketInsufficientLiquidityError();
 
-        if (context.local.collateral.lt(Fixed6Lib.ZERO))
+        if (_effectiveCollateral(context, updateContext, newGuarantee).lt(Fixed6Lib.ZERO))
             revert IMarket.MarketInsufficientCollateralError();
     }
 
@@ -131,6 +129,29 @@ library InvariantLib {
         return context.pendingLocal.invalidation != 0
             ? context.latestPositionLocal.magnitude().add(context.pendingLocal.pos())   // contains an amm order, use worst case w/ invalidation
             : updateContext.maxPendingMagnitude;                                        // does not contain an amm order, use max pending magnitude
+    }
+
+    /// @notice Returns the effective collateral for the account
+    /// @dev Takes into account
+    ///      - the price override adjustment from pending intents and the new intent
+    ///      - the pending intent fees (upper bounded by measuring the pending order fees)
+    /// @param context The context to use
+    /// @param updateContext The update context to use
+    /// @param newGuarantee The new guarantee to use
+    /// @return The effective collateral for margin / maintenance checks
+    function _effectiveCollateral(
+        IMarket.Context memory context,
+        IMarket.UpdateContext memory updateContext,
+        Guarantee memory newGuarantee
+    ) private pure returns (Fixed6) {
+        Guarantee memory pendingGuaranteeLocal; // approximate pending intent fees by measuring worst case
+        UFixed6 pendingIntentFees =
+            context.pendingLocal.takerFee(pendingGuaranteeLocal, context.latestOracleVersion, context.marketParameter);
+
+        return context.local.collateral
+            .add(updateContext.priceAdjustment)                                     // apply price override adjustment from pending intents if present
+            .add(newGuarantee.priceAdjustment(context.latestOracleVersion.price))   // apply price override adjustment from new intent if present
+            .sub(Fixed6Lib.from(pendingIntentFees));                                // add pending intent fees (upper bounded by assuming no pending guarantee)
     }
 
     /// @notice Validates the protection of the market
@@ -154,9 +175,7 @@ library InvariantLib {
         if (context.latestPositionLocal.maintained(
             context.latestOracleVersion,
             context.riskParameter,
-            context.local.collateral
-                .add(updateContext.priceAdjustment)                                     // apply price override adjustment from pending intents if present
-                .add(newGuarantee.priceAdjustment(context.latestOracleVersion.price))   // apply price override adjustment from new intent if present
+            _effectiveCollateral(context, updateContext, newGuarantee)
         )) return false; // latest position is properly maintained
 
         if (!newOrder.collateral.eq(Fixed6Lib.ZERO)) return false; // the order is modifying collateral
