@@ -124,16 +124,16 @@ describe('Liquidate', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await settle(market, user)
 
-    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-2524654460')) // 2524154460
+    expect((await market.locals(user.address)).collateral).to.equal(BigNumber.from('-2524654460'))
 
     await dsu.connect(userB).approve(market.address, constants.MaxUint256)
     const userCollateral = (await market.locals(user.address)).collateral
 
     await expect(
       market
-        .connect(userB)
+        .connect(user)
         ['update(address,uint256,uint256,uint256,int256,bool)'](
-          userB.address,
+          user.address,
           0,
           0,
           0,
