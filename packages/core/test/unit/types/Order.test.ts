@@ -1081,6 +1081,17 @@ describe('Order', () => {
           })
         })
 
+        context('maker increase', () => {
+          it('returns true', async () => {
+            await order.store({ ...DEFAULT_ORDER, makerPos: 5 })
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+            })
+
+            expect(result).to.be.true
+          })
+        })
+
         context('long decrease', () => {
           it('returns false', async () => {
             await order.store({ ...DEFAULT_ORDER, longNeg: 10 })

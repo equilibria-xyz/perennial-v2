@@ -444,6 +444,12 @@ abstract contract Vault is IVault, Instance {
                 _retarget(context.registrations[marketId], targets[marketId], shouldRebalance);
     }
 
+    /// @dev Determines how the vault allocates capital and manages positions
+    /// @param context The context to use
+    /// @param deposit The amount of assets that are being deposited into the vault
+    /// @param withdrawal The amount of assets that need to be withdrawn from the markets into the vault
+    /// @param ineligible The amount of assets that are ineligible for allocation due to pending claims
+    /// @return targets Target allocations for each market; must have single entry for each registered market
     function _strategy(
         Context memory context,
         UFixed6 deposit,
