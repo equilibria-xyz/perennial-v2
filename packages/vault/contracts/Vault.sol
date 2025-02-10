@@ -387,7 +387,7 @@ abstract contract Vault is IVault, Instance {
                 _checkpointAtId(context, nextCheckpoint.timestamp)
             );
             context.global.shares = context.global.shares.add(profitShares);
-            _credit(coordinator, profitShares);
+            _credit(context, account, coordinator, profitShares);
             emit MarkUpdated(context.mark, profitShares);
 
             // process position
@@ -419,12 +419,18 @@ abstract contract Vault is IVault, Instance {
 
     /// @notice Processes an out-of-context credit to an account
     /// @dev Used to credit shares accrued through fee mechanics
-    /// @param account The account to credit
+    /// @param context Settlement context
+    /// @param contextAccount The account being settled
+    /// @param receiver The coordinator to credit
     /// @param shares The amount of shares to credit
-    function _credit(address account, UFixed6 shares) internal virtual {
-        Account memory local = _accounts[account].read();
-        local.shares = local.shares.add(shares);
-        _accounts[account].store(local);
+    function _credit(Context memory context, address contextAccount, address receiver, UFixed6 shares) internal virtual {
+        // handle corner case where settling the coordinator's own account
+        if (receiver == contextAccount) context.local.shares = context.local.shares.add(shares);
+        else { // update coordinator profit shares
+            Account memory local = _accounts[receiver].read();
+            local.shares = local.shares.add(shares);
+            _accounts[receiver].store(local);
+        }
     }
 
     /// @notice Manages the internal collateral and position strategy of the vault
