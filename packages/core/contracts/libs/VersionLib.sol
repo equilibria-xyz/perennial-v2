@@ -262,18 +262,15 @@ library VersionLib {
         VersionAccumulationContext memory context,
         VersionAccumulationResult memory result
     ) private pure {
-        UFixed6 makerFee = context.order.makerTotal()
-            .mul(context.toOracleVersion.price.abs())
-            .mul(context.marketParameter.makerFee);
-        next.makerFee.decrement(Fixed6Lib.from(makerFee), context.order.makerTotal());
-        UFixed6 makerSubtractiveFee = context.order.makerTotal().isZero() ?
+        UFixed6 makerTotal = context.order.makerTotal();
+        UFixed6 makerFee = context.order.makerFee(context.toOracleVersion, context.marketParameter);
+        next.makerFee.decrement(Fixed6Lib.from(makerFee), makerTotal);
+        UFixed6 makerSubtractiveFee = makerTotal.isZero() ?
             UFixed6Lib.ZERO :
-            makerFee.muldiv(context.order.makerReferral, context.order.makerTotal());
+            makerFee.muldiv(context.order.makerReferral, makerTotal);
 
         UFixed6 takerTotal = context.order.takerTotal().sub(context.guarantee.takerFee);
-        UFixed6 takerFee = takerTotal
-            .mul(context.toOracleVersion.price.abs())
-            .mul(context.marketParameter.takerFee);
+        UFixed6 takerFee = context.order.takerFee(context.guarantee, context.toOracleVersion, context.marketParameter);
         next.takerFee.decrement(Fixed6Lib.from(takerFee), takerTotal);
         UFixed6 takerSubtractiveFee = takerTotal.isZero() ?
             UFixed6Lib.ZERO :

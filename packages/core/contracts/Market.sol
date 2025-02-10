@@ -570,10 +570,18 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             IMarketFactory(address(factory())).authorization(context.account, msg.sender, signer, orderReferrer);
         if (guaranteeReferrer != address(0)) updateContext.guaranteeReferralFee = guaranteeReferralFee;
 
-        // load price adjustment
-        for (uint256 id = context.local.latestId + 1; id <= context.local.currentId; id++)
+        // load aggregate pending data
+        Position memory pendingPosition = context.latestPositionLocal.clone();
+        updateContext.maxPendingMagnitude = context.latestPositionLocal.magnitude();
+        for (uint256 id = context.local.latestId + 1; id <= context.local.currentId; id++) {
+            // load price adjustment
             updateContext.priceAdjustment = updateContext.priceAdjustment
                 .add(_guarantees[context.account][id].read().priceAdjustment(context.latestOracleVersion.price));
+
+            // load max pending magnitude
+            pendingPosition.update(_pendingOrders[context.account][id].read());
+            updateContext.maxPendingMagnitude = updateContext.maxPendingMagnitude.max(pendingPosition.magnitude());
+        }
     }
 
     /// @notice Stores the context for the update process
