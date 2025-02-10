@@ -68,7 +68,6 @@ interface IMarket is IInstance {
     event OrderCreated(address indexed account, Order order, Guarantee guarantee, address liquidator, address orderReferrer, address guaranteeReferrer);
     event PositionProcessed(uint256 orderId, Order order, VersionAccumulationResult accumulationResult);
     event AccountPositionProcessed(address indexed account, uint256 orderId, Order order, CheckpointAccumulationResult accumulationResult);
-    event BeneficiaryUpdated(address newBeneficiary);
     event CoordinatorUpdated(address newCoordinator);
     /// @notice Fee earned by an account was transferred from market to a receiver
     /// @param account User who earned the fee
@@ -103,8 +102,6 @@ interface IMarket is IInstance {
     error MarketExceedsPendingIdLimitError();
     // sig: 0x9bca0625
     error MarketNotCoordinatorError();
-    // sig: 0xb602d086
-    error MarketNotBeneficiaryError();
     // sig: 0x3222db45
     /// @custom:error Sender is not authorized to interact with markets on behalf of the account
     error MarketNotOperatorError();
@@ -143,8 +140,6 @@ interface IMarket is IInstance {
     function initialize(MarketDefinition calldata definition_) external;
     function token() external view returns (Token18);
     function oracle() external view returns (IOracleProvider);
-    function beneficiary() external view returns (address);
-    function coordinator() external view returns (address);
     function positions(address account) external view returns (Position memory);
     function pendingOrders(address account, uint256 id) external view returns (Order memory);
     function guarantees(address account, uint256 id) external view returns (Guarantee memory);
@@ -170,7 +165,6 @@ interface IMarket is IInstance {
     function update(address account, UFixed6 newMaker, UFixed6 newLong, UFixed6 newShort, Fixed6 collateral, bool protect, address referrer) external;
     function parameter() external view returns (MarketParameter memory);
     function riskParameter() external view returns (RiskParameter memory);
-    function updateBeneficiary(address newBeneficiary) external;
     function updateCoordinator(address newCoordinator) external;
     function updateParameter(MarketParameter memory newParameter) external;
     function updateRiskParameter(RiskParameter memory newRiskParameter) external;
