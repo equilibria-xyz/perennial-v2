@@ -23913,7 +23913,7 @@ describe('Market', () => {
           ).to.revertedWithCustomError(market, 'MarketOverCloseError')
         })
 
-        it('cant liquidate zero-cross w/ non-empty order', async () => {
+        it('can liquidate zero-cross w/ empty order', async () => {
           factory.parameter.returns({
             maxPendingIds: 5,
             protocolFee: parse6decimal('0.50'),
@@ -24009,6 +24009,156 @@ describe('Market', () => {
             market
               .connect(user)
               ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, POSITION.div(2), 0, true),
+          ).to.not.be.reverted
+        })
+
+        it('can liquidate over close w/ empty order', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxLiquidationFee: parse6decimal('1000'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
+          })
+
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.takerFee = parse6decimal('0.01')
+          await market.updateParameter(marketParameter)
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          await market.updateRiskParameter({
+            ...riskParameter,
+            takerFee: {
+              ...riskParameter.takerFee,
+              linearFee: parse6decimal('0.001'),
+              proportionalFee: parse6decimal('0.002'),
+              adiabaticFee: parse6decimal('0.004'),
+            },
+            staleAfter: 14400,
+          })
+
+          const intent = {
+            amount: -POSITION.div(2),
+            price: parse6decimal('123'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          const intent2 = {
+            amount: POSITION.div(2),
+            price: parse6decimal('123'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 1,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          const intent3 = {
+            amount: -POSITION.div(10),
+            price: parse6decimal('123'),
+            fee: parse6decimal('0.5'),
+            originator: liquidator.address,
+            solver: owner.address,
+            collateralization: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 1,
+              group: 0,
+              expiry: 0,
+            },
+          }
+
+          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.div(20).mul(1e12)).returns(true)
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL.div(20), false),
+            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
+          await market
+            .connect(userC)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+
+          // solver
+          factory.authorization
+            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+            .returns([true, true, BigNumber.from(0)])
+          // taker
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+          verifier.verifyIntent.returns()
+
+          // initial position to settle + liquidate
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false),
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_2.timestamp)
+              .returns([{ ...ORACLE_VERSION_2 }, { ...INITIALIZED_ORACLE_RECEIPT }])
+          oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+          await settle(market, user)
+
+          // setup pending over close
+          await market
+            .connect(userC)
+            [
+              'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+            ](userC.address, intent, DEFAULT_SIGNATURE)
+          await market
+            .connect(userC)
+            [
+              'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+            ](userC.address, intent2, DEFAULT_SIGNATURE)
+          await market
+            .connect(userC)
+            [
+              'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+            ](userC.address, intent3, DEFAULT_SIGNATURE)
+
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_3.timestamp)
+            .returns([{ ...ORACLE_VERSION_3, price: parse6decimal('25') }, { ...INITIALIZED_ORACLE_RECEIPT }])
+          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          // liquidate w/ no-op
+          await expect(
+            market
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](
+                user.address,
+                0,
+                POSITION.mul(4).div(10),
+                0,
+                0,
+                true,
+              ),
           ).to.not.be.reverted
         })
       })

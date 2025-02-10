@@ -121,7 +121,7 @@ library InvariantLib {
         if (context.pendingLocal.crossesZero()) {
             if (!newOrder.isEmpty()) return false; // pending zero-cross, liquidate (lock) with no-op order
         } else {
-            if (!context.pendingLocal.neg().eq(context.latestPositionLocal.magnitude())) return false; // no pending zero-cross, liquidate with full close
+            if (context.pendingLocal.neg().lt(context.latestPositionLocal.magnitude())) return false; // no pending zero-cross, liquidate with full close
         }
 
         if (context.latestPositionLocal.maintained(
