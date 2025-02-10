@@ -247,6 +247,38 @@ library OrderLib {
             ((long(self).isZero() && short(self).isZero()) || increasesTaker(self));
     }
 
+    /// @notice Returns the maker fee for the order
+    /// @param self The order object to check
+    /// @param oracleVersion The settlement oracle version
+    /// @param marketParameter The market parameter
+    /// @return The maker fee
+    function makerFee(
+        Order memory self,
+        OracleVersion memory oracleVersion,
+        MarketParameter memory marketParameter
+    ) internal pure returns (UFixed6) {
+        return self.makerTotal()
+            .mul(oracleVersion.price.abs())
+            .mul(marketParameter.makerFee);
+    }
+
+    /// @notice Returns the taker fee for the order
+    /// @param self The order object to check
+    /// @param guarantee The guarantee
+    /// @param oracleVersion The settlement oracle version
+    /// @param marketParameter The market parameter
+    /// @return The taker fee
+    function takerFee(
+        Order memory self,
+        Guarantee memory guarantee,
+        OracleVersion memory oracleVersion,
+        MarketParameter memory marketParameter
+    ) internal pure returns (UFixed6) {
+        return self.takerTotal().sub(guarantee.takerFee)
+            .mul(oracleVersion.price.abs())
+            .mul(marketParameter.takerFee);
+    }
+
     /// @notice Returns whether the order is protected
     /// @param self The order object to check
     /// @return Whether the order is protected
