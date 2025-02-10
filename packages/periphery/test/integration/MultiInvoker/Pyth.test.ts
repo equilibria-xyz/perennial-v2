@@ -1,5 +1,5 @@
 import { expect } from 'chai'
-import { BigNumber, utils, constants } from 'ethers'
+import { BigNumber, constants, utils } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { time } from '../../../../common/testutil'
@@ -64,7 +64,7 @@ export function RunPythOracleTests(
       await dsu.connect(owner).transfer(oracleFactory.address, utils.parseEther('100000'))
 
       multiInvoker = await createInvoker(instanceVars)
-      market = await createMarket(owner, instanceVars.marketFactory, dsu, oracle, undefined, undefined, {
+      market = await createMarket(owner, instanceVars.marketFactory, oracle, undefined, undefined, {
         maxFeePerGas: 100000000,
       })
 
@@ -86,17 +86,14 @@ export function RunPythOracleTests(
 
     describe('PerennialAction.COMMIT_PRICE', async () => {
       it('commits a requested pyth version', async () => {
+        const deposit = parse6decimal('1000')
+        await dsu.connect(user).approve(instanceVars.margin.address, constants.MaxUint256)
+        await expect(instanceVars.margin.connect(user).deposit(user.address, deposit)).to.not.be.reverted
         await time.includeAt(
           async () =>
             await market
               .connect(user)
-              ['update(address,int256,int256,int256,address)'](
-                user.address,
-                1,
-                0,
-                parse6decimal('1000'),
-                constants.AddressZero,
-              ),
+              ['update(address,int256,int256,int256,address)'](user.address, 1, 0, deposit, constants.AddressZero),
           vaaVars.startingTime,
         )
 

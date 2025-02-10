@@ -1,7 +1,6 @@
 import { expect } from 'chai'
 import 'hardhat'
 import { BigNumber, constants, ContractTransaction, utils } from 'ethers'
-const { AddressZero } = constants
 
 import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import {
@@ -19,7 +18,7 @@ import {
   DEFAULT_GUARANTEE,
   expectGuaranteeEq,
 } from '../../../../common/testutil/types'
-import { Market, Verifier__factory } from '../../../types/generated'
+import { IMargin, Market, Verifier__factory } from '../../../types/generated'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import {
   AccountPositionProcessedEventObject,
@@ -76,6 +75,7 @@ const MARKET_PARAMS = {
 describe('Fees', () => {
   let instanceVars: InstanceVars
   let market: Market
+  let margin: IMargin
 
   const nextWithConstantPrice = async () => {
     return instanceVars.chainlink.nextWithPriceModification(() => UNDERLYING_PRICE)
@@ -92,21 +92,26 @@ describe('Fees', () => {
   async function getOrderProcessingEvents(
     tx: ContractTransaction,
   ): Promise<[Array<AccountPositionProcessedEventObject>, Array<PositionProcessedEventObject>]> {
-    const txEvents = (await tx.wait()).events!
-    const accountProcessEvents: Array<AccountPositionProcessedEventObject> = txEvents
-      .filter(e => e.event === 'AccountPositionProcessed')
-      .map(e => e.args as unknown as AccountPositionProcessedEventObject)
-    const positionProcessEvents: Array<PositionProcessedEventObject> = txEvents
-      .filter(e => e.event === 'PositionProcessed')
-      .map(e => e.args as unknown as PositionProcessedEventObject)
-    return [accountProcessEvents, positionProcessEvents]
+    const txEvents = (await tx.wait()).events
+    if (txEvents) {
+      const accountProcessEvents: Array<AccountPositionProcessedEventObject> = txEvents
+        .filter(e => e.event === 'AccountPositionProcessed')
+        .map(e => e.args as unknown as AccountPositionProcessedEventObject)
+      const positionProcessEvents: Array<PositionProcessedEventObject> = txEvents
+        .filter(e => e.event === 'PositionProcessed')
+        .map(e => e.args as unknown as PositionProcessedEventObject)
+      return [accountProcessEvents, positionProcessEvents]
+    } else {
+      throw new Error('Transaction had no events to process')
+    }
   }
 
   beforeEach(async () => {
     instanceVars = await loadFixture(fixture)
     instanceVars.chainlink.updateParams(BigNumber.from(0), parse6decimal('0.3'))
     await instanceVars.chainlink.reset()
-    market = await createMarket(instanceVars, undefined, RISK_PARAMS, MARKET_PARAMS)
+    market = await createMarket(instanceVars, RISK_PARAMS, MARKET_PARAMS)
+    margin = instanceVars.margin
   })
 
   describe('position fees', () => {
@@ -115,7 +120,8 @@ describe('Fees', () => {
       const COLLATERAL = parse6decimal('1000')
       const { user, dsu } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
 
       await expect(
         market
@@ -165,8 +171,10 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(expectedMakerFee).sub(expectedMakerLinear).sub(expectedMakerProportional),
       })
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+        COLLATERAL.sub(expectedMakerFee).sub(expectedMakerLinear).sub(expectedMakerProportional),
+      )
       expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
@@ -231,7 +239,8 @@ describe('Fees', () => {
       const COLLATERAL = parse6decimal('1000')
       const { user, dsu } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
 
       await expect(
         market
@@ -288,8 +297,11 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 2,
-        collateral: COLLATERAL.sub(expectedMakerFee).sub(10), // Maker gets part of their fee refunded since they were an exisiting maker
       })
+      // Maker gets part of their fee refunded since they were an exisiting maker
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+        COLLATERAL.sub(expectedMakerFee).sub(10),
+      )
       expectOrderEq(await market.pendingOrders(user.address, 2), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
@@ -349,8 +361,10 @@ describe('Fees', () => {
       const COLLATERAL = parse6decimal('1000')
       const { user, userB, dsu } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
       await market
         .connect(user)
@@ -453,11 +467,13 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(expectedTakerFee)
+      })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+        COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedtakerAdiabatic),
-      })
+      )
       expectOrderEq(await market.pendingOrders(userB.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
@@ -494,8 +510,10 @@ describe('Fees', () => {
       const COLLATERAL = parse6decimal('1000')
       const { user, userB, dsu } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
       await market
         .connect(user)
@@ -600,11 +618,13 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(expectedTakerFee)
+      })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+        COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedTakerAdiabatic),
-      })
+      )
       expectOrderEq(await market.pendingOrders(userB.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
@@ -636,8 +656,8 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.add(expectedMakerFee),
       })
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.add(expectedMakerFee))
       expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
@@ -685,8 +705,10 @@ describe('Fees', () => {
       const COLLATERAL = parse6decimal('1000')
       const { user, userB, dsu } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
       await market
         .connect(user)
@@ -800,11 +822,13 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 2,
-        collateral: COLLATERAL.sub(expectedTakerFee)
+      })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+        COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedTakerAdiabatic),
-      })
+      )
       expectOrderEq(await market.pendingOrders(userB.address, 2), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
@@ -834,8 +858,8 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.add(expectedMakerFee),
       })
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.add(expectedMakerFee))
       expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
@@ -871,8 +895,10 @@ describe('Fees', () => {
       const COLLATERAL = parse6decimal('1000')
       const { user, userB, dsu } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
       await market
         .connect(user)
@@ -975,11 +1001,13 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(expectedTakerFee)
+      })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+        COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedtakerAdiabatic),
-      })
+      )
       expectOrderEq(await market.pendingOrders(userB.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
@@ -1016,8 +1044,10 @@ describe('Fees', () => {
       const COLLATERAL = parse6decimal('1000')
       const { user, userB, dsu } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
       await market
         .connect(user)
@@ -1121,11 +1151,13 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(expectedTakerFee)
+      })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+        COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedTakerAdiabatic),
-      })
+      )
       expectOrderEq(await market.pendingOrders(userB.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
@@ -1155,8 +1187,8 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.add(expectedMakerFee),
       })
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.add(expectedMakerFee))
       expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
@@ -1204,8 +1236,10 @@ describe('Fees', () => {
       const COLLATERAL = parse6decimal('1000')
       const { user, userB, dsu } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
       await market
         .connect(user)
@@ -1317,11 +1351,13 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 2,
-        collateral: COLLATERAL.sub(expectedTakerFee)
+      })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+        COLLATERAL.sub(expectedTakerFee)
           .sub(expectedTakerLinear)
           .sub(expectedTakerProportional)
           .sub(expectedTakerAdiabatic),
-      })
+      )
       expectOrderEq(await market.pendingOrders(userB.address, 2), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
@@ -1351,8 +1387,8 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.add(expectedMakerFee),
       })
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.add(expectedMakerFee))
       expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
@@ -1402,9 +1438,12 @@ describe('Fees', () => {
 
         const { user, userB, userC, dsu } = instanceVars
 
-        await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-        await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-        await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+        await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(user).deposit(user.address, COLLATERAL)
+        await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(userB).deposit(userB.address, COLLATERAL)
+        await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
         await market
           .connect(user)
@@ -1515,9 +1554,12 @@ describe('Fees', () => {
 
         const { user, userB, userC, dsu } = instanceVars
 
-        await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-        await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-        await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+        await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(user).deposit(user.address, COLLATERAL)
+        await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(userB).deposit(userB.address, COLLATERAL)
+        await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
         await market
           .connect(user)
@@ -1557,6 +1599,7 @@ describe('Fees', () => {
 
         const expectedShortAdiabaticFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
         expect(accountProcessEvent.accumulationResult.offset).to.equal(expectedShortAdiabaticFee)
+        expect(positionProcessEvent.accumulationResult.tradeOffset).to.equal(expectedShortAdiabaticFee)
       })
 
       it('charges taker impact fee for changing skew (long)', async () => {
@@ -1584,6 +1627,7 @@ describe('Fees', () => {
 
         const expectedShortAdiabaticFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
         expect(accountProcessEventShort.accumulationResult.offset).to.equal(expectedShortAdiabaticFee)
+        expect(positionProcessEventShort.accumulationResult.tradeOffset).to.equal(expectedShortAdiabaticFee)
       })
 
       it('refunds taker position fee for negative impact', async () => {
@@ -1636,6 +1680,9 @@ describe('Fees', () => {
         const expectedShortLinearFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
         const expectedShortAdiabaticFee = BigNumber.from('-1138829') // = 3374.655169**2 * -0.00001 * 100% * 0.01
         expect(accountProcessEventShort.accumulationResult.offset).to.equal(
+          expectedShortLinearFee.add(expectedShortAdiabaticFee),
+        )
+        expect(positionProcessEventShort.accumulationResult.tradeOffset).to.equal(
           expectedShortLinearFee.add(expectedShortAdiabaticFee),
         )
       })
@@ -1692,6 +1739,9 @@ describe('Fees', () => {
         expect(accountProcessEventShort.accumulationResult.offset).to.equal(
           expectedShortLinearFee.add(expectedShortAdiabaticFee),
         )
+        expect(positionProcessEventShort.accumulationResult.tradeOffset).to.equal(
+          expectedShortLinearFee.add(expectedShortAdiabaticFee),
+        )
       })
     })
 
@@ -1726,9 +1776,12 @@ describe('Fees', () => {
 
         const { user, userB, userC, dsu } = instanceVars
 
-        await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-        await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-        await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+        await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(user).deposit(user.address, COLLATERAL)
+        await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(userB).deposit(userB.address, COLLATERAL)
+        await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+        await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
         await market
           .connect(user)
@@ -1859,9 +1912,12 @@ describe('Fees', () => {
 
       const { user, userB, userC, dsu } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
+      await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
       await market
         .connect(user)
@@ -1995,9 +2051,12 @@ describe('Fees', () => {
 
       const { user, userB, userC, dsu } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
+      await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
       await market
         .connect(user)
@@ -2107,10 +2166,14 @@ describe('Fees', () => {
 
     beforeEach(async () => {
       const { owner, user, userB, userC, userD, dsu, marketFactory } = instanceVars
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-      await dsu.connect(userC).approve(market.address, COLLATERAL.mul(2).mul(1e12))
-      await dsu.connect(userD).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
+      await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+      await margin.connect(userC).deposit(userC.address, COLLATERAL.mul(2))
+      await dsu.connect(userD).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userD).deposit(userD.address, COLLATERAL)
 
       // set default referral fee
       const protocolParameters = await marketFactory.parameter()
@@ -2156,17 +2219,15 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 0,
         latestId: 0,
-        claimable: expectedClaimable,
       })
-      await expect(market.connect(user).claimFee(user.address))
-        .to.emit(market, 'FeeClaimed')
+      expect(await margin.claimables(user.address)).to.equal(expectedClaimable)
+      await expect(margin.connect(user).claim(user.address, user.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
         .withArgs(user.address, user.address, expectedClaimable)
 
-      const userBalanceBefore = await dsu.balanceOf(user.address)
-
       // Ensure user is not able to claim fees twice
-      await expect(market.connect(user).claimFee(user.address))
-
+      const userBalanceBefore = await dsu.balanceOf(user.address)
+      await expect(margin.connect(user).claim(user.address, user.address))
       expect(await dsu.balanceOf(user.address)).to.equals(userBalanceBefore)
     })
 
@@ -2217,10 +2278,10 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 0,
         latestId: 0,
-        claimable: expectedClaimable,
       })
-      await expect(market.connect(userB).claimFee(userB.address))
-        .to.emit(market, 'FeeClaimed')
+      expect(await margin.claimables(userB.address)).to.equal(expectedClaimable)
+      await expect(margin.connect(userB).claim(userB.address, userB.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
         .withArgs(userB.address, userB.address, expectedClaimable)
     })
 
@@ -2262,10 +2323,10 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 0,
         latestId: 0,
-        claimable: expectedClaimable,
       })
-      await expect(market.connect(user).claimFee(user.address))
-        .to.emit(market, 'FeeClaimed')
+      expect(await margin.claimables(user.address)).to.equal(expectedClaimable)
+      await expect(margin.connect(user).claim(user.address, user.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
         .withArgs(user.address, user.address, expectedClaimable)
     })
 
@@ -2311,10 +2372,10 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 0,
         latestId: 0,
-        claimable: expectedClaimableMakerReferral,
       })
-      await expect(market.connect(userB).claimFee(userB.address))
-        .to.emit(market, 'FeeClaimed')
+      expect(await margin.claimables(userB.address)).to.equal(expectedClaimableMakerReferral)
+      await expect(margin.connect(userB).claim(userB.address, userB.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
         .withArgs(userB.address, userB.address, expectedClaimableMakerReferral)
 
       // user should be able to claim the taker referral fee at the user rate
@@ -2325,9 +2386,9 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: parse6decimal('1071.540000'),
-        claimable: expectedClaimableTakerReferral,
       })
+      expect(await margin.claimables(user.address)).to.equal(expectedClaimableTakerReferral)
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('1071.540000'))
 
       // userD creates a short position referred by user
       await market
@@ -2357,8 +2418,9 @@ describe('Fees', () => {
       // takerFee = position * takerFee * price = 2 * 0.025 * 113.882975 = 5.694148
       // referralFee = takerFee * referral / takerPos =  5.694148 * 0.30 / 2 = 0.854122
       expectedClaimableTakerReferral = expectedClaimableTakerReferral.add(parse6decimal('0.854122'))
-      await expect(market.connect(user).claimFee(user.address))
-        .to.emit(market, 'FeeClaimed')
+      expect(await margin.claimables(user.address)).to.equal(expectedClaimableTakerReferral)
+      await expect(margin.connect(user).claim(user.address, user.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
         .withArgs(user.address, user.address, expectedClaimableTakerReferral)
     })
 
@@ -2412,10 +2474,10 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 0,
         latestId: 0,
-        claimable: expectedClaimable,
       })
-      await expect(market.connect(userB).claimFee(userB.address))
-        .to.emit(market, 'FeeClaimed')
+      expect(await margin.claimables(userB.address)).to.equal(expectedClaimable)
+      await expect(margin.connect(userB).claim(userB.address, userB.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
         .withArgs(userB.address, userB.address, expectedClaimable)
 
       // userC closes a short position referred by user
@@ -2434,11 +2496,11 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: '1150119246',
-        claimable: expectedCloseClaimable,
       })
-      await expect(market.connect(user).claimFee(user.address))
-        .to.emit(market, 'FeeClaimed')
+      expect(await margin.claimables(user.address)).to.equal(expectedCloseClaimable)
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('1150.119246'))
+      await expect(margin.connect(user).claim(user.address, user.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
         .withArgs(user.address, user.address, expectedCloseClaimable)
       expect(await market.orderReferrers(userC.address, currentId.add(1))).to.equal(user.address)
 
@@ -2455,7 +2517,8 @@ describe('Fees', () => {
       const COLLATERAL = parse6decimal('600')
       const POSITION = parse6decimal('3')
       const { owner, oracle, coordinator, user, dsu } = instanceVars
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
 
       await market
         .connect(user)
@@ -2512,7 +2575,8 @@ describe('Fees', () => {
       const COLLATERAL = parse6decimal('600')
       const POSITION = parse6decimal('3')
       const { owner, user, marketFactory, dsu, insuranceFund } = instanceVars
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
 
       await market
         .connect(user)
@@ -2545,12 +2609,20 @@ describe('Fees', () => {
       // set insurance fund as operator for market factory owner
       await marketFactory.connect(owner).updateOperator(insuranceFund.address, true)
 
+      // revert when user tries to claim protocol fee
+      await expect(market.connect(user).claimFee(owner.address)).to.be.revertedWithCustomError(
+        market,
+        'MarketNotOperatorError',
+      )
+
       // claim protocol fee
+      const balanceBefore = await dsu.balanceOf(owner.address)
       await expect(insuranceFund.connect(owner).claim(market.address))
         .to.emit(market, 'FeeClaimed')
         .withArgs(owner.address, insuranceFund.address, expectedProtocolFee)
-
-      expect(await dsu.balanceOf(insuranceFund.address)).to.equal(expectedProtocolFee.mul(1e12))
+        .to.emit(margin, 'ClaimableWithdrawn')
+        .withArgs(insuranceFund.address, owner.address, expectedProtocolFee)
+      expect(await dsu.balanceOf(owner.address)).to.equal(balanceBefore.add(expectedProtocolFee.mul(1e12)))
     })
   })
 
@@ -2569,25 +2641,29 @@ describe('Fees', () => {
       const POSITION = parse6decimal('10')
       const COLLATERAL = parse6decimal('10000')
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
 
       await market
         .connect(user)
         ['update(address,int256,int256,int256,address)'](user.address, 0, 0, COLLATERAL, constants.AddressZero)
 
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
       await market
         .connect(userB)
         ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
-      await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
       await market
         .connect(userC)
         ['update(address,int256,int256,int256,address)'](userC.address, 0, 0, COLLATERAL, constants.AddressZero)
 
-      await dsu.connect(userD).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(userD).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userD).deposit(userD.address, COLLATERAL)
 
       await market
         .connect(userD)
@@ -2667,8 +2743,11 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(EXPECTED_PNL).sub(TRADE_FEE_A).sub(3), // loss of precision
       })
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+        COLLATERAL.sub(EXPECTED_PNL).sub(TRADE_FEE_A).sub(3),
+      ) // loss of precision
+
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
         timestamp: TIMESTAMP_1,
@@ -2692,8 +2771,10 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(TRADE_FEE_B).sub(MAKER_LINEAR_FEE).sub(MAKER_PROPORTIONAL_FEE).sub(4), // loss of precision
       })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+        COLLATERAL.sub(TRADE_FEE_B).sub(MAKER_LINEAR_FEE).sub(MAKER_PROPORTIONAL_FEE).sub(4),
+      ) // loss of precision
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
         timestamp: TIMESTAMP_1,
@@ -2715,9 +2796,9 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.add(EXPECTED_PNL),
-        claimable: TRADE_FEE_A.div(10).add(1), // loss of precision
       })
+      expect(await margin.claimables(userC.address)).to.equal(TRADE_FEE_A.div(10).add(1)) // loss of precision
+      expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(COLLATERAL.add(EXPECTED_PNL))
       expectPositionEq(await market.positions(userC.address), {
         ...DEFAULT_POSITION,
         timestamp: TIMESTAMP_1,
@@ -2742,12 +2823,10 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(TRADE_FEE_D)
-          .sub(TAKER_LINEAR_FEE)
-          .sub(TAKER_PROPORITIONAL_FEE)
-          .sub(TAKER_ADIABATIC_FEE)
-          .sub(14), // loss of precision
       })
+      expect(await margin.isolatedBalances(userD.address, market.address)).to.equal(
+        COLLATERAL.sub(TRADE_FEE_D).sub(TAKER_LINEAR_FEE).sub(TAKER_PROPORITIONAL_FEE).sub(TAKER_ADIABATIC_FEE).sub(14),
+      ) // loss of precision
       expectPositionEq(await market.positions(userD.address), {
         ...DEFAULT_POSITION,
         timestamp: TIMESTAMP_1,
