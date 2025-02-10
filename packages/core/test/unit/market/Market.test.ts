@@ -16308,10 +16308,9 @@ describe('Market', () => {
           })
 
           it('can protect w/ pending intent fees losses', async () => {
-            const marketParameter = { ...(await market.parameter()) }
-            marketParameter.takerFee = parse6decimal('0.1') // large fee -> (10% * 615) -> 61.5
-            marketParameter.maxPriceDeviation = parse6decimal('10.00')
-            await market.updateParameter(marketParameter)
+            const riskParameter = { ...(await market.riskParameter()) }
+            riskParameter.staleAfter = BigNumber.from(14400)
+            await market.updateRiskParameter(riskParameter)
 
             const intent = {
               amount: POSITION.div(2),
@@ -16329,12 +16328,28 @@ describe('Market', () => {
                 expiry: 0,
               },
             }
+            const intent2 = {
+              amount: -POSITION.div(2),
+              price: parse6decimal('123'),
+              fee: parse6decimal('0.5'),
+              originator: liquidator.address,
+              solver: owner.address,
+              collateralization: parse6decimal('0.01'),
+              common: {
+                account: user.address,
+                signer: user.address,
+                domain: market.address,
+                nonce: 1,
+                group: 0,
+                expiry: 0,
+              },
+            }
 
             dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
               ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
-            dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('300')).returns(true)
+            dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('320')).returns(true)
             await market
               .connect(user)
               ['update(address,uint256,uint256,uint256,int256,bool)'](
@@ -16342,7 +16357,7 @@ describe('Market', () => {
                 0,
                 0,
                 0,
-                parse6decimal('300'),
+                parse6decimal('320'),
                 false,
               )
             dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
@@ -16360,17 +16375,33 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent, DEFAULT_SIGNATURE)
+              .connect(user)
+              ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, false)
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
-            oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+            oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_4.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
 
             await settle(market, user)
             await settle(market, userB)
+
+            const marketParameter = { ...(await market.parameter()) }
+            marketParameter.takerFee = parse6decimal('0.08') // large fee -> (8% * 615) -> 49.2
+            marketParameter.maxPriceDeviation = parse6decimal('10.00')
+            await market.updateParameter(marketParameter)
+
+            // pending price override
+            await market
+              .connect(userC)
+              [
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](userC.address, intent2, DEFAULT_SIGNATURE)
+
+            await market
+              .connect(userC)
+              [
+                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+              ](userC.address, intent, DEFAULT_SIGNATURE)
 
             const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
@@ -16392,7 +16423,7 @@ describe('Market', () => {
             await expect(
               market
                 .connect(liquidator)
-                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, true),
+                ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, POSITION.div(2), 0, 0, true), // no-op liquidation
             ).to.be.not.reverted
           })
 
