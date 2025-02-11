@@ -97,6 +97,7 @@ describe('Happy Path', () => {
       minMaintenance: parse6decimal('500'),
       staleAfter: 7200,
       makerReceiveOnly: false,
+      maxLiquidationFee: parse6decimal('1000'),
     }
   })
 
@@ -1510,6 +1511,7 @@ describe('Happy Path', () => {
       minMaintenance: parse6decimal('500'),
       staleAfter: 7200,
       makerReceiveOnly: false,
+      maxLiquidationFee: parse6decimal('1000'),
     }
     const parameter = {
       fundingFee: parse6decimal('0.1'),
@@ -1691,6 +1693,7 @@ describe('Happy Path', () => {
       minMaintenance: parse6decimal('500'),
       staleAfter: 64800, // enable long delays for testing
       makerReceiveOnly: false,
+      maxLiquidationFee: parse6decimal('1000'),
     }
     const parameter = {
       fundingFee: parse6decimal('0.1'),
@@ -3237,6 +3240,7 @@ describe('Happy Path', () => {
       minMaintenance: parse6decimal('500'),
       staleAfter: 64800, // enable long delays for testing
       makerReceiveOnly: false,
+      maxLiquidationFee: parse6decimal('1000'),
     }
     const parameter = {
       fundingFee: parse6decimal('0.1'),
