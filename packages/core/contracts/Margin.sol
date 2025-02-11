@@ -12,9 +12,13 @@ import { Position } from "./types/Position.sol";
 import { RiskParameter } from "./types/RiskParameter.sol";
 import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
 import { IMarket, IMarketFactory } from "./interfaces/IMarketFactory.sol";
+import "hardhat/console.sol";
 
 contract Margin is IMargin, Instance, ReentrancyGuard {
     IMarket private constant CROSS_MARGIN = IMarket(address(0));
+
+    /// @dev Limits iteration through cross-margined markets
+    uint256 public constant MAX_CROSS_MARGIN_MARKETS = 8;
 
     /// @dev DSU address
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
@@ -22,7 +26,11 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @dev Contract used to validate markets
     IMarketFactory public marketFactory;
 
-    // TODO: Introduce an iterable collection of cross-margained markets for a user.
+    // Iterable collection of cross-margained markets for a user (account => markets)
+    mapping(address => IMarket[]) private crossMarginMarkets;
+
+    // Looks up index of the cross-margained market (account => market => index)
+    mapping(address => mapping(IMarket => uint256)) private crossMarginMarketIndex;
 
     // TODO: Once exposure is eliminated, make this unsigned
     /// @notice Storage for claimable balances: user -> market -> balance
@@ -115,7 +123,12 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     /// @inheritdoc IMargin
     function handleMarketUpdate(address account, Fixed6 collateralDelta) external onlyMarket {
-        _isolate(account, IMarket(msg.sender), collateralDelta, false);
+        if (!collateralDelta.isZero() || _isIsolated(account, IMarket(msg.sender)))
+            // Account's isolated collateral is changing, or market is already isolated
+            _isolate(account, IMarket(msg.sender), collateralDelta, false);
+        else
+            // Ensure market is tracked as cross-margined
+            _cross(account, IMarket(msg.sender));
     }
 
     /// @inheritdoc IMargin
@@ -142,6 +155,16 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         return _balances[account][market];
     }
 
+    /// @inheritdoc IMargin
+    function isCrossed(address account, IMarket market) external view returns (bool) {
+        return _isCrossed(account, market);
+    }
+
+    /// @inheritdoc IMargin
+    function isIsolated(address account, IMarket market) external view returns (bool) {
+        return _isIsolated(account, market);
+    }
+
     // TODO: crossMarginCheckpoints accessor view
 
     /// @inheritdoc IMargin
@@ -162,9 +185,38 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
             return UFixed6Lib.unsafeFrom(collateral).gte(requirement);
         } else {
             // TODO: aggregate margin requirements for each cross-margined market and check
-            UFixed6 requirement = market.maintenanceRequired(account);
+            UFixed6 requirement = market.marginRequired(account, minCollateralization);
             if (requirement.isZero()) return true;
             revert("margined not implemented for cross-margined accounts");
+        }
+    }
+
+    /// @dev Upserts a market into cross-margin collections
+    function _cross(address account, IMarket market) private {
+        // if (crossMarginMarketIndex[account][market] == 0 && (crossMarginMarkets[account].length == 0 || crossMarginMarkets[account][0] != market)) {
+        if (!_isCrossed(account, market)) {
+            uint256 newIndex = crossMarginMarkets[account].length;
+            if (newIndex > MAX_CROSS_MARGIN_MARKETS) revert MarginTooManyCrossedMarkets();
+            crossMarginMarkets[account].push(market);
+            crossMarginMarketIndex[account][market] = newIndex;
+            emit MarketCrossed(account, market);
+        }
+    }
+
+    /// @dev Removes a market from cross-margin collections
+    function _uncross(address account, IMarket market) private {
+        uint256 index = crossMarginMarketIndex[account][market];
+        if (index != 0) {
+            uint256 lastIndex = crossMarginMarkets[account].length;
+            if (index != lastIndex) {
+                // Swap last item with the one being removed
+                IMarket lastMarket = crossMarginMarkets[account][lastIndex];
+                crossMarginMarkets[account][index] = lastMarket;
+                crossMarginMarketIndex[account][lastMarket] = index;
+            }
+            // Remove the last item
+            crossMarginMarkets[account][lastIndex] = IMarket(address(0));
+            crossMarginMarketIndex[account][market] = 0;
         }
     }
 
@@ -175,7 +227,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         Fixed6 amount,
         bool updateCheckpoint_
     ) private {
-        // calculate new balances
+        // Calculate new balances
+        // FIXME: probably shouldn't revert if closing due to liquidation
         Fixed6 newCrossBalance = _balances[account][CROSS_MARGIN].sub(amount);
         if (newCrossBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientCrossedBalance();
         Fixed6 oldIsolatedBalance = _balances[account][market];
@@ -187,6 +240,10 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         bool crossing = !oldIsolatedBalance.isZero() && newIsolatedBalance.isZero();
         // TODO: We could add logic here to support switching modes with a position.
         if ((isolating || crossing) && _hasPosition(account, market)) revert MarginHasPosition();
+
+        // Ensure user has not exceeded max number of crossed markets
+        if (crossing) _cross(account, market);
+        if (isolating) _uncross(account, market);
 
         // update storage
         _balances[account][CROSS_MARGIN] = newCrossBalance;
@@ -230,7 +287,12 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         return !market.positions(account).magnitude().isZero();
     }
 
-    // TODO: Need public view which determines if market is isolated for user
+    /// @dev Determines whether a market update occurred for a non-isolated market
+    function _isCrossed(address account, IMarket market) private view returns (bool) {
+        return crossMarginMarkets[account].length != 0 // at least one market is cross-margined
+            && crossMarginMarkets[account][crossMarginMarketIndex[account][market]] == market;
+    }
+
     /// @dev Determines whether market is in isolated mode for a specific user
     function _isIsolated(address account, IMarket market) private view returns (bool) {
         // TODO: Complexities using 0 as magic number to determine whether market is isolated for user.
