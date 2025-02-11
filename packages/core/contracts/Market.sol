@@ -48,11 +48,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev DEPRECATED SLOT -- previously the payoff provider
     bytes32 private __unused1__;
 
-    /// @dev Beneficiary of the market, receives donations
-    address public beneficiary;
-
     /// @dev Risk coordinator of the market
-    address public coordinator;
+    address private coordinator;
 
     /// @dev Risk parameters of the market
     RiskParameterStorage private _riskParameter;
@@ -312,13 +309,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // process update
         _updateAndStore(context, updateContext, newOrder, newGuarantee, referrer, address(0));
-    }
-
-    /// @notice Updates the beneficiary of the market
-    /// @param newBeneficiary The new beneficiary address
-    function updateBeneficiary(address newBeneficiary) external onlyOwner {
-        beneficiary = newBeneficiary;
-        emit BeneficiaryUpdated(newBeneficiary);
     }
 
     /// @notice Updates the coordinator of the market
