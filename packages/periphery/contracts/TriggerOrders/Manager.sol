@@ -9,6 +9,7 @@ import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.so
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { IMarket, IMarketFactory } from "@perennial/v2-core/contracts/interfaces/IMarketFactory.sol";
 
+import { IAccount, IController } from "../CollateralAccounts/interfaces/IController.sol";
 import { IManager } from "./interfaces/IManager.sol";
 import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
 import { Action } from "./types/Action.sol";
@@ -35,6 +36,9 @@ abstract contract Manager is IManager, Kept {
     /// @dev Verifies EIP712 messages for this extension
     IOrderVerifier public immutable verifier;
 
+    /// @dev Used for keeper compensation
+    IController public immutable controller;
+
     /// @dev Configuration used for keeper compensation
     KeepConfig public keepConfig;
 
@@ -55,18 +59,21 @@ abstract contract Manager is IManager, Kept {
     /// @param reserve_ DSU reserve contract used for unwrapping
     /// @param marketFactory_ Contract used to validate fee claims
     /// @param verifier_ Used to validate EIP712 signatures
+    /// @param controller_ Collateral Account Controller used for compensating keeper and paying interface fees
     constructor(
         Token6 usdc_,
         Token18 dsu_,
         IEmptySetReserve reserve_,
         IMarketFactory marketFactory_,
-        IOrderVerifier verifier_
+        IOrderVerifier verifier_,
+        IController controller_
     ) {
         USDC = usdc_;
         DSU = dsu_;
         reserve = reserve_;
         marketFactory = marketFactory_;
         verifier = verifier_;
+        controller = controller_;
     }
 
     /// @notice Initialize the contract
@@ -183,7 +190,7 @@ abstract contract Manager is IManager, Kept {
         (IMarket market, address account, UFixed6 maxFee) = abi.decode(data, (IMarket, address, UFixed6));
         UFixed6 raisedKeeperFee = UFixed6Lib.from(amount, true).min(maxFee);
 
-        _marketWithdraw(market, account, raisedKeeperFee);
+        _collateralAccountWithdraw(account, raisedKeeperFee);
 
         return UFixed18Lib.from(raisedKeeperFee);
     }
@@ -209,16 +216,18 @@ abstract contract Manager is IManager, Kept {
             order.interfaceFee.amount :
             order.notionalValue(market, account).mul(order.interfaceFee.amount);
 
-        _marketWithdraw(market, account, feeAmount);
+        _collateralAccountWithdraw(account, feeAmount);
 
         claimable[order.interfaceFee.receiver] = claimable[order.interfaceFee.receiver].add(feeAmount);
 
         return true;
     }
 
-    /// @notice Transfers DSU from market to manager to pay keeper or interface fee
-    function _marketWithdraw(IMarket market, address account, UFixed6 amount) private {
-        market.update(account, UFixed6Lib.MAX, UFixed6Lib.MAX, UFixed6Lib.MAX, Fixed6Lib.from(-1, amount), false);
+    /// @dev Transfers DSU from collateral account to manager to pay fees
+    /// @param account Address of the owner of the collateral account (not the account itself)
+    /// @param amount Quantity of DSU to transfer, converted to 18-decimal by callee
+    function _collateralAccountWithdraw(address account, UFixed6 amount) private {
+        controller.chargeFee(account, amount);
     }
 
     function _placeOrder(IMarket market, address account, uint256 orderId, TriggerOrder calldata order) private {
@@ -251,7 +260,7 @@ abstract contract Manager is IManager, Kept {
 
     /// @notice Only the account or an operator can call
     modifier onlyOperator(address account, address operator) {
-        if (account != operator && !marketFactory.operators(account, operator)) revert ManagerInvalidOperatorError();
+        if (account != operator && !marketFactory.operators(account, operator)) revert ManagerNotOperatorError();
         _;
     }
 }

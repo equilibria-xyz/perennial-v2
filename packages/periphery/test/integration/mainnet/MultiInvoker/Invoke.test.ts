@@ -6,10 +6,12 @@ import {
   IOracleProvider,
   IMultiInvoker,
   VaultFactory,
+  MakerVault__factory,
+  SolverVault__factory,
 } from '../../../../types/generated'
 import { Address } from 'hardhat-deploy/dist/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { InstanceVars, createVault, resetEthSubOracle, resetBtcSubOracle } from './setupHelpers'
+import { InstanceVars, createVault, resetSubOracle } from './setupHelpers'
 
 import {
   buildApproveTarget,
@@ -40,7 +42,8 @@ export function RunInvokerTests(
   getFixture: () => Promise<InstanceVars>,
   createInvoker: (
     instanceVars: InstanceVars,
-    vaultFactory?: VaultFactory,
+    makerVaultFactory?: VaultFactory,
+    solverVaultFactory?: VaultFactory,
     withBatcher?: boolean,
   ) => Promise<MultiInvoker>,
   fundWalletDSU: (wallet: SignerWithAddress, amount: BigNumber) => Promise<void>,
@@ -53,10 +56,14 @@ export function RunInvokerTests(
     let instanceVars: InstanceVars
     let multiInvoker: MultiInvoker
     let market: Market
-    let vaultFactory: IVaultFactory
-    let vault: IVault
-    let ethSubOracle: FakeContract<IOracleProvider>
-    let btcSubOracle: FakeContract<IOracleProvider>
+    let makerVault: IVault
+    let solverVault: IVault
+    let makerVaultFactory: IVaultFactory
+    let solverVaultFactory: IVaultFactory
+    let makerEthSubOracle: FakeContract<IOracleProvider>
+    let makerBtcSubOracle: FakeContract<IOracleProvider>
+    let solverEthSubOracle: FakeContract<IOracleProvider>
+    let solverBtcSubOracle: FakeContract<IOracleProvider>
 
     async function updateVaultOracle(
       newEthPrice?: BigNumber,
@@ -64,46 +71,46 @@ export function RunInvokerTests(
       newEthReceipt?: OracleReceipt,
       newBtcReceipt?: OracleReceipt,
     ) {
-      await _updateVaultOracleEth(newEthPrice, newEthReceipt)
-      await _updateVaultOracleBtc(newPriceBtc, newBtcReceipt)
+      await _updateVaultOracle(makerEthSubOracle, newEthPrice, newEthReceipt)
+      await _updateVaultOracle(makerBtcSubOracle, newPriceBtc, newBtcReceipt)
+      await _updateVaultOracle(solverEthSubOracle, newEthPrice, newEthReceipt)
+      await _updateVaultOracle(solverBtcSubOracle, newPriceBtc, newBtcReceipt)
     }
 
-    async function _updateVaultOracleEth(newPrice?: BigNumber, newReceipt?: OracleReceipt) {
-      const [currentTimestamp, currentPrice] = await ethSubOracle.latest()
-      const [, currentReceipt] = await ethSubOracle.at(currentTimestamp)
+    async function _updateVaultOracle(
+      subOracle: FakeContract<IOracleProvider>,
+      newPrice?: BigNumber,
+      newReceipt?: OracleReceipt,
+    ) {
+      const [currentTimestamp, currentPrice] = await subOracle.latest()
+      const [, currentReceipt] = await subOracle.at(currentTimestamp)
       const newVersion = {
         timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
         price: newPrice ?? currentPrice,
         valid: true,
       }
-      ethSubOracle.status.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-      ethSubOracle.request.returns()
-      ethSubOracle.latest.returns(newVersion)
-      ethSubOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-      ethSubOracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
-    }
-
-    async function _updateVaultOracleBtc(newPrice?: BigNumber, newReceipt?: OracleReceipt) {
-      const [currentTimestamp, currentPrice] = await btcSubOracle.latest()
-      const [, currentReceipt] = await btcSubOracle.at(currentTimestamp)
-      const newVersion = {
-        timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
-        price: newPrice ?? currentPrice,
-        valid: true,
-      }
-      btcSubOracle.status.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-      btcSubOracle.request.returns()
-      btcSubOracle.latest.returns(newVersion)
-      btcSubOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-      btcSubOracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
+      subOracle.status.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+      subOracle.request.returns()
+      subOracle.latest.returns(newVersion)
+      subOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+      subOracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
     }
 
     const fixture = async () => {
       instanceVars = await getFixture()
-      ;[vault, vaultFactory, ethSubOracle, btcSubOracle] = await createVault(
+      ;[makerVault, makerVaultFactory, makerEthSubOracle, makerBtcSubOracle] = await createVault(
         instanceVars,
+        await new MakerVault__factory(instanceVars.owner).deploy(),
         initialOracleVersionEth,
         initialOracleVersionBtc,
+      )
+      ;[solverVault, solverVaultFactory, solverEthSubOracle, solverBtcSubOracle] = await createVault(
+        instanceVars,
+        await new SolverVault__factory(instanceVars.owner).deploy(),
+        initialOracleVersionEth,
+        initialOracleVersionBtc,
+        '0x0000000000000000000000000000000000000000000000000000000000000003',
+        '0x0000000000000000000000000000000000000000000000000000000000000004',
       )
       market = await createMarket(instanceVars.owner, instanceVars.marketFactory, instanceVars.dsu, instanceVars.oracle)
       await instanceVars.oracle.register(market.address)
@@ -112,12 +119,14 @@ export function RunInvokerTests(
     beforeEach(async () => {
       await loadFixture(fixture)
       // TODO: move into fixture
-      multiInvoker = await createInvoker(instanceVars, vaultFactory, true)
+      multiInvoker = await createInvoker(instanceVars, makerVaultFactory, solverVaultFactory, true)
     })
 
     afterEach(async () => {
-      resetEthSubOracle(ethSubOracle, initialOracleVersionEth)
-      resetBtcSubOracle(btcSubOracle, initialOracleVersionBtc)
+      resetSubOracle(makerEthSubOracle, initialOracleVersionEth)
+      resetSubOracle(makerBtcSubOracle, initialOracleVersionBtc)
+      resetSubOracle(solverEthSubOracle, initialOracleVersionEth)
+      resetSubOracle(solverBtcSubOracle, initialOracleVersionBtc)
     })
 
     it('constructs correctly', async () => {
@@ -321,7 +330,7 @@ export function RunInvokerTests(
             const { owner, user, usdc, dsuReserve } = instanceVars
 
             // deploy multiinvoker with batcher == 0 address
-            multiInvoker = await createInvoker(instanceVars, vaultFactory, false)
+            multiInvoker = await createInvoker(instanceVars, makerVaultFactory, solverVaultFactory, false)
             await setup()
             expect(await multiInvoker.batcher()).to.eq(constants.AddressZero)
 
@@ -421,7 +430,7 @@ export function RunInvokerTests(
             const { user, dsu, dsuReserve } = instanceVars
 
             // deploy multiinvoker with batcher == 0 address
-            multiInvoker = await createInvoker(instanceVars, vaultFactory, false)
+            multiInvoker = await createInvoker(instanceVars, makerVaultFactory, solverVaultFactory, false)
             await setup()
             expect(await multiInvoker.batcher()).to.eq(constants.AddressZero)
 
@@ -473,18 +482,18 @@ export function RunInvokerTests(
             }
           })
 
-          it('deposits / redeems / claims from vault', async () => {
+          it('deposits / redeems / claims from vault (maker)', async () => {
             const { user, dsu } = instanceVars
 
             const userBalanceBefore = await dsu.balanceOf(user.address)
             await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
-            await expect(invoke(buildApproveTarget(vault.address))).to.not.be.reverted
+            await expect(invoke(buildApproveTarget(makerVault.address))).to.not.be.reverted
 
             // deposit into vault
             await expect(
               invoke(
                 buildUpdateVault({
-                  vault: vault.address,
+                  vault: makerVault.address,
                   depositAssets: collateral,
                   redeemShares: 0,
                   claimAssets: 0,
@@ -495,20 +504,20 @@ export function RunInvokerTests(
               .to.emit(dsu, 'Transfer')
               .withArgs(user.address, multiInvoker.address, dsuCollateral)
               .to.emit(dsu, 'Transfer')
-              .withArgs(multiInvoker.address, vault.address, dsuCollateral)
+              .withArgs(multiInvoker.address, makerVault.address, dsuCollateral)
 
-            expect((await vault.accounts(user.address)).deposit).to.eq(collateral)
-            expect((await vault.accounts(user.address)).redemption).to.eq(0)
-            expect((await vault.accounts(user.address)).assets).to.eq(0)
-            expect((await vault.accounts(user.address)).shares).to.eq(0)
+            expect((await makerVault.accounts(user.address)).deposit).to.eq(collateral)
+            expect((await makerVault.accounts(user.address)).redemption).to.eq(0)
+            expect((await makerVault.accounts(user.address)).assets).to.eq(0)
+            expect((await makerVault.accounts(user.address)).shares).to.eq(0)
 
             await updateVaultOracle()
-            await vault.settle(user.address)
+            await makerVault.settle(user.address)
 
             // redeem from vault
             await invoke(
               buildUpdateVault({
-                vault: vault.address,
+                vault: makerVault.address,
                 depositAssets: 0,
                 redeemShares: ethers.constants.MaxUint256,
                 claimAssets: 0,
@@ -516,20 +525,20 @@ export function RunInvokerTests(
               }),
             )
 
-            expect((await vault.accounts(user.address)).deposit).to.eq(0)
-            expect((await vault.accounts(user.address)).redemption).to.eq(collateral)
-            expect((await vault.accounts(user.address)).assets).to.eq(0)
-            expect((await vault.accounts(user.address)).shares).to.eq(0)
+            expect((await makerVault.accounts(user.address)).deposit).to.eq(0)
+            expect((await makerVault.accounts(user.address)).redemption).to.eq(collateral)
+            expect((await makerVault.accounts(user.address)).assets).to.eq(0)
+            expect((await makerVault.accounts(user.address)).shares).to.eq(0)
 
             await updateVaultOracle()
-            await vault.settle(user.address)
+            await makerVault.settle(user.address)
 
             const funding = BigNumber.from('14352')
             // claim from vault
             await expect(
               invoke(
                 buildUpdateVault({
-                  vault: vault.address,
+                  vault: makerVault.address,
                   depositAssets: 0,
                   redeemShares: 0,
                   claimAssets: ethers.constants.MaxUint256,
@@ -540,15 +549,92 @@ export function RunInvokerTests(
               .to.emit(dsu, 'Transfer')
               .withArgs(multiInvoker.address, user.address, dsuCollateral.add(funding.mul(1e12)))
               .to.emit(dsu, 'Transfer')
-              .withArgs(vault.address, multiInvoker.address, dsuCollateral.add(funding.mul(1e12)))
+              .withArgs(makerVault.address, multiInvoker.address, dsuCollateral.add(funding.mul(1e12)))
 
-            expect((await vault.accounts(user.address)).deposit).to.eq(0)
-            expect((await vault.accounts(user.address)).redemption).to.eq(0)
-            expect((await vault.accounts(user.address)).assets).to.eq(0)
-            expect((await vault.accounts(user.address)).shares).to.eq(0)
+            expect((await makerVault.accounts(user.address)).deposit).to.eq(0)
+            expect((await makerVault.accounts(user.address)).redemption).to.eq(0)
+            expect((await makerVault.accounts(user.address)).assets).to.eq(0)
+            expect((await makerVault.accounts(user.address)).shares).to.eq(0)
 
             const userBalanceAfter = await dsu.balanceOf(user.address)
             expect(userBalanceAfter.sub(userBalanceBefore)).to.eq(funding.mul(1e12))
+          })
+
+          it('deposits / redeems / claims from vault (solver)', async () => {
+            const { user, dsu } = instanceVars
+
+            const userBalanceBefore = await dsu.balanceOf(user.address)
+            await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
+            await expect(invoke(buildApproveTarget(solverVault.address))).to.not.be.reverted
+
+            // deposit into vault
+            await expect(
+              invoke(
+                buildUpdateVault({
+                  vault: solverVault.address,
+                  depositAssets: collateral,
+                  redeemShares: 0,
+                  claimAssets: 0,
+                  wrap: false,
+                }),
+              ),
+            )
+              .to.emit(dsu, 'Transfer')
+              .withArgs(user.address, multiInvoker.address, dsuCollateral)
+              .to.emit(dsu, 'Transfer')
+              .withArgs(multiInvoker.address, solverVault.address, dsuCollateral)
+
+            expect((await solverVault.accounts(user.address)).deposit).to.eq(collateral)
+            expect((await solverVault.accounts(user.address)).redemption).to.eq(0)
+            expect((await solverVault.accounts(user.address)).assets).to.eq(0)
+            expect((await solverVault.accounts(user.address)).shares).to.eq(0)
+
+            await updateVaultOracle()
+            await solverVault.settle(user.address)
+
+            // redeem from vault
+            await invoke(
+              buildUpdateVault({
+                vault: solverVault.address,
+                depositAssets: 0,
+                redeemShares: ethers.constants.MaxUint256,
+                claimAssets: 0,
+                wrap: false,
+              }),
+            )
+
+            expect((await solverVault.accounts(user.address)).deposit).to.eq(0)
+            expect((await solverVault.accounts(user.address)).redemption).to.eq(collateral)
+            expect((await solverVault.accounts(user.address)).assets).to.eq(0)
+            expect((await solverVault.accounts(user.address)).shares).to.eq(0)
+
+            await updateVaultOracle()
+            await solverVault.settle(user.address)
+
+            // claim from vault
+            await expect(
+              invoke(
+                buildUpdateVault({
+                  vault: solverVault.address,
+                  depositAssets: 0,
+                  redeemShares: 0,
+                  claimAssets: ethers.constants.MaxUint256,
+                  wrap: false,
+                }),
+              ),
+            )
+              .to.emit(dsu, 'Transfer')
+              .withArgs(multiInvoker.address, user.address, dsuCollateral)
+              .to.emit(dsu, 'Transfer')
+              .withArgs(solverVault.address, multiInvoker.address, dsuCollateral)
+
+            expect((await solverVault.accounts(user.address)).deposit).to.eq(0)
+            expect((await solverVault.accounts(user.address)).redemption).to.eq(0)
+            expect((await solverVault.accounts(user.address)).assets).to.eq(0)
+            expect((await solverVault.accounts(user.address)).shares).to.eq(0)
+
+            const userBalanceAfter = await dsu.balanceOf(user.address)
+            expect(userBalanceAfter.sub(userBalanceBefore)).to.eq(0)
           })
 
           it('requires market approval to spend invokers DSU', async () => {
@@ -946,7 +1032,7 @@ export function RunInvokerTests(
 
           it('Only allows updates to factory created markets', async () => {
             await expect(
-              invoke(buildUpdateMarket({ market: vault.address, collateral: collateral })),
+              invoke(buildUpdateMarket({ market: makerVault.address, collateral: collateral })),
             ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
           })
 
@@ -958,7 +1044,7 @@ export function RunInvokerTests(
           })
 
           it('Only allows liquidations to factory created markets', async () => {
-            await expect(invoke(buildUpdateMarket({ market: vault.address }))).to.be.revertedWithCustomError(
+            await expect(invoke(buildUpdateMarket({ market: makerVault.address }))).to.be.revertedWithCustomError(
               multiInvoker,
               'MultiInvokerInvalidInstanceError',
             )
@@ -972,14 +1058,14 @@ export function RunInvokerTests(
               comparison: Compare.ABOVE_MARKET,
             })
             await expect(
-              invoke(buildPlaceOrder({ market: vault.address, collateral: collateral, order: trigger })),
+              invoke(buildPlaceOrder({ market: makerVault.address, collateral: collateral, order: trigger })),
             ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
           })
 
           describe('#batcher 0 address', async () => {
             beforeEach(async () => {
               // deploy multiinvoker with batcher == 0 address
-              multiInvoker = await createInvoker(instanceVars, vaultFactory, false)
+              multiInvoker = await createInvoker(instanceVars, makerVaultFactory, solverVaultFactory, false)
               await setup()
 
               await instanceVars.usdc.connect(instanceVars.user).approve(multiInvoker.address, collateral)

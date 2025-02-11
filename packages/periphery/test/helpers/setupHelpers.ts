@@ -23,15 +23,18 @@ import {
   InvariantLib__factory,
   IOracleProvider,
   IVerifier,
-  MagicValueLib__factory,
   Market__factory,
   MarketFactory,
   MarketFactory__factory,
   MarketParameterStorageLib__factory,
   PositionStorageGlobalLib__factory,
   PositionStorageLocalLib__factory,
-  ProxyAdmin__factory,
   RiskParameterStorageLib__factory,
+  GuaranteeStorageLocalLib__factory,
+  GuaranteeStorageGlobalLib__factory,
+  OrderStorageLocalLib__factory,
+  OrderStorageGlobalLib__factory,
+  ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
   Verifier__factory,
   VersionLib__factory,
@@ -251,7 +254,18 @@ export async function mockMarket(token: Address): Promise<IMarket> {
         await new RiskParameterStorageLib__factory(owner).deploy()
       ).address,
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
-      'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
+      'contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': (
+        await new GuaranteeStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Guarantee.sol:GuaranteeStorageGlobalLib': (
+        await new GuaranteeStorageGlobalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Order.sol:OrderStorageLocalLib': (
+        await new OrderStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Order.sol:OrderStorageGlobalLib': (
+        await new OrderStorageGlobalLib__factory(owner).deploy()
+      ).address,
     },
     owner,
   ).deploy(verifier.address)

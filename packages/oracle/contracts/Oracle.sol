@@ -68,13 +68,6 @@ contract Oracle is IOracle, Instance {
         emit BeneficiaryUpdated(newBeneficiary);
     }
 
-    /// @notice Updates the name of the oracle
-    /// @dev Allows setting the name for previously deployed oracles (v2.3 migration)
-    /// @param newName The new oracle name
-    function updateName(string calldata newName) external onlyOwner {
-        name = newName;
-    }
-
     /// @notice Requests a new version at the current timestamp
     /// @param account Original sender to optionally use for callbacks
     function request(IMarket, address account) external onlyMarket {
