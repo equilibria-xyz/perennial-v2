@@ -648,34 +648,8 @@ describe('Market', () => {
   context('already initialized', async () => {
     beforeEach(async () => {
       await market.connect(factorySigner).initialize(marketDefinition)
-      await market.connect(owner).updateBeneficiary(beneficiary.address)
       await market.connect(owner).updateCoordinator(coordinator.address)
       await market.connect(owner).updateRiskParameter(riskParameter)
-    })
-
-    describe('#updateBeneficiary', async () => {
-      it('updates the beneficiary', async () => {
-        await expect(market.connect(owner).updateBeneficiary(beneficiary.address))
-          .to.emit(market, 'BeneficiaryUpdated')
-          .withArgs(beneficiary.address)
-
-        expect(await market.beneficiary()).to.equal(beneficiary.address)
-      })
-
-      it('reverts if not owner (user)', async () => {
-        await expect(market.connect(user).updateBeneficiary(beneficiary.address)).to.be.revertedWithCustomError(
-          market,
-          'InstanceNotOwnerError',
-        )
-      })
-
-      it('reverts if not owner (coordinator)', async () => {
-        await market.connect(owner).updateBeneficiary(beneficiary.address)
-        await expect(market.connect(coordinator).updateBeneficiary(beneficiary.address)).to.be.revertedWithCustomError(
-          market,
-          'InstanceNotOwnerError',
-        )
-      })
     })
 
     describe('#updateCoordinator', async () => {
@@ -684,7 +658,7 @@ describe('Market', () => {
           .to.emit(market, 'CoordinatorUpdated')
           .withArgs(coordinator.address)
 
-        expect(await market.coordinator()).to.equal(coordinator.address)
+        // expect(await market.coordinator()).to.equal(coordinator.address) - getter has been removed
       })
 
       it('reverts if not owner (user)', async () => {
@@ -1348,7 +1322,6 @@ describe('Market', () => {
     describe('#settle', async () => {
       beforeEach(async () => {
         await market.connect(owner).updateCoordinator(coordinator.address)
-        await market.connect(owner).updateBeneficiary(beneficiary.address)
         await market.connect(owner).updateParameter(marketParameter)
 
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
@@ -1613,7 +1586,6 @@ describe('Market', () => {
     describe('#update', async () => {
       beforeEach(async () => {
         await market.connect(owner).updateCoordinator(coordinator.address)
-        await market.connect(owner).updateBeneficiary(beneficiary.address)
         await market.connect(owner).updateParameter(marketParameter)
 
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
@@ -30832,7 +30804,6 @@ describe('Market', () => {
       }
       await market.connect(factorySigner).initialize(marketDefinition)
 
-      await market.connect(owner).updateBeneficiary(beneficiary.address)
       await market.connect(owner).updateCoordinator(coordinator.address)
       await market.connect(owner).updateRiskParameter(riskParameter)
       await market.connect(owner).updateParameter(marketParameter)
