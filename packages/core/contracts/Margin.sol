@@ -193,7 +193,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     /// @dev Upserts a market into cross-margin collections
     function _cross(address account, IMarket market) private {
-        // if (crossMarginMarketIndex[account][market] == 0 && (crossMarginMarkets[account].length == 0 || crossMarginMarkets[account][0] != market)) {
         if (!_isCrossed(account, market)) {
             uint256 newIndex = crossMarginMarkets[account].length;
             if (newIndex > MAX_CROSS_MARGIN_MARKETS) revert MarginTooManyCrossedMarkets();
@@ -205,9 +204,9 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     /// @dev Removes a market from cross-margin collections
     function _uncross(address account, IMarket market) private {
-        uint256 index = crossMarginMarketIndex[account][market];
-        if (index != 0) {
-            uint256 lastIndex = crossMarginMarkets[account].length;
+        if (_isCrossed(account, market)) {
+            uint256 index = crossMarginMarketIndex[account][market];
+            uint256 lastIndex = crossMarginMarkets[account].length - 1;
             if (index != lastIndex) {
                 // Swap last item with the one being removed
                 IMarket lastMarket = crossMarginMarkets[account][lastIndex];
@@ -228,7 +227,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         bool updateCheckpoint_
     ) private {
         // Calculate new balances
-        // FIXME: probably shouldn't revert if closing due to liquidation
         Fixed6 newCrossBalance = _balances[account][CROSS_MARGIN].sub(amount);
         if (newCrossBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientCrossedBalance();
         Fixed6 oldIsolatedBalance = _balances[account][market];
@@ -241,8 +239,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         // TODO: We could add logic here to support switching modes with a position.
         if ((isolating || crossing) && _hasPosition(account, market)) revert MarginHasPosition();
 
-        // Ensure user has not exceeded max number of crossed markets
-        if (crossing) _cross(account, market);
+        // If switching modes, remove from cross-margin collections
         if (isolating) _uncross(account, market);
 
         // update storage
