@@ -43,11 +43,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const commitmentGasOracleArgs: Parameters<GasOracle__factory['deploy']> = [
     (await get('ChainlinkETHUSDFeed')).address,
     8, // Chainlink Decimals
-    788_000n, // Compute Gas
-    ethers.utils.parseEther('1.05'), // Compute Multiplier
-    50_000n, // Compute Base
-    35_200n, // Calldata Gas
-    ethers.utils.parseEther('1.05'), // Calldata Multiplier
+    0n, // Compute Gas
+    0n, // Compute Multiplier
+    0n, // Compute Base
+    0n, // Calldata Gas
+    0n, // Calldata Multiplier
     0n, // Calldata Base
   ]
   await deploy('Stork_CommitmentGasOracle', {
@@ -62,11 +62,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const settlementGasOracleArgs: Parameters<GasOracle__factory['deploy']> = [
     (await get('ChainlinkETHUSDFeed')).address,
     8, // Chainlink Decimals
-    316_000n, // Compute Gas
-    ethers.utils.parseEther('1.05'), // Compute Multiplier
-    50_000n, // Compute Base
-    6_000n, // Calldata Gas
-    ethers.utils.parseEther('1.05'), // Calldata Multiplier
+    0n, // Compute Gas
+    0n, // Compute Multiplier
+    0n, // Compute Base
+    0n, // Calldata Gas
+    0n, // Calldata Multiplier
     0n, // Calldata Base
   ]
   await deploy('Stork_SettlementGasOracle', {
@@ -90,7 +90,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     contract: 'StorkFactory',
     args: storkFactoryArgs,
     from: deployer,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    skipIfAlreadyDeployed: false,
     log: true,
     autoMine: true,
   })
