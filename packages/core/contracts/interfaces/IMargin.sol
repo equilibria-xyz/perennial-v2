@@ -54,7 +54,7 @@ interface IMargin is IInstance {
     event MarketIsolated(address indexed account, IMarket indexed market);
 
     // sig: 0x21d30123
-    /// custom:error Market is cross-margained, but user called update with a collateral amount
+    /// custom:error Market is cross-margined, but user called update with a collateral amount
     error MarginCannotUpdateCrossedMarket();
 
     // sig: 0xac13066a
@@ -87,8 +87,11 @@ interface IMargin is IInstance {
     error MarginOperatorNotAllowedError();
 
     // sig: 0x9d4155b6
-    // custom:error Too many cross-margained markets
+    // custom:error Too many cross-margined markets
     error MarginTooManyCrossedMarkets();
+
+    /// @dev Limits iteration through cross-margined markets
+    function MAX_CROSS_MARGIN_MARKETS() external view returns (uint256);
 
     /// @notice Retrieves the DSU token used as collateral for all markets
     function DSU() external view returns (Token18);

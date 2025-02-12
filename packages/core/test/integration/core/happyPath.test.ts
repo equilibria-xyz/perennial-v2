@@ -560,8 +560,7 @@ describe('Happy Path', () => {
     })
   })
 
-  // FIXME: naming misleading; a single maker position is opened and reduced; nothing is closed
-  it('closes multiple make positions', async () => {
+  it('closes cross-margin maker position', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
     const { user, dsu, margin, chainlink } = instanceVars
@@ -572,7 +571,7 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, 0, constants.AddressZero)
 
     await chainlink.next()
 
@@ -612,7 +611,7 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
     })
-    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
+    expect(await margin.crossMarginBalances(user.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 2), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
