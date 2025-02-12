@@ -868,7 +868,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private {
         (OracleVersion memory oracleVersion, OracleReceipt memory oracleReceipt) = oracle.at(newOrderTimestamp);
         context.global.overrideIfZero(oracleVersion);
-        Guarantee memory newGuarantee;
+        Guarantee memory newGuarantee; // default to fresh guarantee
 
         // if latest timestamp is more recent than order timestamp, sync the order data
         if (newOrderTimestamp > newOrder.timestamp) newOrder = OrderLib.fresh(newOrderTimestamp);
@@ -911,7 +911,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private {
         Version memory versionFrom = _versions[context.latestPositionLocal.timestamp].read();
         Version memory versionTo = _versions[newOrderTimestamp].read();
-        Guarantee memory newGuarantee;
+        Guarantee memory newGuarantee; // default to fresh guarantee
 
         // if latest timestamp is more recent than order timestamp, sync the order data
         if (newOrderTimestamp > newOrder.timestamp) newOrder = OrderLib.fresh(newOrderTimestamp);
