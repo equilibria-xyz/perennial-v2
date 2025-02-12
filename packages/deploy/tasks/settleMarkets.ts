@@ -172,7 +172,7 @@ export async function getAllMarketUsers(
 }
 
 // prepares calldata to settle multiple users
-function settleMarketUsersPayload(market: IMarket, users: string[]): MulticallPayload[] {
+export function settleMarketUsersPayload(market: IMarket, users: string[]): MulticallPayload[] {
   const settles = users.map(user => market.interface.encodeFunctionData('settle', [user]))
   return settles.map(callData => ({ callData, allowFailure: false, target: market.address }))
 }

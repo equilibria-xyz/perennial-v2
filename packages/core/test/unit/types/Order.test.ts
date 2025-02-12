@@ -8,6 +8,10 @@ import {
   OrderLocalTester,
   OrderGlobalTester__factory,
   OrderLocalTester__factory,
+  OrderStorageGlobalLib,
+  OrderStorageLocalLib,
+  OrderStorageGlobalLib__factory,
+  OrderStorageLocalLib__factory,
 } from '../../../types/generated'
 import { BigNumber, BigNumberish } from 'ethers'
 import { OrderStruct } from '../../../types/generated/contracts/Market'
@@ -38,158 +42,28 @@ describe('Order', () => {
       shortNeg: 8,
       collateral: 9,
       protection: 1,
+      invalidation: 13,
       makerReferral: 11,
       takerReferral: 12,
     }
 
+    let orderStorageGlobalLib: OrderStorageGlobalLib
     let orderGlobal: OrderGlobalTester
 
     beforeEach(async () => {
-      orderGlobal = await new OrderGlobalTester__factory(owner).deploy()
+      orderStorageGlobalLib = await new OrderStorageGlobalLib__factory(owner).deploy()
+      orderGlobal = await new OrderGlobalTester__factory(
+        { 'contracts/types/Order.sol:OrderStorageGlobalLib': orderStorageGlobalLib.address },
+        owner,
+      ).deploy()
     })
 
     describe('common behavoir', () => {
-      shouldBehaveLike(() => ({ order: orderGlobal, validStoredOrder: VALID_STORED_ORDER }))
-    })
-
-    describe('#store', () => {
-      it('stores a new value', async () => {
-        await orderGlobal.store(VALID_STORED_ORDER)
-
-        const value = await orderGlobal.read()
-        expect(value.makerPos).to.equal(3)
-        expect(value.makerNeg).to.equal(4)
-        expect(value.longPos).to.equal(5)
-        expect(value.longNeg).to.equal(6)
-        expect(value.shortPos).to.equal(7)
-        expect(value.shortNeg).to.equal(8)
-      })
-
-      context('.makerPos', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await orderGlobal.store({
-            ...DEFAULT_ORDER,
-            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderGlobal.read()
-          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderGlobal.store({
-              ...DEFAULT_ORDER,
-              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.makerNeg', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await orderGlobal.store({
-            ...DEFAULT_ORDER,
-            makerNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderGlobal.read()
-          expect(value.makerNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderGlobal.store({
-              ...DEFAULT_ORDER,
-              makerNeg: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.longPos', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await orderGlobal.store({
-            ...DEFAULT_ORDER,
-            longPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderGlobal.read()
-          expect(value.longPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderGlobal.store({
-              ...DEFAULT_ORDER,
-              longPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.longNeg', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await orderGlobal.store({
-            ...DEFAULT_ORDER,
-            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderGlobal.read()
-          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderGlobal.store({
-              ...DEFAULT_ORDER,
-              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.shortPos', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await orderGlobal.store({
-            ...DEFAULT_ORDER,
-            shortPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderGlobal.read()
-          expect(value.shortPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderGlobal.store({
-              ...DEFAULT_ORDER,
-              shortPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.shortNeg', async () => {
-        const STORAGE_SIZE = 64
-        it('saves if in range', async () => {
-          await orderGlobal.store({
-            ...DEFAULT_ORDER,
-            shortNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderGlobal.read()
-          expect(value.shortNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderGlobal.store({
-              ...DEFAULT_ORDER,
-              shortNeg: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderGlobal, 'OrderStorageInvalidError')
-        })
-      })
+      shouldBehaveLike(() => ({
+        order: orderGlobal,
+        storageLib: orderStorageGlobalLib,
+        validStoredOrder: VALID_STORED_ORDER,
+      }))
     })
   })
 
@@ -205,18 +79,27 @@ describe('Order', () => {
       shortNeg: 0,
       collateral: 9,
       protection: 1,
+      invalidation: 13,
       makerReferral: 11,
       takerReferral: 12,
     }
-
+    let orderStorageLocalLib: OrderStorageLocalLib
     let orderLocal: OrderLocalTester
 
     beforeEach(async () => {
-      orderLocal = await new OrderLocalTester__factory(owner).deploy()
+      orderStorageLocalLib = await new OrderStorageLocalLib__factory(owner).deploy()
+      orderLocal = await new OrderLocalTester__factory(
+        { 'contracts/types/Order.sol:OrderStorageLocalLib': orderStorageLocalLib.address },
+        owner,
+      ).deploy()
     })
 
     describe('common behavior', () => {
-      shouldBehaveLike(() => ({ order: orderLocal, validStoredOrder: VALID_STORED_ORDER }))
+      shouldBehaveLike(() => ({
+        order: orderLocal,
+        storageLib: orderStorageLocalLib,
+        validStoredOrder: VALID_STORED_ORDER,
+      }))
     })
 
     describe('#store', () => {
@@ -231,132 +114,7 @@ describe('Order', () => {
         expect(value.shortPos).to.equal(0)
         expect(value.shortNeg).to.equal(0)
         expect(value.protection).to.equal(1)
-      })
-
-      context('.makerPos', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await orderLocal.store({
-            ...DEFAULT_ORDER,
-            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderLocal.read()
-          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderLocal.store({
-              ...DEFAULT_ORDER,
-              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.makerNeg', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await orderLocal.store({
-            ...DEFAULT_ORDER,
-            makerNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderLocal.read()
-          expect(value.makerNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderLocal.store({
-              ...DEFAULT_ORDER,
-              makerNeg: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.longPos', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await orderLocal.store({
-            ...DEFAULT_ORDER,
-            longPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderLocal.read()
-          expect(value.longPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderLocal.store({
-              ...DEFAULT_ORDER,
-              longPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.longNeg', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await orderLocal.store({
-            ...DEFAULT_ORDER,
-            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderLocal.read()
-          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderLocal.store({
-              ...DEFAULT_ORDER,
-              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.shortPos', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await orderLocal.store({
-            ...DEFAULT_ORDER,
-            shortPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderLocal.read()
-          expect(value.shortPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderLocal.store({
-              ...DEFAULT_ORDER,
-              shortPos: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
-        })
-      })
-
-      context('.shortNeg', async () => {
-        const STORAGE_SIZE = 62
-        it('saves if in range', async () => {
-          await orderLocal.store({
-            ...DEFAULT_ORDER,
-            shortNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-          })
-          const value = await orderLocal.read()
-          expect(value.shortNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-        })
-
-        it('reverts if currentId out of range', async () => {
-          await expect(
-            orderLocal.store({
-              ...DEFAULT_ORDER,
-              shortNeg: BigNumber.from(2).pow(STORAGE_SIZE),
-            }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
-        })
+        expect(value.invalidation).to.equal(13)
       })
 
       context('.protection', async () => {
@@ -370,14 +128,396 @@ describe('Order', () => {
           expect(value.protection).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if protection out of range', async () => {
           await expect(
             orderLocal.store({
               ...DEFAULT_ORDER,
               protection: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(orderLocal, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(orderStorageLocalLib, 'OrderStorageInvalidError')
         })
+      })
+
+      context('.invalidation', async () => {
+        const STORAGE_SIZE = 8
+        it('saves if in range', async () => {
+          await orderLocal.store({
+            ...DEFAULT_ORDER,
+            invalidation: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await orderLocal.read()
+          expect(value.invalidation).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if invalidation out of range', async () => {
+          await expect(
+            orderLocal.store({
+              ...DEFAULT_ORDER,
+              invalidation: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(orderStorageLocalLib, 'OrderStorageInvalidError')
+        })
+      })
+    })
+
+    describe('#from', () => {
+      it('opens a new maker order without referral fee', async () => {
+        const makerAmount = parse6decimal('1')
+        await orderLocal.from(0, DEFAULT_POSITION, makerAmount, 0, 0, false, true, 0)
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(1)
+        expect(value.makerPos).to.equal(parse6decimal('1'))
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(0)
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(1)
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(0)
+      })
+
+      it('opens a new maker order with referral fee', async () => {
+        const makerAmount = parse6decimal('1')
+        await orderLocal.from(0, DEFAULT_POSITION, makerAmount, 0, 0, false, true, parse6decimal('0.02'))
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(1)
+        expect(value.makerPos).to.equal(parse6decimal('1'))
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(0)
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(1)
+        expect(value.makerReferral).to.equal(parse6decimal('0.02'))
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(0)
+      })
+
+      it('opens a new long order without referral fee', async () => {
+        const takerAmount = parse6decimal('1')
+        await orderLocal.from(0, DEFAULT_POSITION, 0, takerAmount, 0, false, true, 0)
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(1)
+        expect(value.makerPos).to.equal(0)
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(parse6decimal('1'))
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(1)
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(0)
+      })
+
+      it('opens a new long order with referral fee', async () => {
+        const takerAmount = parse6decimal('1')
+        await orderLocal.from(0, DEFAULT_POSITION, 0, takerAmount, 0, false, true, parse6decimal('0.02'))
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(1)
+        expect(value.makerPos).to.equal(0)
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(parse6decimal('1'))
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(1)
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(parse6decimal('0.02'))
+        expect(value.collateral).to.equal(0)
+      })
+
+      it('opens a new short order without referral fee', async () => {
+        const takerAmount = parse6decimal('-1')
+        await orderLocal.from(0, DEFAULT_POSITION, 0, takerAmount, 0, false, true, 0)
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(1)
+        expect(value.makerPos).to.equal(0)
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(0)
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(parse6decimal('1'))
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(1)
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(0)
+      })
+
+      it('opens a new short order with referral fee', async () => {
+        const takerAmount = parse6decimal('-1')
+        await orderLocal.from(0, DEFAULT_POSITION, 0, takerAmount, 0, false, true, parse6decimal('0.02'))
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(1)
+        expect(value.makerPos).to.equal(0)
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(0)
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(parse6decimal('1'))
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(1)
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(parse6decimal('0.02'))
+        expect(value.collateral).to.equal(0)
+      })
+
+      it('opens a new order with protection', async () => {
+        await orderLocal.from(0, DEFAULT_POSITION, 0, 0, 0, true, true, 0)
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(0)
+        expect(value.makerPos).to.equal(0)
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(0)
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(1)
+        expect(value.invalidation).to.equal(0) // empty
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(0)
+      })
+
+      it('opens a new maker order with existing maker position', async () => {
+        const POSITION = {
+          ...DEFAULT_POSITION,
+          maker: parse6decimal('10'),
+        }
+        const makerAmount = parse6decimal('1')
+        await orderLocal.from(0, POSITION, makerAmount, 0, 0, false, true, 0)
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(1)
+        expect(value.makerPos).to.equal(parse6decimal('1'))
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(0)
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(1)
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(0)
+      })
+
+      it('closes a new maker order with existing maker position', async () => {
+        const POSITION = {
+          ...DEFAULT_POSITION,
+          maker: parse6decimal('10'),
+        }
+        const makerAmount = parse6decimal('-1')
+        await orderLocal.from(0, POSITION, makerAmount, 0, 0, false, true, 0)
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(1)
+        expect(value.makerPos).to.equal(0)
+        expect(value.makerNeg).to.equal(parse6decimal('1'))
+        expect(value.longPos).to.equal(0)
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(1)
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(0)
+      })
+
+      it('opens a new long order with existing long position', async () => {
+        const POSITION = {
+          ...DEFAULT_POSITION,
+          long: parse6decimal('10'),
+        }
+        const takerAmount = parse6decimal('1')
+        await orderLocal.from(0, POSITION, 0, takerAmount, 0, false, true, 0)
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(1)
+        expect(value.makerPos).to.equal(0)
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(parse6decimal('1'))
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(1)
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(0)
+      })
+
+      it('closes a new long order with existing long position', async () => {
+        const POSITION = {
+          ...DEFAULT_POSITION,
+          long: parse6decimal('10'),
+        }
+        const takerAmount = parse6decimal('-1')
+        await orderLocal.from(0, POSITION, 0, takerAmount, 0, false, true, 0)
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(1)
+        expect(value.makerPos).to.equal(0)
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(0)
+        expect(value.longNeg).to.equal(parse6decimal('1'))
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(1)
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(0)
+      })
+
+      it('opens a new short order with existing short position', async () => {
+        const POSITION = {
+          ...DEFAULT_POSITION,
+          short: parse6decimal('10'),
+        }
+        const takerAmount = parse6decimal('-1')
+        await orderLocal.from(0, POSITION, 0, takerAmount, 0, false, true, 0)
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(1)
+        expect(value.makerPos).to.equal(0)
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(0)
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(parse6decimal('1'))
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(1)
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(0)
+      })
+
+      it('closes a new short order with existing short position', async () => {
+        const POSITION = {
+          ...DEFAULT_POSITION,
+          short: parse6decimal('10'),
+        }
+        const takerAmount = parse6decimal('1')
+        await orderLocal.from(0, POSITION, 0, takerAmount, 0, false, true, 0)
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(1)
+        expect(value.makerPos).to.equal(0)
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(0)
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(parse6decimal('1'))
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(1)
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(0)
+      })
+
+      it('opens a new order for depositing collateral', async () => {
+        const collateral = parse6decimal('1')
+        await orderLocal.from(0, DEFAULT_POSITION, 0, 0, collateral, false, true, 0)
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(0)
+        expect(value.makerPos).to.equal(0)
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(0)
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(0) // empty
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(collateral)
+      })
+
+      it('opens a new order for withdrawing collateral', async () => {
+        const collateral = parse6decimal('-1')
+        await orderLocal.from(0, DEFAULT_POSITION, 0, 0, collateral, false, true, 0)
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(0)
+        expect(value.makerPos).to.equal(0)
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(0)
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(0) // empty
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(collateral)
+      })
+
+      it('opens an intent order', async () => {
+        const POSITION = {
+          ...DEFAULT_POSITION,
+          long: parse6decimal('10'),
+        }
+        const takerAmount = parse6decimal('1')
+        await orderLocal.from(0, POSITION, 0, takerAmount, 0, false, false, 0)
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(1)
+        expect(value.makerPos).to.equal(0)
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(parse6decimal('1'))
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(0)
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(0)
+      })
+
+      it('opens an order crossing zero (pos)', async () => {
+        const POSITION = {
+          ...DEFAULT_POSITION,
+          short: parse6decimal('10'),
+        }
+        const takerAmount = parse6decimal('11')
+        await orderLocal.from(0, POSITION, 0, takerAmount, 0, false, false, 0)
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(1)
+        expect(value.makerPos).to.equal(0)
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(parse6decimal('1'))
+        expect(value.longNeg).to.equal(0)
+        expect(value.shortPos).to.equal(0)
+        expect(value.shortNeg).to.equal(parse6decimal('10'))
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(0)
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(0)
+      })
+
+      it('opens an order crossing zero (neg)', async () => {
+        const POSITION = {
+          ...DEFAULT_POSITION,
+          long: parse6decimal('10'),
+        }
+        const takerAmount = parse6decimal('-11')
+        await orderLocal.from(0, POSITION, 0, takerAmount, 0, false, false, 0)
+        const value = await orderLocal.read()
+        expect(value.orders).to.equal(1)
+        expect(value.makerPos).to.equal(0)
+        expect(value.makerNeg).to.equal(0)
+        expect(value.longPos).to.equal(0)
+        expect(value.longNeg).to.equal(parse6decimal('10'))
+        expect(value.shortPos).to.equal(parse6decimal('1'))
+        expect(value.shortNeg).to.equal(0)
+        expect(value.protection).to.equal(0)
+        expect(value.invalidation).to.equal(0)
+        expect(value.makerReferral).to.equal(0)
+        expect(value.takerReferral).to.equal(0)
+        expect(value.collateral).to.equal(0)
       })
     })
   })
@@ -385,14 +525,16 @@ describe('Order', () => {
   function shouldBehaveLike(
     getter: () => {
       order: OrderLocalTester | OrderGlobalTester
+      storageLib: OrderStorageLocalLib | OrderStorageGlobalLib
       validStoredOrder: OrderStruct
     },
   ) {
     let order: OrderLocalTester | OrderGlobalTester
+    let storageLib: OrderStorageLocalLib | OrderStorageGlobalLib
     let validStoredOrder: OrderStruct
 
     beforeEach(async () => {
-      ;({ order, validStoredOrder } = getter())
+      ;({ order, storageLib, validStoredOrder } = getter())
     })
 
     describe('#store', () => {
@@ -418,13 +560,13 @@ describe('Order', () => {
           expect(value.timestamp).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if timestamp out of range', async () => {
           await expect(
             order.store({
               ...validStoredOrder,
               timestamp: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
       })
 
@@ -439,13 +581,13 @@ describe('Order', () => {
           expect(value.orders).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if orders out of range', async () => {
           await expect(
             order.store({
               ...validStoredOrder,
               orders: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
       })
 
@@ -475,7 +617,7 @@ describe('Order', () => {
               ...validStoredOrder,
               collateral: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
 
         it('reverts if collateral out of range (below)', async () => {
@@ -484,7 +626,133 @@ describe('Order', () => {
               ...validStoredOrder,
               collateral: BigNumber.from(2).pow(STORAGE_SIZE).add(1).mul(-1),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.makerPos', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            makerPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.makerPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if makerPos out of range', async () => {
+          await expect(
+            order.store({
+              ...DEFAULT_ORDER,
+              makerPos: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.makerNeg', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            makerNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.makerNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if makerNeg out of range', async () => {
+          await expect(
+            order.store({
+              ...DEFAULT_ORDER,
+              makerNeg: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.longPos', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            longPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.longPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if longPos out of range', async () => {
+          await expect(
+            order.store({
+              ...DEFAULT_ORDER,
+              longPos: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.longNeg', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            longNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.longNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if longNeg out of range', async () => {
+          await expect(
+            order.store({
+              ...DEFAULT_ORDER,
+              longNeg: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.shortPos', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            shortPos: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.shortPos).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if shortPos out of range', async () => {
+          await expect(
+            order.store({
+              ...DEFAULT_ORDER,
+              shortPos: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
+        })
+      })
+
+      context('.shortNeg', async () => {
+        const STORAGE_SIZE = 64
+        it('saves if in range', async () => {
+          await order.store({
+            ...DEFAULT_ORDER,
+            shortNeg: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
+          })
+          const value = await order.read()
+          expect(value.shortNeg).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
+        })
+
+        it('reverts if shortNeg out of range', async () => {
+          await expect(
+            order.store({
+              ...DEFAULT_ORDER,
+              shortNeg: BigNumber.from(2).pow(STORAGE_SIZE),
+            }),
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
       })
 
@@ -499,13 +767,13 @@ describe('Order', () => {
           expect(value.makerReferral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if makerReferral out of range', async () => {
           await expect(
             order.store({
               ...validStoredOrder,
               makerReferral: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
       })
 
@@ -520,13 +788,13 @@ describe('Order', () => {
           expect(value.takerReferral).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
         })
 
-        it('reverts if currentId out of range', async () => {
+        it('reverts if takerReferral out of range', async () => {
           await expect(
             order.store({
               ...validStoredOrder,
               takerReferral: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(order, 'OrderStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'OrderStorageInvalidError')
         })
       })
     })
@@ -813,6 +1081,17 @@ describe('Order', () => {
           })
         })
 
+        context('maker increase', () => {
+          it('returns true', async () => {
+            await order.store({ ...DEFAULT_ORDER, makerPos: 5 })
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+            })
+
+            expect(result).to.be.true
+          })
+        })
+
         context('long decrease', () => {
           it('returns false', async () => {
             await order.store({ ...DEFAULT_ORDER, longNeg: 10 })
@@ -920,20 +1199,47 @@ describe('Order', () => {
       })
     })
 
-    describe('#magnitude', () => {
-      it('calculate order magnitude', async () => {
-        await order.store({
-          ...DEFAULT_ORDER,
-          makerPos: 10,
-          makerNeg: 5,
-          longPos: 10,
-          longNeg: 5,
-          shortPos: 10,
-          shortNeg: 5,
-        })
-        const result = await order.magnitude()
+    describe('#crossesZero', () => {
+      it('crosses zero (long)', async () => {
+        await order.store({ ...DEFAULT_ORDER, longPos: 4, shortPos: 7, shortNeg: 8 })
+        expect(await order.crossesZero()).to.equal(true)
+      })
 
-        expect(result).to.equals(15)
+      it('crosses zero (short)', async () => {
+        await order.store({ ...DEFAULT_ORDER, longPos: 4, longNeg: 5, shortPos: 7 })
+        expect(await order.crossesZero()).to.equal(true)
+      })
+
+      it('doesnt cross zero (long)', async () => {
+        await order.store({ ...DEFAULT_ORDER, longPos: 4, longNeg: 5 })
+        expect(await order.crossesZero()).to.equal(false)
+      })
+
+      it('doesnt cross zero (short)', async () => {
+        await order.store({ ...DEFAULT_ORDER, shortPos: 7, shortNeg: 8 })
+        expect(await order.crossesZero()).to.equal(false)
+      })
+    })
+
+    describe('#fresh', () => {
+      it('creates a fresh order', async () => {
+        await order.store(validStoredOrder)
+        await order.fresh(123)
+        const result = await order.read()
+
+        expect(result.timestamp).to.equal(123)
+        expect(result.orders).to.equal(0)
+        expect(result.makerPos).to.equal(0)
+        expect(result.makerNeg).to.equal(0)
+        expect(result.longPos).to.equal(0)
+        expect(result.longNeg).to.equal(0)
+        expect(result.shortPos).to.equal(0)
+        expect(result.shortNeg).to.equal(0)
+        expect(result.collateral).to.equal(0)
+        expect(result.protection).to.equal(0)
+        expect(result.invalidation).to.equal(0)
+        expect(result.makerReferral).to.equal(0)
+        expect(result.takerReferral).to.equal(0)
       })
     })
   }

@@ -12,7 +12,7 @@ import { IERC20Metadata__factory, IOracle__factory, KeeperOracle, PythFactory } 
 import { RunInvokerTests } from './Invoke.test'
 import { RunOrderTests } from './Orders.test'
 import { RunPythOracleTests } from './Pyth.test'
-import { createInvoker, deployProtocol, InstanceVars, resetBtcSubOracle, resetEthSubOracle } from './setupHelpers'
+import { createInvoker, deployProtocol, InstanceVars } from './setupHelpers'
 import {
   CHAINLINK_ETH_USD_FEED,
   DSU_ADDRESS,
@@ -105,11 +105,6 @@ async function getKeeperOracle(): Promise<[PythFactory, KeeperOracle]> {
   vars.oracle = oracle_
   return [pythOracleFactory, keeperOracle]
 }
-
-/*async function resetSubOracles(ethSubOracle: FakeContract<IOracleProvider>, btcSubOracle: FakeContract<IOracleProvider>): Promise<void> {
-  resetEthSubOracle(ethSubOracle, INITIAL_ORACLE_VERSION_ETH)
-  resetBtcSubOracle(btcSubOracle, INITIAL_ORACLE_VERSION_BTC)
-}*/
 
 if (process.env.FORK_NETWORK === undefined) {
   RunInvokerTests(

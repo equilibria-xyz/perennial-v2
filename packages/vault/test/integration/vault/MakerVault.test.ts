@@ -9,12 +9,12 @@ import {
   IERC20Metadata,
   IERC20Metadata__factory,
   IMarket,
-  Vault__factory,
+  MakerVault__factory,
   IOracleProvider,
   VaultFactory__factory,
   IVaultFactory,
-  IVault__factory,
-  IVault,
+  IMakerVault__factory,
+  IMakerVault,
   IVaultFactory__factory,
   IOracleFactory,
   IMarketFactory,
@@ -24,6 +24,7 @@ import { deployProtocol, fundWallet, settle } from '@perennial/v2-core/test/inte
 import { OracleReceipt, DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
 import { MarketFactory, ProxyAdmin, TransparentUpgradeableProxy__factory } from '@perennial/v2-core/types/generated'
 import { IOracle, IOracle__factory, OracleFactory } from '@perennial/v2-oracle/types/generated'
+import { reset } from '../../../../common/testutil/time'
 
 const { ethers } = HRE
 use(smock.matchers)
@@ -33,8 +34,8 @@ const LEGACY_ORACLE_DELAY = 3600
 const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000001'
 const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
 
-describe('Vault', () => {
-  let vault: IVault
+describe('MakerVault', () => {
+  let vault: IMakerVault
   let asset: IERC20Metadata
   let vaultFactory: IVaultFactory
   let factory: IMarketFactory
@@ -48,6 +49,7 @@ describe('Vault', () => {
   let perennialUser: SignerWithAddress
   let liquidator: SignerWithAddress
   let other: SignerWithAddress
+  let coordinator: SignerWithAddress
   let leverage: BigNumber
   let maxCollateral: BigNumber
   let originalOraclePrice: BigNumber
@@ -66,8 +68,8 @@ describe('Vault', () => {
     newReceipt?: OracleReceipt,
     newReceiptBtc?: OracleReceipt,
   ) {
-    await _updateOracleEth(newPrice, newReceipt)
-    await _updateOracleBtc(newPriceBtc, newReceiptBtc)
+    await _updateOracle(oracle, newPrice, newReceipt)
+    await _updateOracle(btcOracle, newPriceBtc, newReceiptBtc)
   }
 
   async function settleUnderlying(account: SignerWithAddress) {
@@ -75,34 +77,23 @@ describe('Vault', () => {
     await settle(btcMarket, account)
   }
 
-  async function _updateOracleEth(newPrice?: BigNumber, newReceipt?: OracleReceipt) {
-    const [currentTimestamp, currentPrice] = await oracle.latest()
-    const [, currentReceipt] = await btcOracle.at(currentTimestamp)
+  async function _updateOracle(
+    oracleMock: FakeContract<IOracleProvider>,
+    newPrice?: BigNumber,
+    newReceipt?: OracleReceipt,
+  ) {
+    const [currentTimestamp, currentPrice] = await oracleMock.latest()
+    const [, currentReceipt] = await oracleMock.at(currentTimestamp)
     const newVersion = {
       timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
       price: newPrice ?? currentPrice,
       valid: true,
     }
-    oracle.status.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-    oracle.request.whenCalledWith(user.address).returns()
-    oracle.latest.returns(newVersion)
-    oracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    oracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
-  }
-
-  async function _updateOracleBtc(newPrice?: BigNumber, newReceipt?: OracleReceipt) {
-    const [currentTimestamp, currentPrice] = await btcOracle.latest()
-    const [, currentReceipt] = await btcOracle.at(currentTimestamp)
-    const newVersion = {
-      timestamp: currentTimestamp.add(LEGACY_ORACLE_DELAY),
-      price: newPrice ?? currentPrice,
-      valid: true,
-    }
-    btcOracle.status.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-    btcOracle.request.whenCalledWith(user.address).returns()
-    btcOracle.latest.returns(newVersion)
-    btcOracle.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-    btcOracle.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
+    oracleMock.status.returns([newVersion, newVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+    oracleMock.request.whenCalledWith(user.address).returns()
+    oracleMock.latest.returns(newVersion)
+    oracleMock.current.returns(newVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+    oracleMock.at.whenCalledWith(newVersion.timestamp).returns([newVersion, newReceipt ?? currentReceipt])
   }
 
   async function position() {
@@ -154,7 +145,8 @@ describe('Vault', () => {
     const instanceVars = await deployProtocol()
 
     let pauser
-    ;[owner, pauser, user, user2, btcUser1, btcUser2, liquidator, perennialUser, other] = await ethers.getSigners()
+    ;[owner, pauser, user, user2, btcUser1, btcUser2, liquidator, perennialUser, other, coordinator] =
+      await ethers.getSigners()
     factory = instanceVars.marketFactory
     oracleFactory = instanceVars.oracleFactory
     marketFactory = instanceVars.marketFactory
@@ -269,7 +261,7 @@ describe('Vault', () => {
     await rootOracle.register(market.address)
     await btcRootOracle.register(btcMarket.address)
 
-    const vaultImpl = await new Vault__factory(owner).deploy()
+    const vaultImpl = await new MakerVault__factory(owner).deploy()
     const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
       instanceVars.marketFactory.address,
       vaultImpl.address,
@@ -283,7 +275,7 @@ describe('Vault', () => {
 
     await fundWallet(asset, owner)
     await asset.approve(vaultFactory.address, ethers.constants.MaxUint256)
-    vault = IVault__factory.connect(
+    vault = IMakerVault__factory.connect(
       await vaultFactory.callStatic.create(instanceVars.dsu.address, market.address, 'Blue Chip'),
       owner,
     )
@@ -295,6 +287,7 @@ describe('Vault', () => {
     await vault.updateParameter({
       maxDeposit: maxCollateral,
       minDeposit: 0,
+      profitShare: 0,
     })
 
     await Promise.all([
@@ -405,6 +398,10 @@ describe('Vault', () => {
     vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcOracle.address)
   })
 
+  after(async () => {
+    await reset()
+  })
+
   describe('#initialize', () => {
     it('cant re-initialize', async () => {
       await expect(vault.initialize(asset.address, market.address, parse6decimal('5'), 'Blue Chip'))
@@ -415,7 +412,24 @@ describe('Vault', () => {
 
   describe('#name', () => {
     it('is correct', async () => {
-      expect(await vault.name()).to.equal('Perennial V2 Vault: Blue Chip')
+      expect(await vault.name()).to.equal('Perennial Maker Vault: Blue Chip')
+    })
+  })
+
+  describe('#updateCoordinator', () => {
+    it('updates coordinator', async () => {
+      await expect(vault.connect(owner).updateCoordinator(coordinator.address))
+        .to.emit(vault, 'CoordinatorUpdated')
+        .withArgs(coordinator.address)
+
+      expect(await vault.coordinator()).to.deep.contain(coordinator.address)
+    })
+
+    it('reverts when not owner', async () => {
+      await expect(vault.connect(user).updateCoordinator(coordinator.address)).to.be.revertedWithCustomError(
+        vault,
+        'InstanceNotOwnerError',
+      )
     })
   })
 
@@ -547,6 +561,7 @@ describe('Vault', () => {
       const newParameter = {
         maxDeposit: parse6decimal('1000000'),
         minDeposit: parse6decimal('10'),
+        profitShare: parse6decimal('0.1'),
       }
       await expect(vault.connect(owner).updateParameter(newParameter))
         .to.emit(vault, 'ParameterUpdated')
@@ -555,12 +570,14 @@ describe('Vault', () => {
       const parameter = await vault.parameter()
       expect(parameter.maxDeposit).to.deep.contain(newParameter.maxDeposit)
       expect(parameter.minDeposit).to.deep.contain(newParameter.minDeposit)
+      expect(parameter.profitShare).to.deep.contain(newParameter.profitShare)
     })
 
     it('reverts when not owner', async () => {
       const newParameter = {
         maxDeposit: parse6decimal('1000000'),
         minDeposit: parse6decimal('10'),
+        profitShare: parse6decimal('0.1'),
       }
       await expect(vault.connect(user).updateParameter(newParameter)).to.be.revertedWithCustomError(
         vault,
@@ -1180,7 +1197,7 @@ describe('Vault', () => {
 
       await expect(vault.connect(user).update(user.address, 0, maxRedeem, 0)).to.be.revertedWithCustomError(
         vault,
-        'StrategyLibInsufficientAssetsError',
+        'MakerStrategyInsufficientAssetsError',
       )
       await expect(vault.connect(user).update(user.address, 0, maxRedeem.sub(parse6decimal('1')), 0)).to.not.be.reverted
     })
@@ -1220,7 +1237,7 @@ describe('Vault', () => {
 
       await expect(vault.connect(user).update(user.address, 0, maxRedeem, 0)).to.be.revertedWithCustomError(
         vault,
-        'StrategyLibInsufficientAssetsError',
+        'MakerStrategyInsufficientAssetsError',
       )
       await expect(vault.connect(user).update(user.address, 0, maxRedeem.sub(parse6decimal('1')), 0)).to.not.be.reverted
     })
@@ -1728,7 +1745,7 @@ describe('Vault', () => {
         proxyAdmin.address,
         [],
       )
-      const vaultImpl = await new Vault__factory(owner).deploy()
+      const vaultImpl = await new MakerVault__factory(owner).deploy()
       const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
         marketFactory.address,
         vaultImpl.address,
@@ -1740,7 +1757,7 @@ describe('Vault', () => {
 
       await fundWallet(asset, owner)
       await asset.approve(vaultFactory2.address, ethers.utils.parseEther('1'))
-      const vault2 = IVault__factory.connect(
+      const vault2 = IMakerVault__factory.connect(
         await vaultFactory2.callStatic.create(asset.address, market.address, 'Blue Chip'),
         owner,
       )
@@ -1773,7 +1790,7 @@ describe('Vault', () => {
         proxyAdmin.address,
         [],
       )
-      const vaultImpl = await new Vault__factory(owner).deploy()
+      const vaultImpl = await new MakerVault__factory(owner).deploy()
       const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
         marketFactory.address,
         vaultImpl.address,
@@ -1785,7 +1802,7 @@ describe('Vault', () => {
 
       await fundWallet(asset, owner)
       await asset.approve(vaultFactory2.address, ethers.utils.parseEther('1'))
-      const vault2 = IVault__factory.connect(
+      const vault2 = IMakerVault__factory.connect(
         await vaultFactory2.callStatic.create(asset.address, market.address, 'Blue Chip'),
         owner,
       )
@@ -1844,7 +1861,11 @@ describe('Vault', () => {
     })
 
     it('reverts when below minDeposit', async () => {
-      await vault.updateParameter({ maxDeposit: maxCollateral, minDeposit: parse6decimal('10') })
+      await vault.updateParameter({
+        maxDeposit: maxCollateral,
+        minDeposit: parse6decimal('10'),
+        profitShare: 0,
+      })
       await expect(vault.connect(user).update(user.address, parse6decimal('0.50'), 0, 0)).to.revertedWithCustomError(
         vault,
         'VaultInsufficientMinimumError',
@@ -1884,6 +1905,7 @@ describe('Vault', () => {
       await vault.connect(owner).updateParameter({
         maxDeposit: parse6decimal('100'),
         minDeposit: 0,
+        profitShare: 0,
       })
 
       await updateOracle()
@@ -1911,6 +1933,152 @@ describe('Vault', () => {
 
       const deposit5 = parse6decimal('50')
       await expect(vault.connect(user).update(user.address, deposit5, 0, 0)).to.not.be.reverted
+    })
+
+    it('profit shares', async () => {
+      await vault.updateParameter({
+        maxDeposit: maxCollateral,
+        minDeposit: 0,
+        profitShare: parse6decimal('0.5'),
+      })
+      await vault.updateCoordinator(coordinator.address)
+
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
+
+      const smallDeposit = parse6decimal('1000')
+      await vault.connect(user).update(user.address, smallDeposit, 0, 0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+
+      const largeDeposit = parse6decimal('10000')
+      await vault.connect(user2).update(user2.address, largeDeposit, 0, 0)
+      await updateOracle()
+      await vault.rebalance(user2.address)
+
+      // Now we should have opened positions.
+      // The positions should be equal to (smallDeposit + largeDeposit) * leverage / 2 / originalOraclePrice.
+      expect(await position()).to.be.equal(
+        smallDeposit.add(largeDeposit).mul(leverage).mul(4).div(5).div(originalOraclePrice),
+      )
+      expect(await btcPosition()).to.be.equal(
+        smallDeposit.add(largeDeposit).mul(leverage).div(5).div(btcOriginalOraclePrice),
+      )
+      const fundingAmount0 = BigNumber.from('23238')
+      const coordinatorProfit = fundingAmount0.div(2).sub(1) // 1:1 assets / shares
+      const balanceOf2 = BigNumber.from('9999883802')
+      expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
+      expect((await vault.accounts(user2.address)).shares).to.equal(balanceOf2)
+      expect((await vault.accounts(coordinator.address)).shares).to.equal(coordinatorProfit)
+      expect(await vault.totalAssets()).to.equal(parse6decimal('11000').add(fundingAmount0))
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(
+        parse6decimal('1000').add(balanceOf2).add(coordinatorProfit),
+      )
+      expect(await vault.convertToAssets(parse6decimal('1000').add(balanceOf2).add(coordinatorProfit))).to.equal(
+        parse6decimal('11000').add(fundingAmount0),
+      )
+      expect(await vault.convertToShares(parse6decimal('11000').add(fundingAmount0))).to.equal(
+        parse6decimal('1000').add(balanceOf2).add(coordinatorProfit),
+      )
+
+      await vault.connect(user).update(user.address, 0, (await vault.accounts(user.address)).shares, 0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+
+      await vault.connect(user2).update(user2.address, 0, (await vault.accounts(user2.address)).shares, 0)
+      await updateOracle()
+      await vault.rebalance(user2.address)
+
+      await vault
+        .connect(coordinator)
+        .update(coordinator.address, 0, (await vault.accounts(coordinator.address)).shares, 0)
+      await updateOracle()
+      await vault.rebalance(coordinator.address)
+
+      // We should have closed all positions.
+      expect(await position()).to.equal(0)
+      expect(await btcPosition()).to.equal(0)
+
+      // We should have redeemed all of our shares.
+      const fundingAmount = BigNumber.from('64452')
+      const fundingAmountMinusProfit = BigNumber.from('38036') // profit is less than half due to overcoming HWM
+      const fundingAmount2 = BigNumber.from('1022204')
+      const fundingAmount2MinusProfit = BigNumber.from('643179') // profit is less than half due to overcoming HWM
+      const fundingAmount3 = BigNumber.from('2')
+      const coordinatorProfit2 = fundingAmount
+        .sub(fundingAmountMinusProfit)
+        .add(fundingAmount2.sub(fundingAmount2MinusProfit))
+        .add(fundingAmount3)
+      expect(await totalCollateralInVault()).to.equal(
+        parse6decimal('11000').add(fundingAmount).add(fundingAmount2).add(fundingAmount3).mul(1e12),
+      )
+      expect((await vault.accounts(user.address)).shares).to.equal(0)
+      expect((await vault.accounts(user2.address)).shares).to.equal(0)
+      expect((await vault.accounts(coordinator.address)).shares).to.equal(0)
+      expect(await vault.totalAssets()).to.equal(0)
+      expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(0)
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect((await vault.accounts(user.address)).assets).to.equal(parse6decimal('1000').add(fundingAmountMinusProfit))
+      expect((await vault.accounts(user2.address)).assets).to.equal(
+        parse6decimal('10000').add(fundingAmount2MinusProfit),
+      )
+      expect((await vault.accounts(coordinator.address)).assets).to.equal(coordinatorProfit2)
+      expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(
+        parse6decimal('11000').add(fundingAmount).add(fundingAmount2).add(fundingAmount3),
+      )
+
+      await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
+      await vault.connect(user2).update(user2.address, 0, 0, ethers.constants.MaxUint256)
+      await vault.connect(coordinator).update(coordinator.address, 0, 0, ethers.constants.MaxUint256)
+
+      expect(await totalCollateralInVault()).to.equal(0)
+      expect(await vault.totalAssets()).to.equal(0)
+      expect(await asset.balanceOf(user.address)).to.equal(
+        parse6decimal('100000').add(fundingAmountMinusProfit).mul(1e12),
+      )
+      expect(await asset.balanceOf(user2.address)).to.equal(
+        parse6decimal('100000').add(fundingAmount2MinusProfit).mul(1e12),
+      )
+      expect(await asset.balanceOf(coordinator.address)).to.equal(coordinatorProfit2.mul(1e12))
+      expect((await vault.accounts(user.address)).assets).to.equal(0)
+      expect((await vault.accounts(user2.address)).assets).to.equal(0)
+      expect((await vault.accounts(coordinator.address)).assets).to.equal(0)
+      expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
+    })
+
+    it('credits profit shares when account is coordinator', async () => {
+      await fundWallet(asset, coordinator),
+        asset.connect(coordinator).approve(vault.address, ethers.constants.MaxUint256),
+        await vault.updateParameter({
+          maxDeposit: maxCollateral,
+          minDeposit: 0,
+          profitShare: parse6decimal('0.2'),
+        })
+      await vault.updateCoordinator(coordinator.address)
+
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
+
+      // User and coordinator make deposits
+      const deposit = parse6decimal('10000')
+      await vault.connect(user).update(user.address, deposit.mul(2).div(3), 0, 0)
+      await updateOracle()
+      await vault.rebalance(user.address)
+
+      await vault.connect(coordinator).update(coordinator.address, deposit.div(3), 0, 0)
+      await updateOracle()
+      await vault.rebalance(coordinator.address)
+
+      // Confirm positions were opened
+      expect(await position()).to.be.equal(deposit.mul(leverage).mul(4).div(5).div(originalOraclePrice))
+      expect(await btcPosition()).to.be.equal(deposit.mul(leverage).div(5).div(btcOriginalOraclePrice))
+
+      const shares1 = deposit.mul(2).div(3)
+      expect((await vault.accounts(user.address)).shares).to.equal(shares1)
+      const shares2 = parse6decimal('3333.273688')
+      const profitShares = BigNumber.from('29821')
+      expect((await vault.accounts(coordinator.address)).shares).to.equal(shares2.add(profitShares))
     })
 
     it('reverts when paused', async () => {
@@ -1990,11 +2158,14 @@ describe('Vault', () => {
           // Ensure the full amount cannot be redeemed.
           await expect(vault.connect(user).update(user.address, 0, depositAmount, 0)).to.be.revertedWithCustomError(
             vault,
-            'StrategyLibInsufficientCollateralError',
+            'MakerStrategyInsufficientCollateralError',
           )
 
           // Ensure a small amount cannot be redeemed.
-          await expect(smallRedeem(user)).to.be.revertedWithCustomError(vault, 'StrategyLibInsufficientCollateralError')
+          await expect(smallRedeem(user)).to.be.revertedWithCustomError(
+            vault,
+            'MakerStrategyInsufficientCollateralError',
+          )
         })
 
         it('recovers from a liquidation', async () => {

@@ -12,6 +12,9 @@ import { IERC20, IFactory, IMarketFactory, IMarket, IOracleProvider } from '@per
 import {
   AggregatorV3Interface,
   ArbGasInfo,
+  IAccount,
+  IAccount__factory,
+  IController,
   IEmptySetReserve,
   IOrderVerifier,
   Manager_Arbitrum,
@@ -21,6 +24,7 @@ import {
 import { signCancelOrderAction, signCommon, signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
 import { OracleVersionStruct } from '../../../types/generated/contracts/TriggerOrders/test/TriggerOrderTester'
 import { Compare, compareOrders, DEFAULT_TRIGGER_ORDER, Side } from '../../helpers/TriggerOrders/order'
+import { deployController } from '../../helpers/setupHelpers'
 
 const { ethers } = HRE
 
@@ -44,6 +48,8 @@ const MAKER_ORDER = {
   maxFee: MAX_FEE,
 }
 
+const MARKET_UPDATE_ABSOLUTE_REF_PROTOTYPE = 'update(address,uint256,uint256,uint256,int256,bool,address)'
+
 describe('Manager', () => {
   let usdc: FakeContract<IERC20>
   let dsu: FakeContract<IERC20>
@@ -53,15 +59,24 @@ describe('Manager', () => {
   let market: FakeContract<IMarket>
   let marketOracle: FakeContract<IOracleProvider>
   let verifier: IOrderVerifier
+  let controller: IController
   let ethOracle: FakeContract<AggregatorV3Interface>
   let owner: SignerWithAddress
   let userA: SignerWithAddress
+  let collateralAccountA: IAccount
   let userB: SignerWithAddress
   let keeper: SignerWithAddress
   let nextOrderId = FIRST_ORDER_ID
 
   function advanceOrderId(): BigNumber {
     return (nextOrderId = nextOrderId.add(BigNumber.from(1)))
+  }
+
+  // deploys a collateral account
+  async function createCollateralAccount(user: SignerWithAddress): Promise<IAccount> {
+    const accountAddress = await controller.getAccountAddress(user.address)
+    await controller.connect(user).deployAccount()
+    return IAccount__factory.connect(accountAddress, user)
   }
 
   function createOracleVersion(price: BigNumber, valid = true): OracleVersionStruct {
@@ -79,6 +94,7 @@ describe('Manager', () => {
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     market = await smock.fake<IMarket>('IMarket')
     verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
+    controller = await deployController(owner, usdc.address, dsu.address, reserve.address, marketFactory.address)
 
     // deploy the order manager
     manager = await new Manager_Arbitrum__factory(owner).deploy(
@@ -87,6 +103,7 @@ describe('Manager', () => {
       reserve.address,
       marketFactory.address,
       verifier.address,
+      controller.address,
     )
 
     dsu.approve.whenCalledWith(manager.address).returns(true)
@@ -112,6 +129,10 @@ describe('Manager', () => {
     })
     // no need for meaningful keep configs, as keeper compensation is not tested here
     await manager.initialize(ethOracle.address, KEEP_CONFIG, KEEP_CONFIG)
+
+    // however users still need a collateral account, and manager must be operator
+    collateralAccountA = await createCollateralAccount(userA)
+    marketFactory.operators.whenCalledWith(userA.address, manager.address).returns(true)
   }
 
   before(async () => {
@@ -215,13 +236,49 @@ describe('Manager', () => {
         comparison: Compare.GTE,
         price: parse6decimal('2111.2'),
         delta: parse6decimal('60'),
-        referrer: userA.address,
       }
       await manager.connect(userB).placeOrder(market.address, nextOrderId, longOrder)
 
-      // execute the orders
+      // execute userA's order
       await manager.connect(keeper).executeOrder(market.address, userA.address, nonce1)
+      expect(market.settle).to.have.been.calledWith(userA.address)
+      expect(market.positions).to.have.been.calledWith(userA.address)
+      expect(market[MARKET_UPDATE_ABSOLUTE_REF_PROTOTYPE]).to.have.been.calledWith(
+        userA.address,
+        MAKER_ORDER.delta,
+        0,
+        0,
+        0,
+        false,
+        constants.AddressZero,
+      )
+      expect(dsu.transferFrom).to.have.been.calledWith(collateralAccountA.address, manager.address, 0)
+
+      // reverts if not manager not operator
+      await expect(
+        manager.connect(keeper).executeOrder(market.address, userB.address, nonce2),
+      ).to.be.revertedWithCustomError(controller, 'ControllerNotOperatorError')
+
+      // reverts if no collateral account created
+      marketFactory.operators.whenCalledWith(userB.address, manager.address).returns(true)
+      await expect(manager.connect(keeper).executeOrder(market.address, userB.address, nonce2)).to.be.reverted
+
+      // execute userB's order
+      const collateralAccountB = await createCollateralAccount(userB)
+      marketFactory.operators.whenCalledWith(userB.address, manager.address).returns(true)
       await manager.connect(keeper).executeOrder(market.address, userB.address, nonce2)
+      expect(market.settle).to.have.been.calledWith(userB.address)
+      expect(market.positions).to.have.been.calledWith(userB.address)
+      expect(market[MARKET_UPDATE_ABSOLUTE_REF_PROTOTYPE]).to.have.been.calledWith(
+        userB.address,
+        0,
+        longOrder.delta,
+        0,
+        0,
+        false,
+        constants.AddressZero,
+      )
+      expect(dsu.transferFrom).to.have.been.calledWith(collateralAccountB.address, manager.address, 0)
     })
 
     it('cannot cancel an executed maker order', async () => {
@@ -350,6 +407,59 @@ describe('Manager', () => {
     })
   })
 
+  describe('#interface-fees', () => {
+    const FIXED_FEE_AMOUNT = parse6decimal('0.25')
+
+    beforeEach(async () => {
+      expect(await manager.claimable(userB.address)).to.equal(0)
+      // userA places an order with an interface fee
+      const orderId = advanceOrderId()
+      const makerOrderWithFee = {
+        ...MAKER_ORDER,
+        interfaceFee: {
+          amount: FIXED_FEE_AMOUNT,
+          receiver: userB.address,
+          fixedFee: true,
+          unwrap: false,
+        },
+      }
+      await manager.connect(userA).placeOrder(market.address, orderId, makerOrderWithFee)
+
+      // keeper executes the order, userB earns their fee
+      await manager.connect(keeper).executeOrder(market.address, userA.address, orderId)
+      expect(await manager.claimable(userB.address)).to.equal(FIXED_FEE_AMOUNT)
+    })
+
+    it('recipient can claim fee', async () => {
+      await manager.connect(userB).claim(userB.address, false)
+      expect(dsu.transfer).to.have.been.calledWith(userB.address, FIXED_FEE_AMOUNT.mul(1e12))
+    })
+
+    it('operator can claim fee', async () => {
+      marketFactory.operators.whenCalledWith(userB.address, userA.address).returns(true)
+      await manager.connect(userA).claim(userB.address, false)
+      expect(dsu.transfer).to.have.been.calledWith(userA.address, FIXED_FEE_AMOUNT.mul(1e12))
+    })
+
+    it('non-operator can not claim fee', async () => {
+      marketFactory.operators.whenCalledWith(userB.address, userA.address).returns(false)
+      await expect(manager.connect(userA).claim(userB.address, false)).to.be.revertedWithCustomError(
+        manager,
+        'ManagerNotOperatorError',
+      )
+    })
+
+    it('fee can be unwrapped', async () => {
+      usdc.balanceOf.reset()
+      usdc.balanceOf.returnsAtCall(0, 0)
+      usdc.balanceOf.returnsAtCall(1, FIXED_FEE_AMOUNT)
+      usdc.transfer.returns(true)
+      await manager.connect(userB).claim(userB.address, true)
+      expect(reserve.redeem).to.have.been.calledWith(FIXED_FEE_AMOUNT.mul(1e12))
+      expect(usdc.transfer).to.have.been.calledWith(userB.address, FIXED_FEE_AMOUNT)
+    })
+  })
+
   describe('#signed-messages', () => {
     let currentTime: BigNumber
     let lastNonce = 0
@@ -358,7 +468,7 @@ describe('Manager', () => {
       currentTime = BigNumber.from(await currentBlockTimestamp())
     })
 
-    function createActionMessage(userAddress = userA.address, signerAddress = userAddress, expiresInSeconds = 18) {
+    function createActionMessage(userAddress = userA.address, signerAddress = userAddress, expiresInSeconds = 30) {
       return {
         action: {
           market: market.address,
@@ -457,6 +567,24 @@ describe('Manager', () => {
         .withArgs(market.address, userA.address, message.action.orderId)
     })
 
+    it('unauthorized signer cannot cancel an order', async () => {
+      // place an order
+      advanceOrderId()
+      await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
+
+      // create and sign a message requesting cancellation of the order
+      const message = {
+        ...createActionMessage(market.address, userB.address),
+      }
+      const signature = await signCancelOrderAction(userA, verifier, message)
+
+      // should revert when keeper attempts to process the request
+      await expect(manager.connect(keeper).cancelOrderWithSignature(message, signature)).to.be.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignerError',
+      )
+    })
+
     it('keeper can execute short order placed from a signed message', async () => {
       // directly place and execute a maker order
       advanceOrderId()
@@ -479,6 +607,8 @@ describe('Manager', () => {
       const signature = await signPlaceOrderAction(userB, verifier, message)
 
       // keeper places the order
+      await createCollateralAccount(userB)
+      await marketFactory.operators.whenCalledWith(userB.address, manager.address).returns(true)
       await expect(manager.connect(keeper).placeOrderWithSignature(message, signature))
         .to.emit(manager, 'TriggerOrderPlaced')
         .withArgs(market.address, userB.address, message.order, nextOrderId)

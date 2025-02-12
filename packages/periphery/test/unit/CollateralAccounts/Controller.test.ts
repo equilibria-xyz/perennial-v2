@@ -29,6 +29,10 @@ import { deployController, mockMarket } from '../../helpers/setupHelpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { IMarket } from '@perennial/v2-oracle/types/generated'
 import { IMarketFactory } from '@perennial/v2-core/types/generated'
+import {
+  RebalanceConfigChangeStruct,
+  RebalanceConfigStruct,
+} from '../../../types/generated/contracts/CollateralAccounts/AccountVerifier'
 
 const { ethers } = HRE
 
@@ -36,6 +40,9 @@ describe('Controller', () => {
   let controller: Controller
   let marketFactory: FakeContract<IMarketFactory>
   let verifier: IAccountVerifier
+  let usdc: FakeContract<IERC20>
+  let dsu: FakeContract<IERC20>
+  let reserve: FakeContract<IEmptySetReserve>
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
@@ -86,9 +93,9 @@ describe('Controller', () => {
 
   const fixture = async () => {
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
-    const usdc = await smock.fake<IERC20>('IERC20')
-    const dsu = await smock.fake<IERC20>('IERC20')
-    const reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
+    usdc = await smock.fake<IERC20>('IERC20')
+    dsu = await smock.fake<IERC20>('IERC20')
+    reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
 
     controller = await deployController(owner, usdc.address, dsu.address, reserve.address, marketFactory.address)
@@ -219,7 +226,7 @@ describe('Controller', () => {
       return eventArgs.group
     }
 
-    function verifyConfig(actual: RebalanceConfigStructOutput, expected: { target: BigNumber; threshold: BigNumber }) {
+    function verifyConfig(actual: RebalanceConfigStruct, expected: { target: BigNumber; threshold: BigNumber }) {
       expect(actual.target).to.equal(expected.target)
       expect(actual.threshold).to.equal(expected.threshold)
     }
@@ -696,7 +703,7 @@ describe('Controller', () => {
       const market = await mockMarket(weth.address)
 
       // create a collateral account
-      createCollateralAccount(userA)
+      await createCollateralAccount(userA)
 
       // attempt a market transfer to the unsupported market
       const marketTransferMessage = {
@@ -713,6 +720,56 @@ describe('Controller', () => {
       await expect(
         controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature),
       ).to.be.revertedWithCustomError(controller, 'ControllerUnsupportedMarketError')
+    })
+
+    it('allows operator to charge a fee', async () => {
+      // create a collateral account
+      const accountA = await createCollateralAccount(userA)
+
+      // reverts if caller is not an operator
+      const FEE = parse6decimal('0.1')
+      marketFactory.operators.whenCalledWith(userA.address, userB.address).returns(false)
+      await expect(controller.connect(userB).chargeFee(userA.address, FEE)).to.be.revertedWithCustomError(
+        controller,
+        'ControllerNotOperatorError',
+      )
+
+      // transfers DSU to caller if balance is sufficient
+      marketFactory.operators.whenCalledWith(userA.address, userB.address).returns(true)
+      dsu.balanceOf.whenCalledWith(accountA.address).returns(FEE.mul(1e12))
+      dsu.transferFrom.whenCalledWith(accountA.address, userB.address, FEE.mul(1e12)).returns(true)
+      await expect(controller.connect(userB).chargeFee(userA.address, FEE)).to.not.be.reverted
+      expect(dsu.transferFrom).to.have.been.calledWith(accountA.address, userB.address, FEE.mul(1e12))
+
+      // wraps USDC if balance is insufficient
+      usdc.balanceOf.whenCalledWith(accountA.address).returns(FEE.mul(2).div(3)) // 2/3 of the fee
+      dsu.balanceOf.whenCalledWith(accountA.address).returns(FEE.mul(1e12).div(2)) // half of the fee
+      await controller.connect(userB).chargeFee(userA.address, FEE)
+      expect(reserve.mint).to.have.been.calledWith(FEE.mul(1e12) /*.div(2)*/) // TODO: div(2) when merging to v2.4 branch
+      expect(dsu.transferFrom).to.have.been.calledWith(accountA.address, userB.address, FEE.mul(1e12))
+    })
+  })
+
+  describe('#withdrawal', () => {
+    it('unwraps when DSU reserve redeemPrice is not 1', async () => {
+      // create a collateral account with 100 DSU
+      const accountA = await createCollateralAccount(userA)
+      const dsuBalance = utils.parseEther('100')
+      usdc.balanceOf.reset()
+      dsu.balanceOf.whenCalledWith(accountA.address).returns(dsuBalance)
+      usdc.transfer.returns(true)
+
+      // exchange rate is not 1:1
+      // (future implementations of reserve.redeem will return amount unwrapped)
+      const usdcRedeemed = parse6decimal('99.5')
+      reserve.redeem.whenCalledWith(dsuBalance).returns(usdcRedeemed)
+      usdc.balanceOf.returnsAtCall(0, 0)
+      usdc.balanceOf.returnsAtCall(1, usdcRedeemed)
+
+      // user unwraps and withdraws all possible
+      await expect(accountA.connect(userA).withdraw(parse6decimal('100'), true)).to.not.be.reverted
+      expect(reserve.redeem).to.have.been.calledWith(dsuBalance)
+      expect(usdc.transfer).to.have.been.calledWith(userA.address, usdcRedeemed)
     })
   })
 

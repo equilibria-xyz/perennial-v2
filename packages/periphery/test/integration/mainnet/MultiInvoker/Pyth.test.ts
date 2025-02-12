@@ -1,6 +1,5 @@
 import { expect } from 'chai'
 import { BigNumber, utils } from 'ethers'
-import { Address } from 'hardhat-deploy/dist/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { time } from '../../../../../common/testutil'
@@ -19,7 +18,6 @@ import {
 import { InstanceVars, PythVAAVars } from './setupHelpers'
 import { createMarket } from '../../../helpers/marketHelpers'
 import { PYTH_ETH_USD_PRICE_FEED } from '../../../helpers/oracleHelpers'
-import { currentBlockTimestamp } from '../../../../../common/testutil/time'
 const { ethers } = HRE
 
 export function RunPythOracleTests(
