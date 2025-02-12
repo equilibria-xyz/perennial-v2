@@ -33,7 +33,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     log: true,
     autoMine: true,
   })
-  await deploy('VaultFactoryImpl', {
+  await deploy('MakerVaultFactoryImpl', {
     contract: 'VaultFactory',
     args: [(await get('MarketFactory')).address, vaultImpl.address, INITIAL_AMOUNT],
     from: deployer,
@@ -52,10 +52,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // Deploy Factory
   const vaultFactoryInterface = new ethers.utils.Interface(['function initialize()'])
-  await deploy('VaultFactory', {
+  await deploy('MakerVaultFactory', {
     contract: 'TransparentUpgradeableProxy',
     args: [
-      (await get('VaultFactoryImpl')).address,
+      (await get('MakerVaultFactoryImpl')).address,
       proxyAdmin.address,
       vaultFactoryInterface.encodeFunctionData('initialize', []),
     ],
@@ -64,7 +64,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     log: true,
     autoMine: true,
   })
-  const vaultFactory = new VaultFactory__factory(deployerSigner).attach((await get('VaultFactory')).address)
+  const vaultFactory = new VaultFactory__factory(deployerSigner).attach((await get('MakerVaultFactory')).address)
 
   if ((await vaultFactory.pauser()) === constants.AddressZero && !!labsMultisig) {
     process.stdout.write('Updating protocol pauser...')

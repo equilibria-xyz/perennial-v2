@@ -39,7 +39,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     (await get('USDC')).address,
     (await get('DSU')).address,
     (await get('MarketFactory')).address,
-    (await get('VaultFactory')).address,
+    (await get('MakerVaultFactory')).address,
     (await get('SolverVaultFactory')).address,
     (await getOrNull('DSUBatcher'))?.address ?? ethers.constants.AddressZero,
     (await get('DSUReserve')).address,
@@ -74,7 +74,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const multiInvoker = MultiInvoker__factory.connect((await get('MultiInvoker')).address, deployerSigner)
   const DSU = IERC20__factory.connect((await get('DSU')).address, deployerSigner)
   const marketFactory = new MarketFactory__factory(deployerSigner).attach((await get('MarketFactory')).address)
-  const vaultFactory = new VaultFactory__factory(deployerSigner).attach((await get('VaultFactory')).address)
+  const vaultFactory = new VaultFactory__factory(deployerSigner).attach((await get('MakerVaultFactory')).address)
   const markets = await marketFactory.queryFilter(marketFactory.filters.InstanceRegistered())
   const vaults = await vaultFactory.queryFilter(vaultFactory.filters.InstanceRegistered())
   const approvalTargets = [...markets, ...vaults].map(e => e.args.instance)

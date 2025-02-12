@@ -8,6 +8,7 @@ export const ALL_CHAINS = [
   'arbitrumGoerli',
   'arbitrumSepolia',
   'baseGoerli',
+  'perennial',
   'perennialSepolia',
   'hardhat',
   'localhost',
@@ -16,7 +17,7 @@ export const ALL_CHAINS = [
 export type SupportedChains = typeof ALL_CHAINS
 export type SupportedChain = SupportedChains[number]
 
-export const MAINNETS: SupportedChain[] = ['mainnet', 'arbitrum', 'optimism', 'base']
+export const MAINNETS: SupportedChain[] = ['mainnet', 'arbitrum', 'optimism', 'base', 'perennial']
 export const TESTNETS: SupportedChain[] = [
   'goerli',
   'arbitrumGoerli',
@@ -30,7 +31,7 @@ export const ETHEREUM_NETS: SupportedChain[] = ['mainnet', 'goerli']
 export const ARBITRUM_NETS: SupportedChain[] = ['arbitrum', 'arbitrumGoerli', 'arbitrumSepolia']
 export const OPTIMISM_NETS: SupportedChain[] = ['optimism', 'optimismGoerli']
 export const BASE_NETS: SupportedChain[] = ['base', 'baseGoerli']
-export const PERENNIAL_NETS: SupportedChain[] = ['perennialSepolia']
+export const PERENNIAL_NETS: SupportedChain[] = ['perennial', 'perennialSepolia']
 
 export function isSupported(networkName: string): networkName is SupportedChain {
   return ALL_CHAINS.includes(networkName as SupportedChain)
@@ -41,6 +42,8 @@ export function getChainId(networkName: string): number {
   switch (networkName) {
     case 'mainnet':
       return 1
+    case 'perennial':
+      return 1424
     case 'perennialSepolia':
       return 60850
     case 'arbitrum':

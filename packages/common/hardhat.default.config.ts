@@ -35,6 +35,7 @@ const OPTIMISM_GOERLI_NODE_URL = process.env.OPTIMISM_GOERLI_NODE_URL || ''
 const ARBITRUM_GOERLI_NODE_URL = process.env.ARBITRUM_GOERLI_NODE_URL || ''
 const BASE_GOERLI_NODE_URL = process.env.BASE_GOERLI_NODE_URL || ''
 const ARBITRUM_SEPOLIA_NODE_URL = process.env.ARBITRUM_SEPOLIA_NODE_URL || ''
+const PERENNIAL_NODE_URL = process.env.PERENNIAL_NODE_URL || ''
 const PERENNIAL_SEPOLIA_NODE_URL = process.env.PERENNIAL_SEPOLIA_NODE_URL || ''
 
 const FORK_ENABLED = process.env.FORK_ENABLED === 'true' || false
@@ -72,6 +73,8 @@ function getUrl(networkName: SupportedChain): string {
       return ARBITRUM_SEPOLIA_NODE_URL
     case 'baseGoerli':
       return BASE_GOERLI_NODE_URL
+    case 'perennial':
+      return PERENNIAL_NODE_URL
     case 'perennialSepolia':
       return PERENNIAL_SEPOLIA_NODE_URL
     default:
@@ -149,9 +152,13 @@ export default function defaultConfig({
       arbitrum: createNetworkConfig('arbitrum'),
       optimism: createNetworkConfig('optimism'),
       base: createNetworkConfig('base'),
+      perennial: {
+        ...createNetworkConfig('perennial'),
+        gasPrice: 1000,
+      },
       perennialSepolia: {
         ...createNetworkConfig('perennialSepolia'),
-        gasPrice: 100000,
+        gasPrice: 1000,
       },
     },
     solidity: {
@@ -192,6 +199,7 @@ export default function defaultConfig({
         optimisticGoerli: getEtherscanApiConfig('optimismGoerli').apiKey,
         arbitrumGoerli: getEtherscanApiConfig('arbitrumGoerli').apiKey,
         arbitrumSepolia: getEtherscanApiConfig('arbitrumSepolia').apiKey,
+        perennial: 'foobar',
         perennialSepolia: 'foobar',
         // baseGoerli: getEtherscanApiConfig('baseGoerli').apiKey,
       },
@@ -213,11 +221,19 @@ export default function defaultConfig({
           },
         },
         {
+          network: 'perennial',
+          chainId: getChainId('perennial'),
+          urls: {
+            apiURL: 'https://explorer.perennial.foundation/api',
+            browserURL: 'https://explorer.perennial.foundation',
+          },
+        },
+        {
           network: 'perennialSepolia',
           chainId: getChainId('perennialSepolia'),
           urls: {
-            apiURL: 'https://explorer-perennial-testnet-op-base-tia-dphnnr04wr.t.conduit.xyz/api',
-            browserURL: 'https://explorer-perennial-testnet-op-base-tia-dphnnr04wr.t.conduit.xyz',
+            apiURL: 'https://explorer-sepolia.perennial.foundation/api',
+            browserURL: 'https://explorer-sepolia.perennial.foundation',
           },
         },
       ],
@@ -258,6 +274,7 @@ export default function defaultConfig({
         arbitrum: ['external/deployments/arbitrum', ...(externalDeployments?.arbitrum || [])],
         optimism: ['external/deployments/optimism', ...(externalDeployments?.optimism || [])],
         base: ['external/deployments/base', ...(externalDeployments?.base || [])],
+        perennial: ['external/deployments/perennial', ...(externalDeployments?.perennial || [])],
         perennialSepolia: ['external/deployments/perennialSepolia', ...(externalDeployments?.perennialSepolia || [])],
         hardhat: [
           FORK_ENABLED ? `external/deployments/${FORK_NETWORK}` : '',
