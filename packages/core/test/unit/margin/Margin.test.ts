@@ -405,6 +405,46 @@ describe('Margin', () => {
       expect(marketA.marginRequired).to.have.been.calledWith(user.address, constants.Zero)
     })
 
+    it('cannot meddle with state by calling isolate with 0 amount', async () => {
+      await deposit(user, parse6decimal('500'))
+
+      // cross marketA
+      let marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
+      await expect(margin.connect(marketSigner).handleMarketUpdate(user.address, 0))
+        .to.emit(margin, 'MarketCrossed')
+        .withArgs(user.address, marketA.address)
+      expect(await margin.isCrossed(user.address, marketA.address)).to.be.true
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.false
+
+      // marketB is neither crossed nor isolated, and a 0 isolate call shouldn't change that
+      expect(await margin.isCrossed(user.address, marketB.address)).to.be.false
+      expect(await margin.isIsolated(user.address, marketB.address)).to.be.false
+      await expect(margin.connect(user).isolate(user.address, marketB.address, constants.Zero)).to.not.be.reverted
+      expect(await margin.isCrossed(user.address, marketB.address)).to.be.false
+      expect(await margin.isIsolated(user.address, marketB.address)).to.be.false
+
+      // cross marketB
+      marketSigner = await impersonate.impersonateWithBalance(marketB.address, utils.parseEther('10'))
+      await expect(margin.connect(marketSigner).handleMarketUpdate(user.address, 0))
+        .to.emit(margin, 'MarketCrossed')
+        .withArgs(user.address, marketB.address)
+
+      // again, a 0 isolate call shouldn't change the state
+      await expect(margin.connect(user).isolate(user.address, marketB.address, constants.Zero)).to.not.be.reverted
+      expect(await margin.isCrossed(user.address, marketB.address)).to.be.true
+      expect(await margin.isIsolated(user.address, marketB.address)).to.be.false
+
+      // now let's actually isolate marketB
+      await margin.isolate(user.address, marketB.address, parse6decimal('300'))
+      expect(await margin.isCrossed(user.address, marketB.address)).to.be.false
+      expect(await margin.isIsolated(user.address, marketB.address)).to.be.true
+
+      // again, a 0 isolate call shouldn't change the state
+      await expect(margin.connect(user).isolate(user.address, marketB.address, constants.Zero)).to.not.be.reverted
+      expect(await margin.isCrossed(user.address, marketB.address)).to.be.false
+      expect(await margin.isIsolated(user.address, marketB.address)).to.be.true
+    })
+
     it('handles margin checks from market', async () => {
       const marketC = await fakeMarket()
       await deposit(user, parse6decimal('1000'))

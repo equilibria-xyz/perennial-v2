@@ -236,7 +236,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         }
     }
 
-    // TODO: either revert on amount==0, or handle all the corner cases which arise from allowing it
     /// @dev Implementation logic for adjusting isolated collateral, without settling market
     function _isolate(
         address account,
