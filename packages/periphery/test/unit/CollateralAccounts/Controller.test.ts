@@ -771,6 +771,49 @@ describe('Controller', () => {
       expect(reserve.redeem).to.have.been.calledWith(dsuBalance)
       expect(usdc.transfer).to.have.been.calledWith(userA.address, usdcRedeemed)
     })
+
+    it('unwraps when DSU balance sufficient but redeemPrice is not 1', async () => {
+      // create a collateral account with 100 DSU and 50 USDC
+      const accountA = await createCollateralAccount(userA)
+      const usdcBalance = parse6decimal('50')
+      usdc.balanceOf.reset()
+      dsu.balanceOf.whenCalledWith(accountA.address).returns(utils.parseEther('100'))
+      usdc.balanceOf.whenCalledWith(accountA.address).returns(usdcBalance)
+      usdc.transfer.returns(true)
+
+      // exchange rate is 1:0.9
+      const usdcRedeemed = parse6decimal('36')
+      reserve.redeem.whenCalledWith(utils.parseEther('40')).returns(usdcRedeemed)
+      usdc.balanceOf.returnsAtCall(0, usdcBalance)
+      usdc.balanceOf.returnsAtCall(1, usdcBalance.add(usdcRedeemed))
+
+      // user unwraps and withdraws
+      await expect(accountA.connect(userA).withdraw(parse6decimal('90'), true)).to.not.be.reverted
+      expect(reserve.redeem).to.have.been.calledWith(utils.parseEther('40'))
+      expect(usdc.transfer).to.have.been.calledWith(userA.address, parse6decimal('86'))
+    })
+
+    it('unwraps when DSU balance insufficient and redeemPrice is not 1', async () => {
+      // create a collateral account with 100 DSU and 50 USDC
+      const accountA = await createCollateralAccount(userA)
+      const dsuBalance = utils.parseEther('30')
+      const usdcBalance = parse6decimal('50')
+      usdc.balanceOf.reset()
+      dsu.balanceOf.whenCalledWith(accountA.address).returns(dsuBalance)
+      usdc.balanceOf.whenCalledWith(accountA.address).returns(usdcBalance)
+      usdc.transfer.returns(true)
+
+      // exchange rate is 1:0.9
+      const usdcRedeemed = parse6decimal('27')
+      reserve.redeem.whenCalledWith(dsuBalance).returns(usdcRedeemed)
+      usdc.balanceOf.returnsAtCall(0, usdcBalance)
+      usdc.balanceOf.returnsAtCall(1, usdcBalance.add(usdcRedeemed))
+
+      // user unwraps and withdraws
+      await expect(accountA.connect(userA).withdraw(parse6decimal('90'), true)).to.not.be.reverted
+      expect(reserve.redeem).to.have.been.calledWith(dsuBalance)
+      expect(usdc.transfer).to.have.been.calledWith(userA.address, usdcBalance.add(usdcRedeemed))
+    })
   })
 
   describe('#messaging', () => {
