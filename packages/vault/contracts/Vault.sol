@@ -50,9 +50,6 @@ abstract contract Vault is IVault, Instance {
     /// @dev Per-id accounting state variables
     mapping(uint256 => CheckpointStorage) private _checkpoints;
 
-    /// @dev DEPRECATED SLOT -- previously the mappings
-    bytes32 private __unused0__;
-
     /// @dev The vault's coordinator address (privileged role that can operate the vault's strategy)
     address public coordinator;
 

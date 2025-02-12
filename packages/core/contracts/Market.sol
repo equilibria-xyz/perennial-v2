@@ -39,14 +39,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The underlying token that the market settles in
     Token18 public token;
 
-    /// @dev DEPRECATED SLOT -- previously the reward token
-    bytes32 private __unused0__;
-
     /// @dev The oracle that provides the market price
     IOracleProvider public oracle;
-
-    /// @dev DEPRECATED SLOT -- previously the payoff provider
-    bytes32 private __unused1__;
 
     /// @dev Risk coordinator of the market
     address private coordinator;
@@ -63,17 +57,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev Current global position of the market
     PositionStorageGlobal private _position;
 
-    /// @dev DEPRECATED SLOT -- previously the global pending positions
-    bytes32 private __unused2__;
-
     /// @dev Current local state of each account
     mapping(address => LocalStorage) private _locals;
 
     /// @dev Current local position of each account
     mapping(address => PositionStorageLocal) private _positions;
-
-    /// @dev DEPRECATED SLOT -- previously the local pending positions
-    bytes32 private __unused3__;
 
     /// @dev The historical version accumulator data for each accessed version
     mapping(uint256 => VersionStorage) private _versions;
