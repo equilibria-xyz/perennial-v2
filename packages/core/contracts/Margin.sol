@@ -256,6 +256,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         bool deisolating = !oldIsolatedBalance.isZero() && newIsolatedBalance.isZero();
         // TODO: We could add logic here to support switching modes with a position.
         if ((isolating || deisolating) && _hasPosition(account, market)) revert MarginHasPosition();
+        bool decreasingIsolatedBalance = newIsolatedBalance.lt(oldIsolatedBalance);
 
         // If switching mode to isolated, remove from cross-margin collections
         if (isolating) _uncross(account, market);
@@ -273,7 +274,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         // TODO: Reduce storage reads by moving margin checks above storage updates, passing new balances into margin check methods
 
         // If reducing isolated balance (but not deisolating), ensure sufficient margin still exists for the market
-        if ((isolating || newIsolatedBalance.lt(oldIsolatedBalance)) && !_margined(account, market, UFixed6Lib.ZERO, Fixed6Lib.ZERO)) {
+        if ((isolating || decreasingIsolatedBalance) && !_margined(account, market, UFixed6Lib.ZERO, Fixed6Lib.ZERO)) {
             revert IMarket.MarketInsufficientMarginError();
         }
         // Ensure decreased cross-margin balance remains sufficient for crossed markets
@@ -281,9 +282,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
             revert IMarket.MarketInsufficientMarginError();
         }
 
-        // FIXME: Previous implementation does not check for stale prices when depositing more collateral
-        // If changing an existing isolated balance, ensure price is not stale
-        if (market.hasPosition(account) && market.stale()) {
+        // If decreasing an existing isolated balance with position, ensure price is not stale
+        if (market.hasPosition(account) && decreasingIsolatedBalance && market.stale()) {
             revert IMarket.MarketStalePriceError();
         }
 
