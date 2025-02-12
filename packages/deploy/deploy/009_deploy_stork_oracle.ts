@@ -25,7 +25,7 @@ export const L1_GAS_BUFFERS = {
 }
 
 export const DEFAULT_GRANULARITY = 10
-const SkipIfAlreadyDeployed = true
+const SkipIfAlreadyDeployed = false
 const log = (...args: unknown[]) => console.log('[Stork Oracle]', ...args)
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
@@ -90,7 +90,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     contract: 'StorkFactory',
     args: storkFactoryArgs,
     from: deployer,
-    skipIfAlreadyDeployed: false,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
     autoMine: true,
   })
@@ -106,7 +106,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     contract: 'TransparentUpgradeableProxy',
     args: storkFactoryProxyArgs,
     from: deployer,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    skipIfAlreadyDeployed: true,
     log: true,
     autoMine: true,
   })

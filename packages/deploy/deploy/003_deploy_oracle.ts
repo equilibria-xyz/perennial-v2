@@ -18,7 +18,7 @@ export const L1_GAS_BUFFERS = {
 
 export const DEFAULT_GRANULARITY = 10
 
-const SkipIfAlreadyDeployed = true
+const SkipIfAlreadyDeployed = false
 const log = (...args: unknown[]) => console.log('[Oracle]', ...args)
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre

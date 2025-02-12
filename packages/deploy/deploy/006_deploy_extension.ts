@@ -19,7 +19,7 @@ import { isArbitrum } from '../../common/testutil/network'
 import { L1_GAS_BUFFERS } from './003_deploy_oracle'
 import { TransparentUpgradeableProxyArgs } from './999_v2.3_migration'
 
-const SkipIfAlreadyDeployed = true
+const SkipIfAlreadyDeployed = false
 const log = (...args: unknown[]) => console.log('[Extension]', ...args)
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
@@ -40,6 +40,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     (await get('DSU')).address,
     (await get('MarketFactory')).address,
     (await get('VaultFactory')).address,
+    (await get('SolverVaultFactory')).address,
     (await getOrNull('DSUBatcher'))?.address ?? ethers.constants.AddressZero,
     (await get('DSUReserve')).address,
     1_500_000, // Full Order Commit uses about 1.5M gas
@@ -49,7 +50,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     contract: multiInvokerContract,
     args: multiInvokerArgs,
     from: deployer,
-    skipIfAlreadyDeployed: false,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
     autoMine: true,
   })
@@ -93,94 +94,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     await (await multiInvoker['invoke((uint8,bytes)[])'](approvalActions)).wait()
     process.stdout.write('complete\n')
   }
-  return
 
-  await deployTriggerOrders(hre)
   await deployCollateralAccounts(hre)
-}
-
-async function deployTriggerOrders(hre: HardhatRuntimeEnvironment) {
-  const { deployments, getNamedAccounts, ethers } = hre
-  const { deploy, get, getNetworkName } = deployments
-  const { deployer } = await getNamedAccounts()
-  const proxyAdmin = new ProxyAdmin__factory(await ethers.getSigner(deployer)).attach((await get('ProxyAdmin')).address)
-
-  log('Deploying Trigger Orders...')
-  log('  Deploying Verifier Impl...')
-  const orderVerifierArgs: Parameters<OrderVerifier__factory['deploy']> = [(await get('MarketFactory')).address]
-  await deploy('OrderVerifierImpl', {
-    contract: 'OrderVerifier',
-    from: deployer,
-    args: orderVerifierArgs,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
-    log: true,
-    autoMine: true,
-  })
-  log('  Deploying Verifier Proxy...')
-  const orderVerifierProxyArgs: TransparentUpgradeableProxyArgs = [
-    (await get('OrderVerifierImpl')).address,
-    proxyAdmin.address,
-    '0x',
-  ]
-  await deploy('OrderVerifier', {
-    contract: 'TransparentUpgradeableProxy',
-    from: deployer,
-    args: orderVerifierProxyArgs,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
-    log: true,
-    autoMine: true,
-  })
-
-  log('  Deploying Manager Impl...')
-  // TODO: Add Optimism once impl is ready
-  const managerContract = isArbitrum(getNetworkName()) ? 'Manager_Arbitrum' : 'Manager_Optimism'
-  const managerArgs: Parameters<Manager_Arbitrum__factory['deploy']> = [
-    (await get('USDC')).address,
-    (await get('DSU')).address,
-    (await get('DSUReserve')).address,
-    (await get('MarketFactory')).address,
-    (await get('OrderVerifier')).address,
-  ]
-  await deploy('ManagerImpl', {
-    contract: managerContract,
-    from: deployer,
-    args: managerArgs,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
-    log: true,
-    autoMine: true,
-  })
-  log('  Deploying Manager Proxy...')
-  const managerProxyArgs: TransparentUpgradeableProxyArgs = [
-    (await get('ManagerImpl')).address,
-    proxyAdmin.address,
-    Manager__factory.createInterface().encodeFunctionData('initialize', [
-      (await get('ChainlinkETHUSDFeed')).address,
-      {
-        // Unbuffered Keep Config (relayed messages), requires price commitment
-        multiplierBase: ethers.utils.parseEther('1.05'),
-        bufferBase: 788_000n, // buffer for withdrawing keeper fee from market
-        multiplierCalldata: 0n,
-        bufferCalldata: 35_200n,
-      },
-      {
-        // Buffered Keep Config (market transfers, rebalances)
-        multiplierBase: ethers.utils.parseEther('1.05'),
-        bufferBase: 788_000n, // for price commitment
-        multiplierCalldata: ethers.utils.parseEther('1.05'),
-        bufferCalldata: 35_200n,
-      },
-    ]),
-  ]
-  await deploy('Manager', {
-    contract: 'TransparentUpgradeableProxy',
-    from: deployer,
-    args: managerProxyArgs,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
-    log: true,
-    autoMine: true,
-  })
-
-  log('Done deploying Trigger Orders...')
+  await deployTriggerOrders(hre)
 }
 
 async function deployCollateralAccounts(hre: HardhatRuntimeEnvironment) {
@@ -224,12 +140,11 @@ async function deployCollateralAccounts(hre: HardhatRuntimeEnvironment) {
     contract: 'TransparentUpgradeableProxy',
     from: deployer,
     args: accountVerifierProxyArgs,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    skipIfAlreadyDeployed: true,
     log: true,
     autoMine: true,
   })
   log('  Deploying Controller Impl...')
-  // TODO: Add Optimism once impl is ready
   const controllerContract = isArbitrum(getNetworkName()) ? 'Controller_Arbitrum' : 'Controller_Optimism'
   const controllerArgs: Parameters<Controller_Arbitrum__factory['deploy']> = [
     (await get('AccountImpl')).address,
@@ -281,11 +196,95 @@ async function deployCollateralAccounts(hre: HardhatRuntimeEnvironment) {
     contract: 'TransparentUpgradeableProxy',
     from: deployer,
     args: controllerProxyArgs,
-    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    skipIfAlreadyDeployed: true,
     log: true,
     autoMine: true,
   })
   log('Done deploying Collateral Accounts...')
+}
+
+async function deployTriggerOrders(hre: HardhatRuntimeEnvironment) {
+  const { deployments, getNamedAccounts, ethers } = hre
+  const { deploy, get, getNetworkName } = deployments
+  const { deployer } = await getNamedAccounts()
+  const proxyAdmin = new ProxyAdmin__factory(await ethers.getSigner(deployer)).attach((await get('ProxyAdmin')).address)
+
+  log('Deploying Trigger Orders...')
+  log('  Deploying Verifier Impl...')
+  const orderVerifierArgs: Parameters<OrderVerifier__factory['deploy']> = [(await get('MarketFactory')).address]
+  await deploy('OrderVerifierImpl', {
+    contract: 'OrderVerifier',
+    from: deployer,
+    args: orderVerifierArgs,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('  Deploying Verifier Proxy...')
+  const orderVerifierProxyArgs: TransparentUpgradeableProxyArgs = [
+    (await get('OrderVerifierImpl')).address,
+    proxyAdmin.address,
+    '0x',
+  ]
+  await deploy('OrderVerifier', {
+    contract: 'TransparentUpgradeableProxy',
+    from: deployer,
+    args: orderVerifierProxyArgs,
+    skipIfAlreadyDeployed: true,
+    log: true,
+    autoMine: true,
+  })
+
+  log('  Deploying Manager Impl...')
+  const managerContract = isArbitrum(getNetworkName()) ? 'Manager_Arbitrum' : 'Manager_Optimism'
+  const managerArgs: Parameters<Manager_Arbitrum__factory['deploy']> = [
+    (await get('USDC')).address,
+    (await get('DSU')).address,
+    (await get('DSUReserve')).address,
+    (await get('MarketFactory')).address,
+    (await get('OrderVerifier')).address,
+    (await get('Controller')).address,
+  ]
+  await deploy('ManagerImpl', {
+    contract: managerContract,
+    from: deployer,
+    args: managerArgs,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  log('  Deploying Manager Proxy...')
+  const managerProxyArgs: TransparentUpgradeableProxyArgs = [
+    (await get('ManagerImpl')).address,
+    proxyAdmin.address,
+    Manager__factory.createInterface().encodeFunctionData('initialize', [
+      (await get('ChainlinkETHUSDFeed')).address,
+      {
+        // Unbuffered Keep Config (relayed messages), requires price commitment
+        multiplierBase: ethers.utils.parseEther('1.05'),
+        bufferBase: 788_000n, // buffer for withdrawing keeper fee from market
+        multiplierCalldata: 0n,
+        bufferCalldata: 35_200n,
+      },
+      {
+        // Buffered Keep Config (market transfers, rebalances)
+        multiplierBase: ethers.utils.parseEther('1.05'),
+        bufferBase: 788_000n, // for price commitment
+        multiplierCalldata: ethers.utils.parseEther('1.05'),
+        bufferCalldata: 35_200n,
+      },
+    ]),
+  ]
+  await deploy('Manager', {
+    contract: 'TransparentUpgradeableProxy',
+    from: deployer,
+    args: managerProxyArgs,
+    skipIfAlreadyDeployed: true,
+    log: true,
+    autoMine: true,
+  })
+
+  log('Done deploying Trigger Orders...')
 }
 
 export default func

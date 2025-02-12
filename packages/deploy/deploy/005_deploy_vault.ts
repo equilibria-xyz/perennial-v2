@@ -8,6 +8,7 @@ import { getLabsMultisig } from '../../common/testutil/constants'
 
 export const INITIAL_AMOUNT = BigNumber.from('5000000') // 5 DSU
 
+const SkipIfAlreadyDeployed = false
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
   const { deploy, get, getNetworkName } = deployments
@@ -18,10 +19,17 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
 
   // Deploy Implementations
-  const vaultImpl = await deploy('VaultImpl', {
-    contract: 'Vault',
+  const vaultImpl = await deploy('MakerVaultImpl', {
+    contract: 'MakerVault',
     from: deployer,
-    skipIfAlreadyDeployed: true,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  const solverVaultImpl = await deploy('SolverVaultImpl', {
+    contract: 'SolverVault',
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
     autoMine: true,
   })
@@ -29,7 +37,15 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     contract: 'VaultFactory',
     args: [(await get('MarketFactory')).address, vaultImpl.address, INITIAL_AMOUNT],
     from: deployer,
-    skipIfAlreadyDeployed: true,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
+    log: true,
+    autoMine: true,
+  })
+  await deploy('SolverVaultFactoryImpl', {
+    contract: 'VaultFactory',
+    args: [(await get('MarketFactory')).address, solverVaultImpl.address, INITIAL_AMOUNT],
+    from: deployer,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
     autoMine: true,
   })
@@ -56,6 +72,27 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     process.stdout.write('complete\n')
   }
 
+  const solverVaultFactoryInterface = new ethers.utils.Interface(['function initialize()'])
+  await deploy('SolverVaultFactory', {
+    contract: 'TransparentUpgradeableProxy',
+    args: [
+      (await get('SolverVaultFactoryImpl')).address,
+      proxyAdmin.address,
+      solverVaultFactoryInterface.encodeFunctionData('initialize', []),
+    ],
+    from: deployer,
+    skipIfAlreadyDeployed: true,
+    log: true,
+    autoMine: true,
+  })
+  const solverVaultFactory = new VaultFactory__factory(deployerSigner).attach((await get('SolverVaultFactory')).address)
+
+  if ((await solverVaultFactory.pauser()) === constants.AddressZero && !!labsMultisig) {
+    process.stdout.write('Updating protocol pauser...')
+    await solverVaultFactory.updatePauser(labsMultisig)
+    process.stdout.write('complete\n')
+  }
+
   // If mainnet, use timelock as owner
   const owner = isMainnet(getNetworkName()) ? (await get('TimelockController')).address : deployer
   if (owner === deployer) console.log('[WARNING] Testnet detected, timelock will not be set as owner')
@@ -64,6 +101,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   if ((await vaultFactory.owner()).toLowerCase() !== owner.toLowerCase()) {
     process.stdout.write('Setting owner...')
     await (await vaultFactory.updatePendingOwner(owner)).wait()
+    process.stdout.write('complete\n')
+  }
+  if ((await solverVaultFactory.owner()).toLowerCase() !== owner.toLowerCase()) {
+    process.stdout.write('Setting owner...')
+    await (await solverVaultFactory.updatePendingOwner(owner)).wait()
     process.stdout.write('complete\n')
   }
 }

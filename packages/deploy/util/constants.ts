@@ -67,10 +67,10 @@ export const DEFAULT_RISK_PARAMETERS = {
 }
 
 export const KeeperFactoryParameter = {
-  granularity: 10,
+  granularity: 5,
   oracleFee: 0,
-  validFrom: 4,
-  validTo: 12,
+  validFrom: 2,
+  validTo: 7,
 }
 
 export const BaseKeeperBuffer = 275_000n

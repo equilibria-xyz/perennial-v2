@@ -49,6 +49,9 @@ const config = defaultConfig({
     '@perennial/v2-vault/contracts/MakerVault.sol': {
       ...vaultOverrides['contracts/MakerVault.sol'],
     },
+    '@perennial/v2-vault/contracts/SolverVault.sol': {
+      ...vaultOverrides['contracts/SolverVault.sol'],
+    },
     '@perennial/v2-periphery/contracts/MultiInvoker/MultiInvoker.sol': {
       ...peripheryOverrides['contracts/MultiInvoker/MultiInvoker.sol'],
     },

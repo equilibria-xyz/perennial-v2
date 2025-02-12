@@ -29,8 +29,13 @@ export const MARKET_LIBRARIES: Array<{
   { name: 'RiskParameterStorageLib', contract: undefined },
   { name: 'VersionStorageLib', contract: undefined },
   { name: 'MagicValueLib', contract: undefined },
+  { name: 'GuaranteeStorageGlobalLib', contract: undefined },
+  { name: 'GuaranteeStorageLocalLib', contract: undefined },
+  { name: 'OrderStorageLocalLib', contract: undefined },
+  { name: 'OrderStorageGlobalLib', contract: undefined },
 ]
 
+const SkipIfAlreadyDeployed = false
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers } = hre
   const { deploy, get, getNetworkName } = deployments
@@ -41,17 +46,19 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const proxyAdmin = new ProxyAdmin__factory(deployerSigner).attach((await get('ProxyAdmin')).address)
 
   // Deploy Libraries
+  for (const library of MARKET_LIBRARIES) {
+    await deploy(library.name, {
+      contract: library.contract,
+      from: deployer,
+      skipIfAlreadyDeployed: false, // Always deploy libraries
+      log: true,
+      autoMine: true,
+    })
+  }
+
   const marketLibrariesBuilt: Libraries = {}
   for (const library of MARKET_LIBRARIES) {
-    marketLibrariesBuilt[library.name] = (
-      await deploy(library.name, {
-        contract: library.contract,
-        from: deployer,
-        skipIfAlreadyDeployed: true,
-        log: true,
-        autoMine: true,
-      })
-    ).address
+    marketLibrariesBuilt[library.name] = (await get(library.name)).address
   }
 
   // Deploy Implementations
@@ -60,7 +67,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     contract: 'Market',
     from: deployer,
     args: marketImplArgs,
-    skipIfAlreadyDeployed: true,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
     autoMine: true,
     libraries: marketLibrariesBuilt,
@@ -74,7 +81,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     contract: 'MarketFactory',
     args: marketFactoryArgs,
     from: deployer,
-    skipIfAlreadyDeployed: true,
+    skipIfAlreadyDeployed: SkipIfAlreadyDeployed,
     log: true,
     autoMine: true,
   })
@@ -98,7 +105,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Initialize the verifier with the market factory address
   console.log('Initializing verifier...')
   const verifier = new Verifier__factory(deployerSigner).attach((await get('Verifier')).address)
-  await verifier.initialize((await get('MarketFactory')).address)
+  if ((await verifier.marketFactory()).toLowerCase() !== (await get('MarketFactory')).address.toLowerCase()) {
+    await verifier.initialize((await get('MarketFactory')).address)
+  }
 
   if ((await marketFactory.parameter()).maxFee.eq(0)) {
     process.stdout.write('Updating protocol parameter...')
