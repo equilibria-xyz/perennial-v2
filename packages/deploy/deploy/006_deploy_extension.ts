@@ -95,6 +95,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     process.stdout.write('complete\n')
   }
 
+  // Enable MultiInvoker as an extension
+  if (!(await marketFactory.callStatic.extensions(multiInvoker.address))) {
+    await marketFactory.connect(deployerSigner).updateExtension(multiInvoker.address, true)
+  }
+
   await deployCollateralAccounts(hre)
   await deployTriggerOrders(hre)
 }

@@ -4,31 +4,28 @@ export const cmsqETHOracleID = utils.id('oracle-cmsq-eth') // 0x002aa13b58df1c48
 export const msqBTCOracleID = utils.id('oracle-msq-btc') // 0x403d2f23c2015aee67e9311896907cc05c139b2c771a92ae48a2c0e50e6883a4
 
 export const DEFAULT_PROTOCOL_PARAMETER = {
-  protocolFee: 0,
-  maxFee: utils.parseUnits('0.002', 6), // 0.2%
-  maxLiquidationFee: utils.parseUnits('50', 6), // $50
-  maxCut: utils.parseUnits('0.1', 6), // 10%
-  maxRate: utils.parseUnits('5.00', 6), // 500%
-  minMaintenance: utils.parseUnits('0.004', 6), // 0.4%
-  minEfficiency: utils.parseUnits('0.25', 6), // 25%
-  referralFee: 0,
-  maxStaleAfter: 7200, // 2 hours
   minScale: utils.parseUnits('0.04', 6),
+  maxFee: 30000,
+  maxLiquidationFee: 50000000,
+  maxCut: 130000,
+  maxRate: 15000000,
+  minMaintenance: 4000,
+  minEfficiency: 250000,
+  referralFee: utils.parseUnits('0.40', 6),
+  maxStaleAfter: 3600, // 1 hour
 }
 
 export const DEFAULT_MARKET_PARAMETER = {
-  fundingFee: utils.parseUnits('0.05', 6),
-  interestFee: utils.parseUnits('0.05', 6),
-  positionFee: utils.parseUnits('0.05', 6),
-  oracleFee: 0,
-  riskFee: utils.parseUnits('1', 6),
+  fundingFee: utils.parseUnits('0.10', 6), // Overriden in migration to current market value
+  interestFee: utils.parseUnits('0.10', 6), // Overriden in migration to current market value
+  makerFee: utils.parseUnits('0', 6),
+  takerFee: utils.parseUnits('0.0002', 6),
+  riskFee: utils.parseUnits('0.25', 6),
   maxPendingGlobal: 12,
   maxPendingLocal: 6,
-  settlementFee: utils.parseUnits('1.5', 6),
-  makerCloseAlways: false,
-  takerCloseAlways: true,
   closed: false,
   settle: false,
+  maxPriceDeviation: utils.parseUnits('0.15', 6),
 }
 
 export const DEFAULT_RISK_PARAMETERS = {
