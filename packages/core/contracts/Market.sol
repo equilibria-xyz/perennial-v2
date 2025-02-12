@@ -39,14 +39,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The underlying token that the market settles in
     Token18 public token;
 
-    /// @dev DEPRECATED SLOT -- previously the reward token
-    bytes32 private __unused0__;
-
     /// @dev The oracle that provides the market price
     IOracleProvider public oracle;
-
-    /// @dev DEPRECATED SLOT -- previously the payoff provider
-    bytes32 private __unused1__;
 
     /// @dev Risk coordinator of the market
     address private coordinator;
@@ -63,17 +57,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev Current global position of the market
     PositionStorageGlobal private _position;
 
-    /// @dev DEPRECATED SLOT -- previously the global pending positions
-    bytes32 private __unused2__;
-
     /// @dev Current local state of each account
     mapping(address => LocalStorage) private _locals;
 
     /// @dev Current local position of each account
     mapping(address => PositionStorageLocal) private _positions;
-
-    /// @dev DEPRECATED SLOT -- previously the local pending positions
-    bytes32 private __unused3__;
 
     /// @dev The historical version accumulator data for each accessed version
     mapping(uint256 => VersionStorage) private _versions;
@@ -703,10 +691,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             true,
             updateContext.orderReferralFee
         );
-        Guarantee memory newGuarantee; // no guarantee is created for a market order
 
         // process update
-        _updateAndStore(context, updateContext, newOrder, newGuarantee, referrer, address(0));
+        _updateAndStore(context, updateContext, newOrder, GuaranteeLib.fresh(), referrer, address(0));
     }
 
     /// @notice Updates the current position with a new order
@@ -726,16 +713,16 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private notSettleOnly(context) {
         // advance to next id if applicable
         if (context.currentTimestamp > updateContext.orderLocal.timestamp) {
-            updateContext.orderLocal.next(context.currentTimestamp);
-            updateContext.guaranteeLocal.next();
+            updateContext.orderLocal = OrderLib.fresh(context.currentTimestamp);
+            updateContext.guaranteeLocal = GuaranteeLib.fresh();
             updateContext.liquidator = address(0);
             updateContext.orderReferrer = address(0);
             updateContext.guaranteeReferrer = address(0);
             context.local.currentId++;
         }
         if (context.currentTimestamp > updateContext.orderGlobal.timestamp) {
-            updateContext.orderGlobal.next(context.currentTimestamp);
-            updateContext.guaranteeGlobal.next();
+            updateContext.orderGlobal = OrderLib.fresh(context.currentTimestamp);
+            updateContext.guaranteeGlobal = GuaranteeLib.fresh();
             context.global.currentId++;
         }
 
@@ -869,13 +856,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private {
         (OracleVersion memory oracleVersion, OracleReceipt memory oracleReceipt) = oracle.at(newOrderTimestamp);
         context.global.overrideIfZero(oracleVersion);
-        Guarantee memory newGuarantee = _guarantee[newOrderId].read();
+        Guarantee memory newGuarantee; // default to fresh guarantee
 
         // if latest timestamp is more recent than order timestamp, sync the order data
-        if (newOrderTimestamp > newOrder.timestamp) {
-            newOrder.next(newOrderTimestamp);
-            newGuarantee.next();
-        }
+        if (newOrderTimestamp > newOrder.timestamp) newOrder = OrderLib.fresh(newOrderTimestamp);
+        else newGuarantee = _guarantee[newOrderId].read();
 
         context.pendingGlobal.sub(newOrder);
 
@@ -914,13 +899,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     ) private {
         Version memory versionFrom = _versions[context.latestPositionLocal.timestamp].read();
         Version memory versionTo = _versions[newOrderTimestamp].read();
-        Guarantee memory newGuarantee = _guarantees[context.account][newOrderId].read();
+        Guarantee memory newGuarantee; // default to fresh guarantee
 
         // if latest timestamp is more recent than order timestamp, sync the order data
-        if (newOrderTimestamp > newOrder.timestamp) {
-            newOrder.next(newOrderTimestamp);
-            newGuarantee.next();
-        }
+        if (newOrderTimestamp > newOrder.timestamp) newOrder = OrderLib.fresh(newOrderTimestamp);
+        else newGuarantee = _guarantees[context.account][newOrderId].read();
 
         context.pendingLocal.sub(newOrder);
 
