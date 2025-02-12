@@ -1220,5 +1220,27 @@ describe('Order', () => {
         expect(await order.crossesZero()).to.equal(false)
       })
     })
+
+    describe('#fresh', () => {
+      it('creates a fresh order', async () => {
+        await order.store(validStoredOrder)
+        await order.fresh(123)
+        const result = await order.read()
+
+        expect(result.timestamp).to.equal(123)
+        expect(result.orders).to.equal(0)
+        expect(result.makerPos).to.equal(0)
+        expect(result.makerNeg).to.equal(0)
+        expect(result.longPos).to.equal(0)
+        expect(result.longNeg).to.equal(0)
+        expect(result.shortPos).to.equal(0)
+        expect(result.shortNeg).to.equal(0)
+        expect(result.collateral).to.equal(0)
+        expect(result.protection).to.equal(0)
+        expect(result.invalidation).to.equal(0)
+        expect(result.makerReferral).to.equal(0)
+        expect(result.takerReferral).to.equal(0)
+      })
+    })
   }
 })

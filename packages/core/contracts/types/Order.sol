@@ -69,16 +69,10 @@ library OrderLib {
         return latestVersion.timestamp >= self.timestamp;
     }
 
-    /// @notice Prepares the next order from the current order
-    /// @param self The order object to update
+    /// @notice Prepares a fresh order with the current timestamp
     /// @param timestamp The current timestamp
-    function next(Order memory self, uint256 timestamp) internal pure  {
-        (self.makerReferral, self.takerReferral) =
-            (UFixed6Lib.ZERO, UFixed6Lib.ZERO);
-        (self.makerPos, self.makerNeg, self.longPos, self.longNeg, self.shortPos, self.shortNeg) =
-            (UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO, UFixed6Lib.ZERO);
-        (self.timestamp, self.orders, self.collateral, self.protection, self.invalidation) =
-            (timestamp, 0, Fixed6Lib.ZERO, 0, 0);
+    function fresh(uint256 timestamp) internal pure returns (Order memory newOrder) {
+        newOrder.timestamp = timestamp;
     }
 
     /// @notice Invalidates the non-guarantee portion of the order
