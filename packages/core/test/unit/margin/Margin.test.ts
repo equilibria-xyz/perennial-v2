@@ -34,11 +34,20 @@ describe('Margin', () => {
   let marketFactory: FakeContract<IMarketFactory>
   let marketA: FakeContract<IMarket>
   let marketB: FakeContract<IMarket>
+  let oracle: FakeContract<IOracleProvider>
 
   function fakeAuthorization(account: SignerWithAddress, sender: SignerWithAddress, isOperator = true) {
     marketFactory.authorization
       .whenCalledWith(account.address, sender.address, constants.AddressZero, constants.AddressZero)
       .returns([isOperator, false, constants.Zero])
+  }
+
+  async function fakeMarket(): Promise<FakeContract<IMarket>> {
+    const market = await smock.fake<IMarket>('IMarket')
+    market.factory.whenCalledWith().returns(marketFactory.address)
+    market.oracle.whenCalledWith().returns(oracle.address)
+    market.stale.returns(false)
+    return market
   }
 
   beforeEach(async () => {
@@ -48,21 +57,15 @@ describe('Margin', () => {
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     marketFactory.authorization.returns([true, false, constants.Zero])
 
-    const oracle = await smock.fake<IOracleProvider>('IOracleProvider')
+    oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     oracle.latest.whenCalledWith().returns({
       timestamp: BigNumber.from(1567310400),
       price: constants.Zero,
       valid: true,
     })
 
-    marketA = await smock.fake<IMarket>('IMarket')
-    marketA.factory.whenCalledWith().returns(marketFactory.address)
-    marketA.oracle.whenCalledWith().returns(oracle.address)
-    marketA.stale.returns(false)
-    marketB = await smock.fake<IMarket>('IMarket')
-    marketB.factory.whenCalledWith().returns(marketFactory.address)
-    marketB.oracle.whenCalledWith().returns(oracle.address)
-    marketB.stale.returns(false)
+    marketA = await fakeMarket()
+    marketB = await fakeMarket()
   })
 
   describe('normal operation', async () => {
@@ -402,11 +405,8 @@ describe('Margin', () => {
       expect(marketA.marginRequired).to.have.been.calledWith(user.address, constants.Zero)
     })
 
-    // FIXME: something in this test fscks up the first isolate call in the next test
-    it.skip('handles margin checks from market', async () => {
-      const marketC = await smock.fake<IMarket>('IMarket')
-      marketC.factory.whenCalledWith().returns(marketFactory.address)
-      marketC.stale.returns(false)
+    it('handles margin checks from market', async () => {
+      const marketC = await fakeMarket()
       await deposit(user, parse6decimal('1000'))
 
       // user isolates funds for marketA, leaves marketB and marketC cross-margin
@@ -429,6 +429,8 @@ describe('Margin', () => {
       // 300 < 400, should return false
       marketA.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('400'))
       expect(await margin.connect(marketSignerA).margined(user.address, constants.Zero, constants.Zero)).to.be.false
+      expect(marketB.marginRequired).to.not.have.been.called
+      expect(marketC.marginRequired).to.not.have.been.called
 
       // simulate cross-margin check for marketsB and marketC
       // 750 > 700, should return false
@@ -445,9 +447,57 @@ describe('Margin', () => {
       expect(await margin.connect(marketSignerC).margined(user.address, constants.Zero, constants.Zero)).to.be.true
     })
 
-    // TODO: handles maintenance checks from market
+    it('handles maintenance checks from market', async () => {
+      // HACK: recreate marketA as an impersonateWithBalance from a previous test breaks the fake contract
+      marketA = await fakeMarket()
+      const marketC = await fakeMarket()
+      await deposit(user, parse6decimal('1000'))
+
+      // again, user isolates funds for marketA, leaves marketB and marketC cross-margin
+      await margin.isolate(user.address, marketA.address, parse6decimal('400'))
+      const marketSignerB = await impersonate.impersonateWithBalance(marketB.address, utils.parseEther('10'))
+      await expect(margin.connect(marketSignerB).handleMarketUpdate(user.address, 0))
+        .to.emit(margin, 'MarketCrossed')
+        .withArgs(user.address, marketB.address)
+      const marketSignerC = await impersonate.impersonateWithBalance(marketC.address, utils.parseEther('10'))
+      await expect(margin.connect(marketSignerC).handleMarketUpdate(user.address, 0))
+        .to.emit(margin, 'MarketCrossed')
+        .withArgs(user.address, marketC.address)
+
+      // simulate maintenance check for cross-margin marketsB and marketC
+      // 650 > 600, should return false
+      marketB.maintenanceRequired.whenCalledWith(user.address).returns(parse6decimal('320'))
+      marketC.maintenanceRequired.whenCalledWith(user.address).returns(parse6decimal('330'))
+      expect(await margin.connect(marketSignerB).maintained(user.address)).to.be.false
+      expect(marketB.maintenanceRequired).to.have.been.calledWith(user.address)
+      expect(marketC.maintenanceRequired).to.have.been.calledWith(user.address)
+      expect(await margin.connect(marketSignerC).maintained(user.address)).to.be.false
+      // 575 < 600, should return true
+      marketB.maintenanceRequired.whenCalledWith(user.address).returns(parse6decimal('250'))
+      marketC.maintenanceRequired.whenCalledWith(user.address).returns(parse6decimal('325'))
+      expect(await margin.connect(marketSignerB).maintained(user.address)).to.be.true
+      expect(await margin.connect(marketSignerC).maintained(user.address)).to.be.true
+      expect(marketA.maintenanceRequired).to.not.have.been.called
+
+      // simulate isolated maintenance check for marketA
+      marketB.maintenanceRequired.reset()
+      marketC.maintenanceRequired.reset()
+      const marketSignerA = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
+      // 300 < 400, should return true
+      marketA.maintenanceRequired.whenCalledWith(user.address).returns(parse6decimal('300'))
+      expect(await margin.connect(marketSignerA).maintained(user.address)).to.be.true
+      expect(marketA.maintenanceRequired).to.have.been.calledWith(user.address)
+      // 500 > 400, should return false
+      marketA.maintenanceRequired.whenCalledWith(user.address).returns(parse6decimal('500'))
+      expect(await margin.connect(marketSignerA).maintained(user.address)).to.be.false
+      expect(marketA.maintenanceRequired).to.have.been.calledWith(user.address)
+      expect(marketB.maintenanceRequired).to.not.have.been.called
+      expect(marketC.maintenanceRequired).to.not.have.been.called
+    })
 
     it('reverts if price stale when deisolating funds', async () => {
+      // HACK: recreate marketA as an impersonateWithBalance from a previous test breaks the fake contract
+      marketA = await fakeMarket()
       await deposit(user, parse6decimal('500'))
 
       // isolate some funds
