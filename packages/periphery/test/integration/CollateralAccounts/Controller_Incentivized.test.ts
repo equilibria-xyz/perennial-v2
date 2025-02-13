@@ -8,7 +8,16 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { advanceBlock, currentBlockTimestamp } from '../../../../common/testutil/time'
 import { getEventArguments } from '../../../../common/testutil/transaction'
 
-import { DEFAULT_GUARANTEE, DEFAULT_ORDER, expectOrderEq, parse6decimal, Take } from '../../../../common/testutil/types'
+import {
+  DEFAULT_GUARANTEE,
+  DEFAULT_ORDER,
+  expectGuaranteeEq,
+  expectOrderEq,
+  Fill,
+  Intent,
+  parse6decimal,
+  Take,
+} from '../../../../common/testutil/types'
 import {
   Account,
   Account__factory,
@@ -26,6 +35,7 @@ import {
   signMarketTransfer,
   signRebalanceConfigChange,
   signRelayedAccessUpdateBatch,
+  signRelayedFill,
   signRelayedGroupCancellation,
   signRelayedNonceCancellation,
   signRelayedOperatorUpdate,
@@ -35,7 +45,9 @@ import {
 } from '../../helpers/CollateralAccounts/eip712'
 import {
   signAccessUpdateBatch,
+  signFill,
   signGroupCancellation,
+  signIntent,
   signCommon as signNonceCancellation,
   signOperatorUpdate,
   signSignerUpdate,
@@ -45,7 +57,10 @@ import { Verifier, Verifier__factory } from '@perennial/v2-core/types/generated'
 import { AggregatorV3Interface } from '@perennial/v2-oracle/types/generated'
 import { DeploymentVars } from './setupTypes'
 import { advanceToPrice } from '../../helpers/oracleHelpers'
-import { RelayedTakeStruct } from '../../../../types/generated/contracts/CollateralAccounts/AccountVerifier'
+import {
+  RelayedTakeStruct,
+  RelayedFillStruct,
+} from '../../../../types/generated/contracts/CollateralAccounts/AccountVerifier'
 
 const { ethers } = HRE
 
@@ -88,6 +103,7 @@ export function RunIncentivizedTests(
     let userA: SignerWithAddress
     let userB: SignerWithAddress
     let userC: SignerWithAddress
+    let userD: SignerWithAddress
     let keeper: SignerWithAddress
     let receiver: SignerWithAddress
     let lastNonce = 0
@@ -206,7 +222,7 @@ export function RunIncentivizedTests(
 
     const fixture = async () => {
       // deploy the protocol
-      ;[owner, userA, userB, userC, keeper, receiver] = await ethers.getSigners()
+      ;[owner, userA, userB, userC, userD, keeper, receiver] = await ethers.getSigners()
       deployment = await deployProtocol(owner, true, true, TX_OVERRIDES)
       dsu = deployment.dsu
       usdc = deployment.usdc
@@ -869,6 +885,163 @@ export function RunIncentivizedTests(
           orders: 1,
           collateral: COLLATERAL_A,
           longPos: POSITION_A,
+        })
+      })
+
+      it('relays fill messages', async () => {
+        const NOW = await currentBlockTimestamp()
+        // user deposits into the market
+        const COLLATERAL_A = parse6decimal('5000')
+        await deployment.fundWalletDSU(userA, COLLATERAL_A, TX_OVERRIDES)
+        await margin.connect(userA).deposit(userA.address, COLLATERAL_A, TX_OVERRIDES)
+        await ethMarket
+          .connect(userA)
+          [MARKET_UPDATE_DELTA_PROTOTYPE](userA.address, 0, COLLATERAL_A, constants.AddressZero, TX_OVERRIDES)
+
+        // user deposits into the market
+        const COLLATERAL_B = parse6decimal('5000')
+        await dsu.connect(userB).approve(margin.address, constants.MaxUint256, TX_OVERRIDES)
+        await deployment.fundWalletDSU(userB, utils.parseEther('10000'), TX_OVERRIDES)
+        await margin.connect(userB).deposit(userB.address, COLLATERAL_B, TX_OVERRIDES)
+        await ethMarket
+          .connect(userB)
+          [MARKET_UPDATE_DELTA_PROTOTYPE](userB.address, 0, COLLATERAL_B, constants.AddressZero, TX_OVERRIDES)
+
+        // userB deposits and opens maker position, adding liquidity to market
+        const COLLATERAL_C = parse6decimal('10000')
+        const POSITION_C = parse6decimal('2')
+        await dsu.connect(userC).approve(margin.address, constants.MaxUint256, TX_OVERRIDES)
+        await deployment.fundWalletDSU(userC, utils.parseEther('10000'), TX_OVERRIDES)
+        await margin.connect(userC).deposit(userC.address, COLLATERAL_C, TX_OVERRIDES)
+        await ethMarket
+          .connect(userC)
+          [MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE](
+            userC.address,
+            POSITION_C,
+            0,
+            COLLATERAL_C,
+            constants.AddressZero,
+            TX_OVERRIDES,
+          )
+        expectOrderEq(await ethMarket.pending(), {
+          ...DEFAULT_ORDER,
+          orders: 1,
+          collateral: COLLATERAL_A.add(COLLATERAL_B).add(COLLATERAL_C),
+          makerPos: POSITION_C,
+        })
+
+        // userD, a delegated signer for userA, signs an intent to open a short position for userB
+        await marketFactory.connect(userA).updateSigner(userD.address, true)
+        const intent: Intent = {
+          amount: -POSITION_C.div(4),
+          price: parse6decimal('3110'),
+          fee: parse6decimal('0.5'),
+          originator: constants.AddressZero,
+          solver: constants.AddressZero,
+          collateralization: parse6decimal('0.03'),
+          common: {
+            account: userA.address,
+            signer: userD.address,
+            domain: ethMarket.address,
+            nonce: nextNonce(),
+            group: 0,
+            expiry: NOW + 60,
+          },
+        }
+        const traderSignature = await signIntent(userD, downstreamVerifier, intent)
+
+        // userB signs a message to fill user's intent order
+        const fill: Fill = {
+          intent: intent,
+          common: {
+            account: userB.address,
+            signer: userB.address,
+            domain: ethMarket.address,
+            nonce: 0,
+            group: 0,
+            expiry: NOW + 60,
+          },
+        }
+        const solverSignature = await signFill(userB, downstreamVerifier, fill)
+
+        const relayedFill: RelayedFillStruct = {
+          fill: fill,
+          ...createAction(userA.address, userA.address),
+        }
+        const outerSignature = await signRelayedFill(userA, accountVerifier, relayedFill)
+
+        await expect(
+          controller
+            .connect(keeper)
+            .relayFill(relayedFill, outerSignature, traderSignature, solverSignature, TX_OVERRIDES),
+        )
+          .to.emit(ethMarket, 'OrderCreated')
+          .withArgs(
+            userA.address,
+            anyValue,
+            {
+              ...DEFAULT_GUARANTEE,
+              orders: 1,
+              shortPos: POSITION_C.div(4),
+              notional: -POSITION_C.div(4).mul(3110),
+            },
+            constants.AddressZero,
+            constants.AddressZero,
+            constants.AddressZero,
+          )
+          .to.emit(ethMarket, 'OrderCreated')
+          .withArgs(
+            userB.address,
+            anyValue,
+            {
+              ...DEFAULT_GUARANTEE,
+              orders: 1,
+              longPos: POSITION_C.div(4),
+              notional: POSITION_C.div(4).mul(3110),
+              takerFee: POSITION_C.div(4),
+            },
+            constants.AddressZero,
+            constants.AddressZero,
+            constants.AddressZero,
+          )
+          .to.emit(controller, 'KeeperCall')
+          .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
+
+        // check user order and guarantee
+        expectOrderEq(await ethMarket.pendingOrders(userA.address, 2), {
+          ...DEFAULT_ORDER,
+          timestamp: (await ethMarket.pendingOrders(userA.address, 2)).timestamp,
+          orders: 1,
+          shortPos: POSITION_C.div(4),
+        })
+        expectGuaranteeEq(await ethMarket.guarantees(userA.address, 2), {
+          ...DEFAULT_GUARANTEE,
+          orders: 1,
+          shortPos: POSITION_C.div(4),
+          notional: -POSITION_C.div(4).mul(3110),
+        })
+
+        // check userB order and guarantee
+        expectOrderEq(await ethMarket.pendingOrders(userB.address, 2), {
+          ...DEFAULT_ORDER,
+          timestamp: (await ethMarket.pendingOrders(userA.address, 2)).timestamp,
+          orders: 1,
+          longPos: POSITION_C.div(4),
+        })
+        expectGuaranteeEq(await ethMarket.guarantees(userB.address, 2), {
+          ...DEFAULT_GUARANTEE,
+          orders: 1,
+          longPos: POSITION_C.div(4),
+          notional: POSITION_C.div(4).mul(3110),
+          takerFee: POSITION_C.div(4),
+        })
+
+        expectOrderEq(await ethMarket.pendingOrder(4), {
+          ...DEFAULT_ORDER,
+          timestamp: (await ethMarket.pendingOrder(4)).timestamp,
+          orders: 2,
+          shortPos: POSITION_C.div(4),
+          longPos: POSITION_C.div(4),
         })
       })
 
