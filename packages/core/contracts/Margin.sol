@@ -8,6 +8,8 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Token18, UFixed18, UFixed18Lib } from "@equilibria/root/token/types/Token18.sol";
 
 import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
+import { Guarantee } from "./types/Guarantee.sol";
+import { Local } from "./types/Local.sol";
 import { Position } from "./types/Position.sol";
 import { RiskParameter } from "./types/RiskParameter.sol";
 import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
@@ -187,15 +189,28 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         }
     }
 
-    // TODO: handle minCollateralization and guaranteePriceAdjustment for each cross-margined markets
+    // TODO: handle minCollateralization for cross-margined markets
     function _crossMargined(address account) private view returns (bool isMargined) {
         IMarket market;
         UFixed6 requirement;
+        Fixed6 guaranteePriceAdjustment;
         for (uint256 i; i < crossMarginMarkets[account].length; i++) {
             market = crossMarginMarkets[account][i];
             requirement = requirement.add(market.marginRequired(account, UFixed6Lib.ZERO));
+            guaranteePriceAdjustment = guaranteePriceAdjustment.add(_guaranteePriceAdjustment(market, account));
         }
-        return UFixed6Lib.unsafeFrom(_balances[account][CROSS_MARGIN]).gte(requirement);
+        return UFixed6Lib.unsafeFrom(_balances[account][CROSS_MARGIN].add(guaranteePriceAdjustment)).gte(requirement);
+    }
+
+    ///@dev Aggregates price adjustments from guarantees for a user in a market
+    function _guaranteePriceAdjustment(IMarket market, address account) private view returns (Fixed6 guaranteePriceAdjustment) {
+        Local memory local = market.locals(account);
+        for (uint256 id = local.latestId + 1; id <= local.currentId; id++) {
+            Guarantee memory guarantee = market.guarantees(account, id);
+            (OracleVersion memory latestOracleVersion, ) = market.oracle().status();
+            guaranteePriceAdjustment = guaranteePriceAdjustment.add(guarantee.priceAdjustment(latestOracleVersion.price));
+        }
+        return guaranteePriceAdjustment;
     }
 
     function _crossMaintained(address account) private view returns (bool isMaintained) {

@@ -5,6 +5,9 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
+import { impersonate } from '../../../../common/testutil'
+import { currentBlockTimestamp } from '../../../../common/testutil/time'
+import { parse6decimal } from '../../../../common/testutil/types'
 import {
   IMarket,
   IERC20Metadata,
@@ -17,10 +20,7 @@ import {
   Margin,
   IOracleProvider,
 } from '../../../types/generated'
-import { parse6decimal } from '../../../../common/testutil/types'
 import { CheckpointStruct } from '../../../types/generated/contracts/Margin'
-import { currentBlockTimestamp } from '../../../../common/testutil/time'
-import { impersonate } from '../../../../common/testutil'
 import { PositionStruct } from '../../../types/generated/contracts/Market'
 
 const { ethers } = HRE
@@ -70,6 +70,14 @@ describe('Margin', () => {
 
   describe('normal operation', async () => {
     let margin: IMargin
+
+    // // fakes an update from market which adds the market to cross-margin collections
+    // async function cross(user: SignerWithAddress, market: FakeContract<IMarket>) {
+    //   const marketSigner = await impersonate.impersonateWithBalance(market.address, utils.parseEther('10'))
+    //   await expect(margin.connect(marketSigner).handleMarketUpdate(user.address, 0))
+    //     .to.emit(margin, 'MarketCrossed')
+    //     .withArgs(user.address, marketA.address)
+    // }
 
     async function deposit(sender: SignerWithAddress, amount: BigNumber, target?: SignerWithAddress) {
       if (!target) target = sender
@@ -486,6 +494,44 @@ describe('Margin', () => {
       expect(await margin.connect(marketSignerB).margined(user.address, constants.Zero, constants.Zero)).to.be.true
       expect(await margin.connect(marketSignerC).margined(user.address, constants.Zero, constants.Zero)).to.be.true
     })
+
+    it('honors guaranteePriceAdjustment on isolated margin check', async () => {
+      // HACK: recreate marketA as an impersonateWithBalance from a previous test breaks the fake contract
+      marketA = await fakeMarket()
+      // user isolates all funds to marketA
+      await deposit(user, parse6decimal('200'))
+      await margin.isolate(user.address, marketA.address, parse6decimal('200'))
+
+      // with 200 isolated, 198 margin required, but priceAdjustment of -3, should not be margined
+      const marketSignerA = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
+      marketA.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('198'))
+      expect(await margin.connect(marketSignerA).margined(user.address, constants.Zero, parse6decimal('-3'))).to.be
+        .false
+      expect(marketA.marginRequired).to.have.been.calledWith(user.address, constants.Zero)
+    })
+
+    it('honors minCollateralization on isolated margin check', async () => {
+      // HACK: recreate marketA as an impersonateWithBalance from a previous test breaks the fake contract
+      marketA = await fakeMarket()
+      // user isolates all funds to marketA
+      await deposit(user, parse6decimal('200'))
+      await margin.isolate(user.address, marketA.address, parse6decimal('200'))
+
+      // with 200 isolated, 190 margin required, but minCollateralization of 1.1, should not be margined
+      const minCollateralization = parse6decimal('1.1')
+      const marketSignerA = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
+      marketA.marginRequired
+        .whenCalledWith(user.address, minCollateralization)
+        .returns(parse6decimal('190').mul(11).div(10))
+      expect(await margin.connect(marketSignerA).margined(user.address, minCollateralization, constants.Zero)).to.be
+        .false
+      expect(marketA.marginRequired).to.have.been.calledWith(user.address, minCollateralization)
+    })
+
+    // TODO: implement
+    // it('honors guaranteePriceAdjustment on cross-margined markets', async () => {
+
+    // })
 
     it('handles maintenance checks from market', async () => {
       // HACK: recreate marketA as an impersonateWithBalance from a previous test breaks the fake contract
