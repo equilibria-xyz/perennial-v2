@@ -28,7 +28,6 @@ export const MARKET_LIBRARIES: Array<{
   { name: 'PositionStorageLocalLib', contract: undefined },
   { name: 'RiskParameterStorageLib', contract: undefined },
   { name: 'VersionStorageLib', contract: undefined },
-  { name: 'MagicValueLib', contract: undefined },
   { name: 'GuaranteeStorageGlobalLib', contract: undefined },
   { name: 'GuaranteeStorageLocalLib', contract: undefined },
   { name: 'OrderStorageLocalLib', contract: undefined },
