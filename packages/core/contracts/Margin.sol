@@ -202,7 +202,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         return UFixed6Lib.unsafeFrom(_balances[account][CROSS_MARGIN].add(guaranteePriceAdjustment)).gte(requirement);
     }
 
-    ///@dev Aggregates price adjustments from guarantees for a user in a market
+    /// @dev Aggregates price adjustments from guarantees for a user in a market
     function _guaranteePriceAdjustment(IMarket market, address account) private view returns (Fixed6 guaranteePriceAdjustment) {
         Local memory local = market.locals(account);
         for (uint256 id = local.latestId + 1; id <= local.currentId; id++) {
