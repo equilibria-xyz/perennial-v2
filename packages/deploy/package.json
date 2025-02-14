@@ -16,6 +16,7 @@
     "test:verification:arbitrum": "FORK_USE_REAL_ACCOUNT=true FORK_ENABLED=true FORK_NETWORK=arbitrum FORK_USE_REAL_DEPLOYS=true FORK_BLOCK_NUMBER=267036153 hardhat test test/verification/arbitrum/**/*",
     "test:verification:arbitrumSepolia": "FORK_USE_REAL_ACCOUNT=true FORK_ENABLED=true FORK_NETWORK=arbitrumSepolia FORK_USE_REAL_DEPLOYS=true FORK_BLOCK_NUMBER=40238474 hardhat test test/verification/arbitrum/**/*",
     "test:verification:base": "FORK_USE_REAL_ACCOUNT=true FORK_ENABLED=true FORK_NETWORK=base FORK_USE_REAL_DEPLOYS=true hardhat test test/verification/base/**/*",
+    "test:verification:perennial": "FORK_USE_REAL_ACCOUNT=true FORK_ENABLED=true FORK_NETWORK=perennial FORK_USE_REAL_DEPLOYS=true hardhat test test/verification/perennial/**/*",
     "lint": "eslint --fix --ext '.ts,.js' ./",
     "format": "prettier -w .",
     "clean": "rm -rf cache artifacts types/generated dist deployments/localhost",
