@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
-import { utils, BigNumber, ContractTransaction } from 'ethers'
+import { utils, BigNumber, ContractTransaction, constants } from 'ethers'
 
 import { impersonate } from '../../../../common/testutil'
 import {
@@ -49,11 +49,18 @@ import {
   PowerTwo__factory,
   IPayoffProvider,
   IPayoffProvider__factory,
+  ChainlinkFactory,
+  chainlink,
+  GasOracle__factory,
+  KeeperOracle__factory,
+  ChainlinkFactory__factory,
+  IOracleFactory,
 } from '@perennial/v2-oracle/types/generated'
 const { deployments, ethers } = HRE
 
 export const USDC_HOLDER = '0x47c031236e19d024b42f8ae6780e44a573170703'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
+const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
 
 export const STANDARD_PROTOCOL_PARAMETERS = {
   maxFee: parse6decimal('0.01'),
@@ -300,7 +307,6 @@ export async function deployMarketFactory(
     owner,
   ).deploy(verifier.address, margin.address)
 
-  console.log('deploying MarketFactory as', owner.address)
   const factoryImpl = await new MarketFactory__factory(owner).deploy(
     oracleFactory.address,
     verifier.address,
@@ -315,6 +321,49 @@ export async function deployOracleFactory(owner: SignerWithAddress): Promise<Ora
   const oracleImpl = await new Oracle__factory(owner).deploy()
   const oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
   return oracleFactory
+}
+
+export async function deployChainlinkOracleFactory(
+  owner: SignerWithAddress,
+  oracleFactory: OracleFactory,
+): Promise<ChainlinkFactory> {
+  const commitmentGasOracle = await new GasOracle__factory(owner).deploy(
+    CHAINLINK_ETH_USD_FEED,
+    8,
+    1_000_000,
+    ethers.utils.parseEther('1.02'),
+    1_000_000,
+    0,
+    0,
+    0,
+  )
+  const settlementGasOracle = await new GasOracle__factory(owner).deploy(
+    CHAINLINK_ETH_USD_FEED,
+    8,
+    200_000,
+    ethers.utils.parseEther('1.02'),
+    500_000,
+    0,
+    0,
+    0,
+  )
+
+  const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
+  const chainlinkOracleFactory = await new ChainlinkFactory__factory(owner).deploy(
+    constants.AddressZero,
+    constants.AddressZero,
+    constants.AddressZero,
+    commitmentGasOracle.address,
+    settlementGasOracle.address,
+    keeperOracleImpl.address,
+  )
+  await chainlinkOracleFactory.initialize(oracleFactory.address)
+  // KeeperFactory.updateParameter args: granularity, oracleFee, validFrom, validTo
+  await chainlinkOracleFactory.updateParameter(1, 0, 4, 10)
+  await oracleFactory.register(chainlinkOracleFactory.address)
+  // TODO: register payoff?
+
+  return chainlinkOracleFactory
 }
 
 export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress): Promise<void> {
