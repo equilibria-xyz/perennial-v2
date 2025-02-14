@@ -15,6 +15,7 @@ import {
   RelayedOperatorUpdateStruct,
   RelayedSignerUpdateStruct,
   RelayedTakeStruct,
+  RelayedFillStruct,
 } from '../../../types/generated/contracts/CollateralAccounts/Controller_Incentivized'
 
 function erc721Domain(verifier: IAccountVerifier | FakeContract<IAccountVerifier>): {
@@ -162,6 +163,35 @@ export async function signRelayedTake(
     ],
   }
 
+  return await signer._signTypedData(erc721Domain(verifier), types, message)
+}
+
+export async function signRelayedFill(
+  signer: SignerWithAddress,
+  verifier: IAccountVerifier | FakeContract<IAccountVerifier>,
+  message: RelayedFillStruct,
+): Promise<string> {
+  const types = {
+    RelayedFill: [
+      { name: 'fill', type: 'Fill' },
+      { name: 'action', type: 'Action' },
+    ],
+    ...actionType,
+    ...commonType,
+    Fill: [
+      { name: 'intent', type: 'Intent' },
+      { name: 'common', type: 'Common' },
+    ],
+    Intent: [
+      { name: 'amount', type: 'int256' },
+      { name: 'price', type: 'int256' },
+      { name: 'fee', type: 'uint256' },
+      { name: 'originator', type: 'address' },
+      { name: 'solver', type: 'address' },
+      { name: 'collateralization', type: 'uint256' },
+      { name: 'common', type: 'Common' },
+    ],
+  }
   return await signer._signTypedData(erc721Domain(verifier), types, message)
 }
 

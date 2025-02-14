@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import { IVerifierBase } from "@equilibria/root/verifier/interfaces/IVerifierBase.sol";
 import { RelayedTake } from "../types/RelayedTake.sol";
+import { RelayedFill } from "../types/RelayedFill.sol";
 import { RelayedNonceCancellation } from "../types/RelayedNonceCancellation.sol";
 import { RelayedGroupCancellation } from "../types/RelayedGroupCancellation.sol";
 import { RelayedOperatorUpdate } from "../types/RelayedOperatorUpdate.sol";
@@ -27,7 +28,15 @@ interface IRelayVerifier is IVerifierBase {
         bytes calldata outerSignature
     ) external;
 
-    /// @dev Verifies a request to relay a group nonce cancellation request
+    /// @dev Verifies a request to relay a fill intent order to Market
+    /// @param message Wrapped message adding details needed for keeper compensation
+    /// @param outerSignature EIP712 signature for the preceeding message
+    function verifyRelayedFill(
+        RelayedFill calldata message,
+        bytes calldata outerSignature
+    ) external;
+
+    /// @dev Verifies a request to relay a group nonce cancellatsion request
     /// @param message Wrapped message adding details needed for keeper compensation
     /// @param outerSignature EIP712 signature for the preceeding message
     function verifyRelayedGroupCancellation(

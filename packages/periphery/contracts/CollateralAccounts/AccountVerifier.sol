@@ -14,6 +14,7 @@ import { MarketTransfer, MarketTransferLib } from "./types/MarketTransfer.sol";
 import { RebalanceConfigChange, RebalanceConfigChangeLib } from "./types/RebalanceConfigChange.sol";
 import { Withdrawal, WithdrawalLib } from "./types/Withdrawal.sol";
 import { RelayedTake, RelayedTakeLib } from "./types/RelayedTake.sol";
+import { RelayedFill, RelayedFillLib } from "./types/RelayedFill.sol";
 import { RelayedNonceCancellation, RelayedNonceCancellationLib } from "./types/RelayedNonceCancellation.sol";
 import { RelayedGroupCancellation, RelayedGroupCancellationLib } from "./types/RelayedGroupCancellation.sol";
 import { RelayedOperatorUpdate, RelayedOperatorUpdateLib } from "./types/RelayedOperatorUpdate.sol";
@@ -94,6 +95,18 @@ contract AccountVerifier is VerifierBase, IAccountVerifier {
         if (!SignatureChecker.isValidSignatureNow(
             message.action.common.signer,
             _hashTypedDataV4(RelayedTakeLib.hash(message)),
+            outerSignature
+        )) revert VerifierInvalidSignerError();
+    }
+
+    /// @inheritdoc IRelayVerifier
+    function verifyRelayedFill(
+        RelayedFill calldata message,
+        bytes calldata outerSignature
+    ) external validateAndCancel(message.action.common, outerSignature) {
+        if (!SignatureChecker.isValidSignatureNow(
+            message.action.common.signer,
+            _hashTypedDataV4(RelayedFillLib.hash(message)),
             outerSignature
         )) revert VerifierInvalidSignerError();
     }
