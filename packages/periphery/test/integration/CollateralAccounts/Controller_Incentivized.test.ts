@@ -71,7 +71,7 @@ const MARKET_UPDATE_DELTA_PROTOTYPE = 'update(address,int256,int256,address)'
 
 // hack around issues estimating gas for instrumented contracts when running tests under coverage
 // also, need higher gasLimit to deploy incentivized controllers with optimizer disabled
-const TX_OVERRIDES = { gasLimit: 12_000_000, maxPriorityFeePerGas: 0, maxFeePerGas: 1_000_000_000 }
+const TX_OVERRIDES = { gasLimit: 12_000_000, maxPriorityFeePerGas: 0, maxFeePerGas: 100_000_000 }
 
 export function RunIncentivizedTests(
   name: string,
@@ -931,7 +931,7 @@ export function RunIncentivizedTests(
         })
 
         // userD, a delegated signer for userA, signs an intent to open a short position for userB
-        await marketFactory.connect(userA).updateSigner(userD.address, true)
+        await marketFactory.connect(userA).updateSigner(userD.address, true, TX_OVERRIDES)
         const intent: Intent = {
           amount: -POSITION_C.div(4),
           price: parse6decimal('3110'),
