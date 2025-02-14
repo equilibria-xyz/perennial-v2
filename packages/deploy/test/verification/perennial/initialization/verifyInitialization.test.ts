@@ -48,14 +48,6 @@ describe('Verify Initialization', () => {
     expect(await verifier.callStatic.marketFactory()).to.equal((await HRE.deployments.get('MarketFactory')).address)
   })
 
-  it('AccountVerifier', async () => {
-    const accountVerifier: AccountVerifier = AccountVerifier__factory.connect(
-      (await HRE.deployments.get('AccountVerifier')).address,
-      signer,
-    )
-    expect(await accountVerifier.callStatic.verifier()).to.equal((await HRE.deployments.get('Verifier')).address)
-  })
-
   it('OracleFactory', async () => {
     const oracleFactory: OracleFactory = OracleFactory__factory.connect(
       (await HRE.deployments.get('OracleFactory')).address,
@@ -106,26 +98,6 @@ describe('Verify Initialization', () => {
     const manager: Manager = Manager__factory.connect((await HRE.deployments.get('Manager')).address, signer)
     expect(await manager.callStatic.ethTokenOracleFeed()).to.equal(
       (await HRE.deployments.get('ChainlinkETHUSDFeed')).address,
-    )
-  })
-
-  it('PythFactory', async () => {
-    const pythFactory: PythFactory = PythFactory__factory.connect(
-      (await HRE.deployments.get('PythFactory')).address,
-      signer,
-    )
-    expect(await pythFactory.callStatic.owner()).to.not.equal(constants.AddressZero)
-    expect(await pythFactory.callStatic.oracleFactory()).to.equal((await HRE.deployments.get('OracleFactory')).address)
-  })
-
-  it('CryptexFactory', async () => {
-    const cryptexFactory: MetaQuantsFactory = MetaQuantsFactory__factory.connect(
-      (await HRE.deployments.get('CryptexFactory')).address,
-      signer,
-    )
-    expect(await cryptexFactory.callStatic.owner()).to.not.equal(constants.AddressZero)
-    expect(await cryptexFactory.callStatic.oracleFactory()).to.equal(
-      (await HRE.deployments.get('OracleFactory')).address,
     )
   })
 

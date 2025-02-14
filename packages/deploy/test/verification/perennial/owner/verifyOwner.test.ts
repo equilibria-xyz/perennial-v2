@@ -43,11 +43,23 @@ describe('Verify Owner', () => {
     expect(await marketFactory.callStatic.owner()).to.equal((await HRE.deployments.get('TimelockController')).address)
   })
 
-  it('VaultFactory', async () => {
-    const vaultFactory: VaultFactory = VaultFactory__factory.connect(
-      (await HRE.deployments.get('VaultFactory')).address,
+  it('MakerVaultFactory', async () => {
+    const makerVaultFactory: VaultFactory = VaultFactory__factory.connect(
+      (await HRE.deployments.get('MakerVaultFactory')).address,
       signer,
     )
-    expect(await vaultFactory.callStatic.owner()).to.equal((await HRE.deployments.get('TimelockController')).address)
+    expect(await makerVaultFactory.callStatic.owner()).to.equal(
+      (await HRE.deployments.get('TimelockController')).address,
+    )
+  })
+
+  it('SolverVaultFactory', async () => {
+    const solverVaultFactory: VaultFactory = VaultFactory__factory.connect(
+      (await HRE.deployments.get('SolverVaultFactory')).address,
+      signer,
+    )
+    expect(await solverVaultFactory.callStatic.owner()).to.equal(
+      (await HRE.deployments.get('TimelockController')).address,
+    )
   })
 })

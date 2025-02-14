@@ -24,9 +24,7 @@ describe('Verify Implementation', () => {
       (await HRE.deployments.get('MarketFactory')).address,
       signer,
     )
-    expect(await marketFactory.callStatic.implementation()).to.equal(
-      (await HRE.deployments.get('MarketFactoryImpl')).address,
-    )
+    expect(await marketFactory.implementation()).to.equal((await HRE.deployments.get('MarketImpl')).address)
   })
 
   it('OracleFactory', async () => {
@@ -34,9 +32,7 @@ describe('Verify Implementation', () => {
       (await HRE.deployments.get('OracleFactory')).address,
       signer,
     )
-    expect(await oracleFactory.callStatic.implementation()).to.equal(
-      (await HRE.deployments.get('OracleFactoryImpl')).address,
-    )
+    expect(await oracleFactory.implementation()).to.equal((await HRE.deployments.get('OracleImpl')).address)
   })
 
   it('MakerVaultFactory', async () => {
@@ -44,9 +40,7 @@ describe('Verify Implementation', () => {
       (await HRE.deployments.get('MakerVaultFactory')).address,
       signer,
     )
-    expect(await makerVaultFactory.callStatic.implementation()).to.equal(
-      (await HRE.deployments.get('MakerVaultFactoryImpl')).address,
-    )
+    expect(await makerVaultFactory.implementation()).to.equal((await HRE.deployments.get('MakerVaultImpl')).address)
   })
 
   it('SolverVaultFactory', async () => {
@@ -54,9 +48,7 @@ describe('Verify Implementation', () => {
       (await HRE.deployments.get('SolverVaultFactory')).address,
       signer,
     )
-    expect(await solverVaultFactory.callStatic.implementation()).to.equal(
-      (await HRE.deployments.get('SolverVaultFactoryImpl')).address,
-    )
+    expect(await solverVaultFactory.implementation()).to.equal((await HRE.deployments.get('SolverVaultImpl')).address)
   })
 
   it('StorkFactory', async () => {
@@ -64,8 +56,6 @@ describe('Verify Implementation', () => {
       (await HRE.deployments.get('StorkFactory')).address,
       signer,
     )
-    expect(await storkFactory.callStatic.implementation()).to.equal(
-      (await HRE.deployments.get('StorkFactoryImpl')).address,
-    )
+    expect(await storkFactory.implementation()).to.equal((await HRE.deployments.get('KeeperOracleImpl')).address)
   })
 })
