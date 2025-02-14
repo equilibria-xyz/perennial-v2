@@ -892,7 +892,7 @@ export function RunIncentivizedTests(
         const NOW = await currentBlockTimestamp()
         // user deposits into the market
         const COLLATERAL_A = parse6decimal('5000')
-        await deployment.fundWalletDSU(userA, COLLATERAL_A, TX_OVERRIDES)
+        await deployment.fundWalletDSU(userA, utils.parseEther('5000'), TX_OVERRIDES)
         await margin.connect(userA).deposit(userA.address, COLLATERAL_A, TX_OVERRIDES)
         await ethMarket
           .connect(userA)
