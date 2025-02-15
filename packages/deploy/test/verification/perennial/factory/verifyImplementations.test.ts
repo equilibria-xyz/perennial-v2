@@ -9,6 +9,8 @@ import {
   VaultFactory__factory,
   StorkFactory,
   StorkFactory__factory,
+  Controller_Arbitrum,
+  Controller_Arbitrum__factory,
 } from '../../../../types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
@@ -57,5 +59,13 @@ describe('Verify Implementation', () => {
       signer,
     )
     expect(await storkFactory.implementation()).to.equal((await HRE.deployments.get('KeeperOracleImpl')).address)
+  })
+
+  it('Controller', async () => {
+    const controller: Controller_Arbitrum = Controller_Arbitrum__factory.connect(
+      (await HRE.deployments.get('Controller')).address,
+      signer,
+    )
+    expect(await controller.implementation()).to.equal((await HRE.deployments.get('AccountImpl')).address)
   })
 })
