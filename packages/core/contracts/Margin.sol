@@ -73,6 +73,10 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         Fixed6 balance = _balances[account][CROSS_MARGIN];
         if (balance.lt(Fixed6Lib.from(amount))) revert MarginInsufficientCrossedBalance();
         _balances[account][CROSS_MARGIN] = balance.sub(Fixed6Lib.from(amount));
+
+        // ensure crossed markets remain margined after withdrawal
+        if (!_crossMargined(account)) revert IMarket.MarketInsufficientMarginError();
+
         // withdrawal goes to sender, not account, consistent with legacy Market behavior
         DSU.push(msg.sender, UFixed18Lib.from(amount));
         emit FundsWithdrawn(account, amount);
