@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { Fixed6 } from "@equilibria/root/number/types/Fixed6.sol";
+import { UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { Local, LocalStorage } from "../types/Local.sol";
 import { CheckpointAccumulationResponse } from "../libs/CheckpointLib.sol";
 
@@ -16,18 +17,12 @@ contract LocalTester {
         return local.store(newLocal);
     }
 
-    function update(Fixed6 transfer) external {
-        Local memory newLocal = local.read();
-        newLocal.update(transfer);
-        local.store(newLocal);
-    }
-
     function update(
         uint256 newId,
         CheckpointAccumulationResponse memory accumulation
-    ) external {
+    ) external returns(Fixed6 pnl) {
         Local memory newLocal = local.read();
-        newLocal.update(newId, accumulation);
+        pnl = newLocal.update(newId, accumulation);
         local.store(newLocal);
     }
 }

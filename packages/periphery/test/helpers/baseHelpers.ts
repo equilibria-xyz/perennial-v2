@@ -31,7 +31,7 @@ export const USDC_HOLDER = '0xF977814e90dA44bFA03b6295A0616a897441aceC' // EOA h
 export async function createFactoriesForChain(
   owner: SignerWithAddress,
 ): Promise<[IOracleFactory, IMarketFactory, PythFactory, AggregatorV3Interface]> {
-  return createFactories(owner, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED)
+  return createFactories(owner, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED, DSU_ADDRESS)
 }
 
 // connects to Base stablecoins and deploys a non-incentivized controller configured for them

@@ -14,7 +14,7 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Fixed18, Fixed18Lib } from "@equilibria/root/number/types/Fixed18.sol";
-import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
+import { IMarket, IMargin } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 import { IMarketFactory } from "@perennial/v2-core/contracts/interfaces/IMarketFactory.sol";
 import { IPythFactory } from "@perennial/v2-oracle/contracts/interfaces/IPythFactory.sol";
 import { IVault } from "@perennial/v2-vault/contracts/interfaces/IVault.sol";
@@ -179,10 +179,14 @@ contract MultiInvoker is IMultiInvoker, Initializable {
         InterfaceFee memory interfaceFee1,
         InterfaceFee memory interfaceFee2
     ) internal isMarketInstance(market) {
-        Fixed18 balanceBefore =  Fixed18Lib.from(DSU.balanceOf());
+        IMargin margin = market.margin();
 
-        // collateral is transferred here as DSU then an optional interface fee is charged from it
-        if (collateral.sign() == 1) _deposit(account, collateral.abs(), wrap);
+        if (collateral.sign() == 1) {
+            // collateral is transferred here as DSU then an optional interface fee is charged from it
+            _deposit(account, collateral.abs(), wrap);
+            // collateral is then deposited into the margin contract for consumption by the market
+            margin.deposit(account, collateral.abs());
+        }
 
         market.update(
             account,
@@ -192,8 +196,10 @@ contract MultiInvoker is IMultiInvoker, Initializable {
             interfaceFee1.receiver == address(0) ? interfaceFee2.receiver : interfaceFee1.receiver
         );
 
-        Fixed6 withdrawAmount = Fixed6Lib.from(Fixed18Lib.from(DSU.balanceOf()).sub(balanceBefore));
-        if (!withdrawAmount.isZero()) _withdraw(account, withdrawAmount.abs(), wrap);
+        if (collateral.sign() == -1) {
+            margin.withdraw(account, collateral.abs());
+            _withdraw(account, collateral.abs(), wrap);
+        }
 
         // charge interface fee
         _chargeInterfaceFee(account, market, interfaceFee1);
@@ -241,20 +247,19 @@ contract MultiInvoker is IMultiInvoker, Initializable {
             UFixed6Lib.ZERO :
             UFixed6Lib.from(DSU.balanceOf().sub(balanceBefore));
 
-        if (!claimAmount.isZero()) {
-            _withdraw(account, claimAmount, wrap);
-        }
+        if (!claimAmount.isZero()) _withdraw(account, claimAmount, wrap);
     }
 
     /// @notice Helper to max approve DSU for usage in a market or vault deployed by the registered factories
     /// @param target Market or Vault to approve
     function _approve(address target) internal {
-        if (
-            !marketFactory.instances(IInstance(target)) &&
-            !vaultFactory.instances(IInstance(target))
-        ) revert MultiInvokerInvalidInstanceError();
-
-        DSU.approve(target);
+        if (marketFactory.instances(IInstance(target))) {
+            DSU.approve(address(IMarket(target).margin()));
+        } else if (vaultFactory.instances(IInstance(target))) {
+            DSU.approve(target);
+        } else {
+            revert MultiInvokerInvalidInstanceError();
+        }
     }
 
     /// @notice Charges an additive interface fee from collateral in this address during an update to a receiver
@@ -275,7 +280,11 @@ contract MultiInvoker is IMultiInvoker, Initializable {
     /// @param account Address of the user who earned fees
     /// @param unwrap Set true to unwrap DSU to USDC when withdrawing
     function _claimFee(address account, IMarket market, bool unwrap) internal isMarketInstance(market) {
-        UFixed6 claimAmount = market.claimFee(account);
+        // claim fees from the market
+        market.claimFee(account);
+        // withdraw claimable balance from Margin account to MultiInvoker
+        UFixed6 claimAmount = market.margin().claim(account, address(this));
+        // withdraw claimable balance from MultiInvoker to account
         _withdraw(account, claimAmount, unwrap);
     }
 
@@ -362,6 +371,7 @@ contract MultiInvoker is IMultiInvoker, Initializable {
     /// @param withdrawal Amount to withdraw
     function _marketWithdraw(IMarket market, address account, UFixed6 withdrawal) private {
         market.update(account, Fixed6Lib.ZERO, Fixed6Lib.from(-1, withdrawal), address(0));
+        market.margin().withdraw(account, withdrawal);
     }
 
     /// @notice Target market must be created by MarketFactory

@@ -88,15 +88,8 @@ describe('Happy Path', () => {
   })
 
   it('creates a market', async () => {
-    const { owner, marketFactory, payoff, oracle, dsu } = instanceVars
+    const { owner, marketFactory, oracle, dsu } = instanceVars
 
-    const definition = {
-      name: 'Squeeth',
-      symbol: 'SQTH',
-      token: dsu.address,
-      oracle: dsu.address,
-      payoff: payoff.address,
-    }
     const parameter = {
       fundingFee: parse6decimal('0.1'),
       interestFee: parse6decimal('0.1'),
@@ -111,18 +104,17 @@ describe('Happy Path', () => {
     }
 
     // revert when invalid oracle is provided
-    await expect(marketFactory.create(definition)).to.be.revertedWithCustomError(
+    await expect(marketFactory.create(dsu.address)).to.be.revertedWithCustomError(
       marketFactory,
       'FactoryInvalidOracleError',
     )
 
     // update correct oracle address
-    definition.oracle = oracle.address
-    await expect(marketFactory.create(definition)).to.emit(marketFactory, 'MarketCreated')
+    await expect(marketFactory.create(oracle.address)).to.emit(marketFactory, 'MarketCreated')
     const marketAddress = await marketFactory.markets(oracle.address)
 
     // revert when creating another market with same oracle
-    await expect(marketFactory.create(definition)).to.be.revertedWithCustomError(
+    await expect(marketFactory.create(oracle.address)).to.be.revertedWithCustomError(
       marketFactory,
       'FactoryAlreadyRegisteredError',
     )
@@ -130,13 +122,8 @@ describe('Happy Path', () => {
     await market.connect(owner).updateRiskParameter(riskParameter)
     await market.connect(owner).updateParameter(parameter)
 
-    const marketDefinition = {
-      token: dsu.address,
-      oracle: oracle.address,
-    }
-
     // revert when reinitialized
-    await expect(market.connect(owner).initialize(marketDefinition))
+    await expect(market.connect(owner).initialize(oracle.address))
       .to.be.revertedWithCustomError(market, 'InitializableAlreadyInitializedError')
       .withArgs(1)
   })
@@ -144,10 +131,11 @@ describe('Happy Path', () => {
   it('opens a make position', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { user, dsu, chainlink } = instanceVars
+    const { user, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
 
     await expect(
       market
@@ -175,8 +163,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -223,8 +211,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 1,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -263,13 +251,94 @@ describe('Happy Path', () => {
     })
   })
 
+  it('changes isolated balances', async () => {
+    const POSITION = parse6decimal('10')
+    const { user, dsu, margin, chainlink } = instanceVars
+
+    // user deposits and isolates most of their balance
+    const market = await createMarket(instanceVars)
+    await dsu.connect(user).approve(margin.address, utils.parseEther('1000'))
+    await margin.connect(user).deposit(user.address, parse6decimal('1000'))
+    await margin.connect(user).isolate(user.address, market.address, parse6decimal('900'))
+    expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('100'))
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('900'))
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_0), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: parse6decimal('900'),
+    })
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_0,
+    })
+
+    // user opens a maker position and settles
+    await expect(
+      market
+        .connect(user)
+        ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, 0, constants.AddressZero),
+    )
+    await chainlink.next()
+    await settle(market, user)
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: parse6decimal('900'),
+    })
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_1,
+      maker: POSITION,
+    })
+
+    // user increases their isolated balance after settling
+    await margin.connect(user).isolate(user.address, market.address, parse6decimal('50'))
+    expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('50'))
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('950'))
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: parse6decimal('950'),
+    })
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      maker: POSITION,
+      timestamp: TIMESTAMP_1,
+    })
+
+    // user reduces their position and then decreases their isolated balance
+    await expect(
+      market
+        .connect(user)
+        ['update(address,int256,int256,int256,address)'](
+          user.address,
+          parse6decimal('-2'),
+          0,
+          0,
+          constants.AddressZero,
+        ),
+    )
+    await margin.connect(user).isolate(user.address, market.address, parse6decimal('-150'), { gasLimit: 3_000_000 })
+    expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('200'))
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('800'))
+    await chainlink.next()
+    await settle(market, user)
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: parse6decimal('800'),
+    })
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      maker: parse6decimal('8'),
+      timestamp: TIMESTAMP_2,
+    })
+  })
+
   it('opens multiple make positions', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { user, dsu, chainlink } = instanceVars
+    const { user, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -300,8 +369,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -348,8 +417,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 1,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -391,10 +460,11 @@ describe('Happy Path', () => {
   it('closes a make position', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { user, dsu, chainlink } = instanceVars
+    const { user, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -427,8 +497,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 2), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
@@ -468,13 +538,15 @@ describe('Happy Path', () => {
     })
   })
 
+  // FIXME: naming misleading; a single maker position is opened and reduced; nothing is closed
   it('closes multiple make positions', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { user, dsu, chainlink } = instanceVars
+    const { user, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -517,8 +589,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 2), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
@@ -562,7 +634,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -573,8 +645,10 @@ describe('Happy Path', () => {
     riskParameter.synBook = riskParameterSynBook
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -605,8 +679,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -626,8 +700,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -699,8 +773,10 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 1,
-      collateral: COLLATERAL.add(BigNumber.from('1249392')),
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+      COLLATERAL.add(parse6decimal('1.249392')),
+    )
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -723,7 +799,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -734,8 +810,10 @@ describe('Happy Path', () => {
     riskParameter.synBook = riskParameterSynBook
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -764,8 +842,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -836,8 +914,10 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 1,
-      collateral: COLLATERAL.add(BigNumber.from('1249392')),
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+      COLLATERAL.add(parse6decimal('1.249392')),
+    )
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -860,11 +940,13 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await expect(
       market
@@ -905,8 +987,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 2), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
@@ -954,11 +1036,13 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await expect(
       market
@@ -998,8 +1082,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 2), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
@@ -1044,11 +1128,13 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await expect(
       market
@@ -1086,8 +1172,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 2,
       latestId: 1,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 2), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
@@ -1185,17 +1271,9 @@ describe('Happy Path', () => {
   })
 
   it('disables actions when unauthorized access', async () => {
-    const { marketFactory, user, oracle, dsu, payoff } = instanceVars
+    const { marketFactory, user, oracle } = instanceVars
 
-    const definition = {
-      name: 'Squeeth',
-      symbol: 'SQTH',
-      token: dsu.address,
-      oracle: oracle.address,
-      payoff: payoff.address,
-    }
-
-    await expect(marketFactory.connect(user).create(definition)).to.be.revertedWithCustomError(
+    await expect(marketFactory.connect(user).create(oracle.address)).to.be.revertedWithCustomError(
       marketFactory,
       'OwnableNotOwnerError',
     )
@@ -1232,7 +1310,7 @@ describe('Happy Path', () => {
   })
 
   it('disables update when settle only mode', async () => {
-    const { user, owner } = instanceVars
+    const { user, owner, dsu, margin } = instanceVars
     const market = await createMarket(instanceVars)
 
     const parameters = { ...(await market.parameter()) }
@@ -1240,10 +1318,12 @@ describe('Happy Path', () => {
 
     await market.connect(owner).updateParameter(parameters)
 
+    const COLLATERAL = parse6decimal('1000')
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+
     await expect(
-      market
-        .connect(user)
-        ['update(address,int256,int256,address)'](user.address, 0, parse6decimal('1000'), constants.AddressZero),
+      market.connect(user)['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero),
     ).to.be.revertedWithCustomError(market, 'MarketSettleOnlyError')
   })
 
@@ -1251,7 +1331,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -1262,8 +1342,10 @@ describe('Happy Path', () => {
     riskParameter.synBook = riskParameterSynBook
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -1300,7 +1382,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -1311,8 +1393,10 @@ describe('Happy Path', () => {
     riskParameter.synBook = riskParameterSynBook
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -1350,7 +1434,7 @@ describe('Happy Path', () => {
 
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const riskParameter = {
       margin: parse6decimal('0.3'),
@@ -1398,8 +1482,10 @@ describe('Happy Path', () => {
     await market.updateParameter(parameter)
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL.mul(2))
 
     await market
       .connect(user)
@@ -1448,8 +1534,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 3,
       latestId: 2,
-      collateral: '873007697',
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('873.007697'))
     expectOrderEq(await market.pendingOrders(user.address, 3), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_5,
@@ -1498,7 +1584,7 @@ describe('Happy Path', () => {
   })
 
   it('opens intent order w/ signer', async () => {
-    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu, margin } = instanceVars
 
     // userC allowed to sign messages for user
     await marketFactory.connect(user).updateSigner(userC.address, true)
@@ -1513,19 +1599,22 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('10000')
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
 
     await market
       .connect(user)
       ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
 
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(userB)
       ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
-    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
     await market
       .connect(userC)
@@ -1632,7 +1721,7 @@ describe('Happy Path', () => {
   })
 
   it('updates signer w/ signature and opens intent order', async () => {
-    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu, margin } = instanceVars
 
     const signerUpdate = {
       access: {
@@ -1673,19 +1762,22 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('10000')
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
 
     await market
       .connect(user)
       ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
 
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(userB)
       ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
-    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
     await market
       .connect(userC)
@@ -1749,7 +1841,7 @@ describe('Happy Path', () => {
   })
 
   it('opens intent order w/ operator', async () => {
-    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu, margin } = instanceVars
 
     // userC allowed to interact with user's account
     await marketFactory.connect(user).updateSigner(userC.address, true)
@@ -1764,19 +1856,22 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('10000')
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
 
     await market
       .connect(user)
       ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
 
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(userB)
       ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
-    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
     await market
       .connect(userC)
@@ -1858,7 +1953,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { owner, user, userB, dsu, marketFactory, verifier } = instanceVars
+    const { owner, user, userB, dsu, margin, marketFactory, verifier } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -1869,7 +1964,10 @@ describe('Happy Path', () => {
     riskParameter.synBook = riskParameterSynBook
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12).mul(2))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12).mul(2))
+    await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -1931,8 +2029,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -1952,8 +2050,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -1997,7 +2095,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { owner, user, userB, dsu, marketFactory } = instanceVars
+    const { owner, user, userB, dsu, margin, marketFactory } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -2008,7 +2106,10 @@ describe('Happy Path', () => {
     riskParameter.synBook = riskParameterSynBook
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12).mul(2))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12).mul(2))
+    await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -2048,8 +2149,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -2069,8 +2170,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -2111,7 +2212,7 @@ describe('Happy Path', () => {
   })
 
   it('updates account access and opens intent order', async () => {
-    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu, margin } = instanceVars
 
     // userC allowed to sign messages and interact with user account
     await marketFactory
@@ -2128,13 +2229,17 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('10000')
 
-    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12).mul(2))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(3).mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await margin.connect(user).deposit(userB.address, COLLATERAL)
+    await margin.connect(user).deposit(userC.address, COLLATERAL)
 
     await market
       .connect(userC)
       ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
 
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(userB)
@@ -2202,7 +2307,7 @@ describe('Happy Path', () => {
   })
 
   it('updates account access with signature and opens intent order', async () => {
-    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu, margin } = instanceVars
 
     const accessUpdateBatch = {
       operators: [{ accessor: userC.address, approved: true }],
@@ -2241,13 +2346,16 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('10000')
 
-    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12).mul(2))
+    await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12).mul(2))
+    await margin.connect(userC).deposit(user.address, COLLATERAL)
+    await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
     await market
       .connect(userC)
       ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
 
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(userB)
@@ -2318,7 +2426,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, margin, chainlink } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -2329,8 +2437,10 @@ describe('Happy Path', () => {
     riskParameter.synBook = riskParameterSynBook
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(user)
@@ -2361,8 +2471,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -2382,8 +2492,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 0,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -2449,8 +2559,8 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: 1,
       latestId: 1,
-      collateral: COLLATERAL,
     })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(userB.address, 1), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_1,
@@ -2477,7 +2587,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
 
-    const { user, userB, dsu, chainlink } = instanceVars
+    const { user, userB, dsu, chainlink, margin } = instanceVars
 
     // set delay
     chainlink.delay = delay
@@ -2532,8 +2642,12 @@ describe('Happy Path', () => {
     await market.updateParameter(parameter)
     await market.updateRiskParameter(riskParameter)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(2).mul(1e12))
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(2).mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL.mul(2))
+
+    await margin.connect(user).isolate(user.address, market.address, COLLATERAL)
 
     for (let i = 0; i < delay; i++) {
       await market
@@ -2560,6 +2674,7 @@ describe('Happy Path', () => {
     // ensure all pending can settle
     for (let i = 0; i < delay - 1; i++) await nextWithConstantPrice()
     if (sync) await nextWithConstantPrice()
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.mul(2))
 
     // const currentVersion = delay + delay + delay - (sync ? 0 : 1)
     // const latestVersion = delay + delay - (sync ? 0 : 1)
@@ -2590,7 +2705,6 @@ describe('Happy Path', () => {
       ...DEFAULT_LOCAL,
       currentId: delay + 1,
       latestId: delay,
-      collateral: (await market.locals(user.address)).collateral,
     })
     expectOrderEq(await market.pendingOrders(user.address, delay + 1), {
       ...DEFAULT_ORDER,

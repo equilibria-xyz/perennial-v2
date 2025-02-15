@@ -24,6 +24,8 @@ import {
   PowerTwo,
   GasOracle,
   GasOracle__factory,
+  IMargin,
+  IMargin__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
@@ -165,6 +167,7 @@ testOracles.forEach(testOracle => {
     let chainlinkOracleFactory: ChainlinkFactory
     let oracleFactory: OracleFactory
     let marketFactory: MarketFactory
+    let margin: IMargin
     let market: IMarket
     let marketBtc: IMarket
     let dsu: IERC20Metadata
@@ -257,7 +260,7 @@ testOracles.forEach(testOracle => {
       )
       await oracleFactory.create(CHAINLINK_BTC_USD_PRICE_FEED, chainlinkOracleFactory.address, 'BTC-USD')
 
-      marketFactory = await deployMarketFactory(owner, oracleFactory)
+      marketFactory = await deployMarketFactory(owner, oracleFactory, dsu)
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         maxFee: parse6decimal('0.01'),
@@ -316,30 +319,12 @@ testOracles.forEach(testOracle => {
         closed: false,
         settle: false,
       }
-      market = Market__factory.connect(
-        await marketFactory.callStatic.create({
-          token: dsu.address,
-          oracle: oracle.address,
-        }),
-        owner,
-      )
-      await marketFactory.create({
-        token: dsu.address,
-        oracle: oracle.address,
-      })
+      market = Market__factory.connect(await marketFactory.callStatic.create(oracle.address), owner)
+      await marketFactory.create(oracle.address)
       await market.updateParameter(marketParameter)
       await market.updateRiskParameter(riskParameter)
-      marketBtc = Market__factory.connect(
-        await marketFactory.callStatic.create({
-          token: dsu.address,
-          oracle: oracleBtc.address,
-        }),
-        owner,
-      )
-      await marketFactory.create({
-        token: dsu.address,
-        oracle: oracleBtc.address,
-      })
+      marketBtc = Market__factory.connect(await marketFactory.callStatic.create(oracleBtc.address), owner)
+      await marketFactory.create(oracleBtc.address)
       await marketBtc.updateParameter(marketParameter)
       await marketBtc.updateRiskParameter(riskParameter)
 
@@ -348,13 +333,9 @@ testOracles.forEach(testOracle => {
       await keeperOracleBtc.register(oracleBtc.address)
       await oracleBtc.register(marketBtc.address)
 
-      const dsuMinter = await impersonateWithBalance(RESERVE_ADDRESS, utils.parseEther('10'))
-      const mintAbi = ['function mint(uint256 amount) external']
-      const dsuMinterContract = new ethers.Contract(DSU_ADDRESS, mintAbi, dsuMinter)
-      await dsuMinterContract.mint(utils.parseEther('100000'))
-      await dsu.connect(dsuMinter).transfer(oracleFactory.address, utils.parseEther('100000'))
-
-      await dsu.connect(user).approve(market.address, constants.MaxUint256)
+      margin = IMargin__factory.connect(await market.margin(), owner)
+      await dsu.connect(user).approve(margin.address, constants.MaxUint256)
+      await margin.connect(user).deposit(user.address, parse6decimal('10'))
     }
 
     beforeEach(async () => {
