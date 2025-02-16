@@ -185,19 +185,19 @@ export function RunInvokerTests(
 
     const buildMarketUpdateAction = async ({
       market,
-      makerDelta,
-      longDelta,
-      shortDelta,
-      collateral,
+      makerDelta = BigNumber.from(0),
+      longDelta = BigNumber.from(0),
+      shortDelta = BigNumber.from(0),
+      collateral = BigNumber.from(0),
       handleWrap,
       interfaceFee1,
       interfaceFee2,
     }: {
       market: IMarket
-      makerDelta?: BigNumberish
-      longDelta?: BigNumberish
-      shortDelta?: BigNumberish
-      collateral?: BigNumberish
+      makerDelta?: BigNumber
+      longDelta?: BigNumber
+      shortDelta?: BigNumber
+      collateral?: BigNumber
       handleWrap?: boolean
       interfaceFee1?: InterfaceFeeStruct
       interfaceFee2?: InterfaceFeeStruct
@@ -207,10 +207,10 @@ export function RunInvokerTests(
 
       return buildUpdateMarket({
         market: market.address,
-        makerDelta: makerDelta ?? 0,
-        longDelta: longDelta ?? 0,
-        shortDelta: shortDelta ?? 0,
-        collateral: collateral ?? 0,
+        makerDelta: makerDelta,
+        longDelta: longDelta,
+        shortDelta: shortDelta,
+        collateral: collateral,
         handleWrap: handleWrap,
         interfaceFee1: interfaceFee1,
         interfaceFee2: interfaceFee2,

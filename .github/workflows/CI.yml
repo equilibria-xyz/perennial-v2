@@ -124,12 +124,12 @@ jobs:
           node-version: ${{ matrix.node }}
       - uses: actions/checkout@v3
       - name: Download unit test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: core_unit_test_coverage
           path: core_unit_test_coverage
       - name: Download integration test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: core_integration_test_coverage
           path: core_integration_test_coverage
@@ -408,17 +408,17 @@ jobs:
           node-version: ${{ matrix.node }}
       - uses: actions/checkout@v3
       - name: Download oracle unit test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: oracle_unit_test_coverage
           path: oracle_unit_test_coverage
       - name: Download vault unit test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: vault_unit_test_coverage
           path: vault_unit_test_coverage
       - name: Download periphery unit test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: periphery_unit_test_coverage
           path: periphery_unit_test_coverage
@@ -460,27 +460,27 @@ jobs:
           node-version: ${{ matrix.node }}
       - uses: actions/checkout@v3
       - name: Download oracle integration test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: oracle_integration_test_coverage
           path: oracle_integration_test_coverage
       - name: Download oracle sepolia integration test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: oracle_sepolia_integration_test_coverage
           path: oracle_sepolia_integration_test_coverage
       - name: Download vault integration test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: vault_integration_test_coverage
           path: vault_integration_test_coverage
       - name: Download periphery integration test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: periphery_integration_test_coverage
           path: periphery_integration_test_coverage
       - name: Download periphery arbitrum integration test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: periphery_arbitrum_integration_test_coverage
           path: periphery_arbitrum_integration_test_coverage
@@ -518,12 +518,12 @@ jobs:
           node-version: ${{ matrix.node }}
       - uses: actions/checkout@v3
       - name: Download periphery unit test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: periphery_unit_coverage
           path: periphery_unit_coverage
       - name: Download periphery integration test coverage file
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: periphery_integration_coverage
           path: periphery_integration_coverage
