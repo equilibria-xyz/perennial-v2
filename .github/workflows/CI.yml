@@ -64,7 +64,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-core run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: core_unit_test_coverage
           path: ./packages/core/coverage/lcov.info
@@ -102,7 +102,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-core run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: core_integration_test_coverage
           path: ./packages/core/coverage/lcov.info
@@ -172,7 +172,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: oracle_unit_test_coverage
           path: ./packages/oracle/coverage/lcov.info
@@ -202,7 +202,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: oracle_integration_test_coverage
           path: ./packages/oracle/coverage/lcov.info
@@ -232,7 +232,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-oracle run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationSepolia' || 'test:integrationSepolia' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: oracle_sepolia_integration_test_coverage
           path: ./packages/oracle/coverage/lcov.info
@@ -263,7 +263,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: vault_unit_test_coverage
           path: ./packages/vault/coverage/lcov.info
@@ -293,7 +293,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-vault run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: vault_integration_test_coverage
           path: ./packages/vault/coverage/lcov.info
@@ -324,7 +324,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage' || 'test' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: periphery_unit_test_coverage
           path: ./packages/periphery/coverage/lcov.info
@@ -354,7 +354,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: periphery_integration_test_coverage
           path: ./packages/periphery/coverage/lcov.info
@@ -384,7 +384,7 @@ jobs:
         run: |
           yarn workspace @perennial/v2-periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationArbitrum' || 'test:integrationArbitrum' }}
       - name: Upload lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: periphery_arbitrum_integration_test_coverage
           path: ./packages/periphery/coverage/lcov.info
@@ -430,7 +430,7 @@ jobs:
           -a periphery_unit_test_coverage/lcov.info
           --output-file periphery_unit_coverage.info
       - name: Upload combined unit test lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: periphery_unit_coverage
           path: periphery_unit_coverage.info
@@ -494,7 +494,7 @@ jobs:
           -a periphery_arbitrum_integration_test_coverage/lcov.info
           --output-file periphery_integration_coverage.info
       - name: Upload combined integration test lcov file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: periphery_integration_coverage
           path: periphery_integration_coverage.info
