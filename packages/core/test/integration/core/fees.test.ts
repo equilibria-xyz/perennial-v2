@@ -379,7 +379,8 @@ describe('Fees', () => {
     it('charges price impact on make open', async () => {
       const { user, userB, dsu } = instanceVars
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
       await expect(
         market
           .connect(user)
@@ -420,7 +421,7 @@ describe('Fees', () => {
         currentId: 1,
         latestId: 1,
       })
-      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL.sub(expectedPriceImpact))
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.sub(expectedPriceImpact))
       expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
@@ -443,7 +444,7 @@ describe('Fees', () => {
         currentId: 1,
         latestId: 1,
       })
-      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
         COLLATERAL.add(expectedPriceImpact).sub(3),
       )
       expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
@@ -602,8 +603,8 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(expectedPriceImpact),
       })
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.sub(expectedPriceImpact))
       expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
@@ -701,8 +702,8 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 2,
-        collateral: COLLATERAL.sub(expectedPriceImpact),
       })
+      expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(COLLATERAL.sub(expectedPriceImpact))
       expectOrderEq(await market.pendingOrders(userC.address, 2), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
@@ -795,8 +796,8 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.sub(expectedPriceImpact),
       })
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.sub(expectedPriceImpact))
       expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
@@ -818,8 +819,8 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.add(expectedPriceImpact),
       })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL.add(expectedPriceImpact))
       expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
         ...DEFAULT_CHECKPOINT,
         tradeFee: expectedPriceImpact,
@@ -888,7 +889,7 @@ describe('Fees', () => {
         currentId: 2,
         latestId: 2,
       })
-      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL.sub(expectedPriceImpact))
+      expect(await margin.isolatedBalances(userD.address, market.address)).to.equal(COLLATERAL.sub(expectedPriceImpact))
       expectOrderEq(await market.pendingOrders(userD.address, 2), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
@@ -909,7 +910,6 @@ describe('Fees', () => {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
-        collateral: COLLATERAL.add(expectedPriceImpact).sub(10),
       })
       expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
         COLLATERAL.add(expectedPriceImpact).sub(10),
@@ -1835,7 +1835,9 @@ describe('Fees', () => {
         makerFee: parse6decimal('0.05'),
       })
 
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
+
       await market
         .connect(userB)
         ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
@@ -1861,8 +1863,8 @@ describe('Fees', () => {
         .connect(user)
         ['update(address,int256,int256,int256,address)'](user.address, 0, 0, COLLATERAL, constants.AddressZero)
 
-      await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
-      await margin.connect(userC).deposit(userB.address, COLLATERAL)
+      await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userC).deposit(userC.address, COLLATERAL)
       await market
         .connect(userC)
         ['update(address,int256,int256,int256,address)'](userC.address, 0, 0, COLLATERAL, constants.AddressZero)
@@ -1900,6 +1902,7 @@ describe('Fees', () => {
           'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
         ](userC.address, intent, signature)
 
+      console.log(5)
       expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
         ...DEFAULT_GUARANTEE,
         orders: 1,

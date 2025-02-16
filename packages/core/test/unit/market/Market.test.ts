@@ -10715,13 +10715,15 @@ describe('Market', () => {
                 ...DEFAULT_LOCAL,
                 currentId: 1,
                 latestId: 1,
-                collateral: COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL)
+              })
+              expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(
+                COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_10_123_ALL)
                   .sub(EXPECTED_INTEREST_10_67_123_ALL.mul(2).div(3))
                   .sub(SETTLEMENT_FEE.div(3).add(1))
                   .sub(EXPECTED_TAKER_FEE_C)
                   .add(PRICE_IMPACT) // maker pays due to ordering
                   .sub(9), // loss of precision
-              })
+              )
               const totalFee = EXPECTED_FUNDING_FEE_1_10_123_ALL.add(EXPECTED_INTEREST_FEE_10_67_123_ALL)
                 .add(EXPECTED_TAKER_FEE)
                 .add(EXPECTED_TAKER_FEE_C)
@@ -17017,9 +17019,7 @@ describe('Market', () => {
             currentId: 1,
             latestId: 1,
           })
-          expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
-            COLLATERAL.add(TAKER_OFFSET_MAKER),
-          )
+          expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL.add(PRICE_IMPACT))
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_5.timestamp,

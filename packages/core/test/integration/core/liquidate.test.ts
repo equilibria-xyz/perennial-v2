@@ -463,7 +463,7 @@ describe('Liquidate', () => {
       maxFee: parse6decimal('0.9'),
       referralFee: parse6decimal('0.12'),
     })
-    const market = await createMarket(instanceVars, undefined, undefined, {
+    const market = await createMarket(instanceVars, undefined, {
       makerFee: parse6decimal('0.05'),
     })
 
