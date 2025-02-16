@@ -253,50 +253,6 @@ describe('Checkpoint', () => {
   })
 
   describe('#accumulate', () => {
-    const FROM_POSITION: PositionStruct = {
-      timestamp: 0, // unused
-      maker: parse6decimal('987'),
-      long: parse6decimal('654'),
-      short: parse6decimal('321'),
-    }
-
-    const TO_POSITION: PositionStruct = {
-      timestamp: 0, // unused
-      maker: 0,
-      long: 0,
-      short: 0,
-    }
-
-    const FROM_VERSION: VersionStruct = {
-      valid: true,
-      price: parse6decimal('123'),
-      makerValue: { _value: parse6decimal('100') },
-      longValue: { _value: parse6decimal('200') },
-      shortValue: { _value: parse6decimal('300') },
-      makerFee: { _value: parse6decimal('1400') },
-      takerFee: { _value: parse6decimal('1600') },
-      makerOffset: { _value: parse6decimal('400') },
-      takerPosOffset: { _value: parse6decimal('600') },
-      takerNegOffset: { _value: parse6decimal('700') },
-      settlementFee: { _value: parse6decimal('800') },
-      liquidationFee: { _value: parse6decimal('900') },
-    }
-
-    const TO_VERSION: VersionStruct = {
-      valid: true,
-      price: parse6decimal('123'),
-      makerValue: { _value: parse6decimal('1000') },
-      longValue: { _value: parse6decimal('2000') },
-      shortValue: { _value: parse6decimal('3000') },
-      makerFee: { _value: parse6decimal('14000') },
-      takerFee: { _value: parse6decimal('16000') },
-      makerOffset: { _value: parse6decimal('4000') },
-      takerPosOffset: { _value: parse6decimal('6000') },
-      takerNegOffset: { _value: parse6decimal('7000') },
-      settlementFee: { _value: parse6decimal('8000') },
-      liquidationFee: { _value: parse6decimal('9000') },
-    }
-
     context('zero initial values', () => {
       beforeEach(async () => {
         await checkpoint.store({
@@ -327,11 +283,11 @@ describe('Checkpoint', () => {
           { ...DEFAULT_ORDER, longPos: parse6decimal('10'), longNeg: parse6decimal('5') },
           {
             ...DEFAULT_GUARANTEE,
-            takerPos: parse6decimal('5'),
-            takerNeg: parse6decimal('2'),
+            longPos: parse6decimal('5'),
+            longNeg: parse6decimal('2'),
             notional: parse6decimal('300'),
           },
-          { ...DEFAULT_POSITION },
+          { ...DEFAULT_POSITION, long: parse6decimal('5') },
           { ...DEFAULT_VERSION },
           { ...DEFAULT_VERSION, price: parse6decimal('123') },
         )
@@ -348,11 +304,11 @@ describe('Checkpoint', () => {
           { ...DEFAULT_ORDER, shortPos: parse6decimal('10'), shortNeg: parse6decimal('5') },
           {
             ...DEFAULT_GUARANTEE,
-            takerNeg: parse6decimal('5'),
-            takerPos: parse6decimal('2'),
+            shortPos: parse6decimal('5'),
+            shortNeg: parse6decimal('2'),
             notional: parse6decimal('-300'),
           },
-          { ...DEFAULT_POSITION },
+          { ...DEFAULT_POSITION, short: parse6decimal('5') },
           { ...DEFAULT_VERSION },
           { ...DEFAULT_VERSION, price: parse6decimal('123') },
         )
@@ -369,8 +325,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_ORDER },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION, maker: parse6decimal('10') },
-          { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('100') } },
-          { ...DEFAULT_VERSION, makerValue: { _value: parse6decimal('200') } },
+          { ...DEFAULT_VERSION, makerPreValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, makerPreValue: { _value: parse6decimal('200') } },
         )
         expect(ret.collateral).to.equal(parse6decimal('1000'))
 
@@ -385,8 +341,8 @@ describe('Checkpoint', () => {
           { ...DEFAULT_ORDER },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION, long: parse6decimal('10') },
-          { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('100') } },
-          { ...DEFAULT_VERSION, longValue: { _value: parse6decimal('200') } },
+          { ...DEFAULT_VERSION, longPreValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, longPreValue: { _value: parse6decimal('200') } },
         )
         expect(ret.collateral).to.equal(parse6decimal('1000'))
 
@@ -401,8 +357,88 @@ describe('Checkpoint', () => {
           { ...DEFAULT_ORDER },
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION, short: parse6decimal('10') },
-          { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('100') } },
-          { ...DEFAULT_VERSION, shortValue: { _value: parse6decimal('200') } },
+          { ...DEFAULT_VERSION, shortPreValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, shortPreValue: { _value: parse6decimal('200') } },
+        )
+        expect(ret.collateral).to.equal(parse6decimal('1000'))
+
+        expect(value.collateral).to.equal(parse6decimal('1000'))
+      })
+
+      it('accumulates received spread (maker close)', async () => {
+        const { ret, value } = await accumulateWithReturn(
+          checkpoint,
+          user.address,
+          ORDER_ID,
+          { ...DEFAULT_ORDER },
+          { ...DEFAULT_GUARANTEE },
+          { ...DEFAULT_POSITION, maker: parse6decimal('10') },
+          { ...DEFAULT_VERSION, makerCloseValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, makerCloseValue: { _value: parse6decimal('200') } },
+        )
+        expect(ret.collateral).to.equal(parse6decimal('1000'))
+
+        expect(value.collateral).to.equal(parse6decimal('1000'))
+      })
+
+      it('accumulates received spread (long close)', async () => {
+        const { ret, value } = await accumulateWithReturn(
+          checkpoint,
+          user.address,
+          ORDER_ID,
+          { ...DEFAULT_ORDER },
+          { ...DEFAULT_GUARANTEE },
+          { ...DEFAULT_POSITION, long: parse6decimal('10') },
+          { ...DEFAULT_VERSION, longCloseValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, longCloseValue: { _value: parse6decimal('200') } },
+        )
+        expect(ret.collateral).to.equal(parse6decimal('1000'))
+
+        expect(value.collateral).to.equal(parse6decimal('1000'))
+      })
+
+      it('accumulates received spread (short close)', async () => {
+        const { ret, value } = await accumulateWithReturn(
+          checkpoint,
+          user.address,
+          ORDER_ID,
+          { ...DEFAULT_ORDER },
+          { ...DEFAULT_GUARANTEE },
+          { ...DEFAULT_POSITION, short: parse6decimal('10') },
+          { ...DEFAULT_VERSION, shortCloseValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, shortCloseValue: { _value: parse6decimal('200') } },
+        )
+        expect(ret.collateral).to.equal(parse6decimal('1000'))
+
+        expect(value.collateral).to.equal(parse6decimal('1000'))
+      })
+
+      it('accumulates received spread (long post)', async () => {
+        const { ret, value } = await accumulateWithReturn(
+          checkpoint,
+          user.address,
+          ORDER_ID,
+          { ...DEFAULT_ORDER },
+          { ...DEFAULT_GUARANTEE },
+          { ...DEFAULT_POSITION, long: parse6decimal('10') },
+          { ...DEFAULT_VERSION, longPostValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, longPostValue: { _value: parse6decimal('200') } },
+        )
+        expect(ret.collateral).to.equal(parse6decimal('1000'))
+
+        expect(value.collateral).to.equal(parse6decimal('1000'))
+      })
+
+      it('accumulates received spread (short post)', async () => {
+        const { ret, value } = await accumulateWithReturn(
+          checkpoint,
+          user.address,
+          ORDER_ID,
+          { ...DEFAULT_ORDER },
+          { ...DEFAULT_GUARANTEE },
+          { ...DEFAULT_POSITION, short: parse6decimal('10') },
+          { ...DEFAULT_VERSION, shortPostValue: { _value: parse6decimal('100') } },
+          { ...DEFAULT_VERSION, shortPostValue: { _value: parse6decimal('200') } },
         )
         expect(ret.collateral).to.equal(parse6decimal('1000'))
 
@@ -441,23 +477,7 @@ describe('Checkpoint', () => {
         expect(value.tradeFee).to.equal(parse6decimal('20'))
       })
 
-      it('accumulates fees (maker offset)', async () => {
-        const { ret, value } = await accumulateWithReturn(
-          checkpoint,
-          user.address,
-          ORDER_ID,
-          { ...DEFAULT_ORDER, makerPos: parse6decimal('10') },
-          { ...DEFAULT_GUARANTEE },
-          { ...DEFAULT_POSITION },
-          { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, makerOffset: { _value: parse6decimal('-2') } },
-        )
-        expect(ret.offset).to.equal(parse6decimal('20'))
-
-        expect(value.tradeFee).to.equal(parse6decimal('20'))
-      })
-
-      it('accumulates fees (taker pos offset)', async () => {
+      it('accumulates charged price impact (spread pos)', async () => {
         const { ret, value } = await accumulateWithReturn(
           checkpoint,
           user.address,
@@ -466,25 +486,25 @@ describe('Checkpoint', () => {
           { ...DEFAULT_GUARANTEE },
           { ...DEFAULT_POSITION },
           { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, takerPosOffset: { _value: parse6decimal('-2') } },
+          { ...DEFAULT_VERSION, spreadPos: { _value: parse6decimal('-2') }, longPosExposure: parse6decimal('1') },
         )
-        expect(ret.offset).to.equal(parse6decimal('20'))
+        expect(ret.spread).to.equal(parse6decimal('20'))
 
         expect(value.tradeFee).to.equal(parse6decimal('20'))
       })
 
-      it('accumulates fees (taker neg offset)', async () => {
+      it('accumulates charged price impact (spread neg)', async () => {
         const { ret, value } = await accumulateWithReturn(
           checkpoint,
           user.address,
           ORDER_ID,
           { ...DEFAULT_ORDER, longNeg: parse6decimal('10') },
           { ...DEFAULT_GUARANTEE },
-          { ...DEFAULT_POSITION },
+          { ...DEFAULT_POSITION, long: parse6decimal('10') },
           { ...DEFAULT_VERSION },
-          { ...DEFAULT_VERSION, takerNegOffset: { _value: parse6decimal('-2') } },
+          { ...DEFAULT_VERSION, spreadNeg: { _value: parse6decimal('-2') }, longNegExposure: parse6decimal('-1') },
         )
-        expect(ret.offset).to.equal(parse6decimal('20'))
+        expect(ret.spread).to.equal(parse6decimal('20'))
 
         expect(value.tradeFee).to.equal(parse6decimal('20'))
       })
