@@ -8,6 +8,7 @@ on:
       - main
       - v2.4
       - v2.5
+      - britz-intent-consolidate-margin-maintenance
   workflow_dispatch:
 
 env:
