@@ -53,7 +53,8 @@ contract StorkFactory is IStorkFactory, KeeperFactory {
             (Fixed18 price, uint256 timestampNs) =
                 (Fixed18.wrap(updateData[i].temporalNumericValue.quantizedValue),
                 uint256(updateData[i].temporalNumericValue.timestampNs));
-            prices[i] = PriceRecord(timestampNs, price, 0);
+            prices[i] = PriceRecord(timestampNs / 1e9, price, 0);
         }
     }
 }
+

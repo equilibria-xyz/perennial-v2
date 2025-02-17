@@ -147,7 +147,7 @@ describe('StorkOracleFactory', () => {
       .commit(
         [STORK_ETH_USD_PRICE_FEED],
         await keeperOracle.callStatic.next(),
-        getVaa((await keeperOracle.callStatic.next()).add(minDelay), ethers.utils.parseUnits('1', 18)),
+        getVaa((await keeperOracle.callStatic.next()).add(minDelay).mul(1e9), ethers.utils.parseUnits('1', 18)),
         {
           value: 1,
         },
@@ -160,7 +160,7 @@ describe('StorkOracleFactory', () => {
       .commit(
         [STORK_ETH_USD_PRICE_FEED],
         await keeperOracle.callStatic.next(),
-        getVaa((await keeperOracle.callStatic.next()).add(minDelay), ethers.utils.parseUnits('2', 18)),
+        getVaa((await keeperOracle.callStatic.next()).add(minDelay).mul(1e9), ethers.utils.parseUnits('2', 18)),
         {
           value: 1,
         },
