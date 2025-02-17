@@ -91,6 +91,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         address account
     ) external onlyMarket view returns (bool isMaintained) {
         IMarket market = IMarket(msg.sender);
+        // TODO: calculate effective collateral with price adjustments and pending intent fees
         if (_isIsolated(account, market)) {
             Fixed6 collateral = _balances[account][market];
             UFixed6 requirement = market.maintenanceRequired(account);
@@ -157,6 +158,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         Fixed6 guaranteePriceAdjustment
     ) private view returns (bool isMargined) {
         if (_isIsolated(account, market)) {
+            // TODO: subtract pending intent fees from collateral
             Fixed6 collateral = _balances[account][market].add(guaranteePriceAdjustment);
             UFixed6 requirement = market.marginRequired(account, minCollateralization);
             return UFixed6Lib.unsafeFrom(collateral).gte(requirement);

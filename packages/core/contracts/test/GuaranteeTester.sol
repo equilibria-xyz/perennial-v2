@@ -16,10 +16,8 @@ abstract contract GuaranteeTester {
         store(newGuarantee);
     }
 
-    function next() public {
-        Guarantee memory newGuarantee = read();
-        newGuarantee.next();
-        store(newGuarantee);
+    function fresh() public {
+        store(GuaranteeLib.fresh());
     }
 
     function takerPos(Guarantee memory guarantee) public pure returns (UFixed6) {

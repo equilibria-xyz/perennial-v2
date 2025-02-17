@@ -7,6 +7,7 @@ import { IMargin } from "../interfaces/IMargin.sol";
 import { IMarket } from "../interfaces/IMarket.sol";
 import { Order } from "../types/Order.sol";
 import { Guarantee } from "../types/Guarantee.sol";
+import { Position } from "../types/Position.sol";
 
 /// @title InvariantLib
 /// @dev (external-safe): this library is safe to externalize
@@ -88,22 +89,5 @@ library InvariantLib {
             updateContext.currentPositionGlobal.socialized() &&
             newOrder.decreasesLiquidity(updateContext.currentPositionGlobal)
         ) revert IMarket.MarketInsufficientLiquidityError();
-    }
-
-    function validateProtection(IMarket.Context memory context, bool maintained, Order memory newOrder) external pure returns (bool) {
-        if (context.pendingLocal.crossesZero()) {
-            if (!newOrder.isEmpty()) return false; // pending zero-cross, liquidate (lock) with no-op order
-        } else {
-            if (!context.pendingLocal.neg().eq(context.latestPositionLocal.magnitude())) return false; // no pending zero-cross, liquidate with full close
-        }
-
-        if (maintained) return false; // latest position is properly maintained
-
-        // TODO: can eliminate because close method doesn't allow increase in position and does not touch collateral
-        if (!newOrder.collateral.eq(Fixed6Lib.ZERO) || // the order is modifying collateral
-            !newOrder.pos().eq(UFixed6Lib.ZERO)        // the order is increasing position
-        ) return false;
-
-        return true;
     }
 }
