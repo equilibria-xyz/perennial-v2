@@ -116,10 +116,9 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @inheritdoc IMargin
     function margined(
         address account,
-        UFixed6 minCollateralization,
-        Fixed6 guaranteePriceAdjustment
+        UFixed6 minCollateralization
     ) external onlyMarket view returns (bool isMargined) {
-        return _margined(account, IMarket(msg.sender), minCollateralization, guaranteePriceAdjustment);
+        return _margined(account, IMarket(msg.sender), minCollateralization);
     }
 
 
@@ -178,10 +177,9 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     function _margined(
         address account,
         IMarket market,
-        UFixed6 minCollateralization,
-        Fixed6 guaranteePriceAdjustment
+        UFixed6 minCollateralization
     ) private view returns (bool isMargined) {
-        Fixed6 collateral = _balances[account][market].add(guaranteePriceAdjustment);
+        Fixed6 collateral = _balances[account][market];
         if (_isIsolated(account, market)) {
             // Market in isolated mode; only need to check against isolated balance
             UFixed6 requirement = market.marginRequired(account, minCollateralization);
@@ -196,24 +194,11 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     function _crossMargined(address account) private view returns (bool isMargined) {
         IMarket market;
         UFixed6 requirement;
-        Fixed6 guaranteePriceAdjustment;
         for (uint256 i; i < crossMarginMarkets[account].length; i++) {
             market = crossMarginMarkets[account][i];
             requirement = requirement.add(market.marginRequired(account, UFixed6Lib.ZERO));
-            guaranteePriceAdjustment = guaranteePriceAdjustment.add(_guaranteePriceAdjustment(market, account));
         }
-        return UFixed6Lib.unsafeFrom(_balances[account][CROSS_MARGIN].add(guaranteePriceAdjustment)).gte(requirement);
-    }
-
-    /// @dev Aggregates price adjustments from guarantees for a user in a market
-    function _guaranteePriceAdjustment(IMarket market, address account) private view returns (Fixed6 guaranteePriceAdjustment) {
-        Local memory local = market.locals(account);
-        for (uint256 id = local.latestId + 1; id <= local.currentId; id++) {
-            Guarantee memory guarantee = market.guarantees(account, id);
-            (OracleVersion memory latestOracleVersion, ) = market.oracle().status();
-            guaranteePriceAdjustment = guaranteePriceAdjustment.add(guarantee.priceAdjustment(latestOracleVersion.price));
-        }
-        return guaranteePriceAdjustment;
+        return UFixed6Lib.unsafeFrom(_balances[account][CROSS_MARGIN]).gte(requirement);
     }
 
     function _crossMaintained(address account) private view returns (bool isMaintained) {
@@ -291,7 +276,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         // TODO: Reduce storage reads by moving margin checks above storage updates, passing new balances into margin check methods
 
         // If reducing isolated balance (but not deisolating), ensure sufficient margin still exists for the market
-        if ((isolating || decreasingIsolatedBalance) && !_margined(account, market, UFixed6Lib.ZERO, Fixed6Lib.ZERO)) {
+        if ((isolating || decreasingIsolatedBalance) && !_margined(account, market, UFixed6Lib.ZERO)) {
             revert IMarket.MarketInsufficientMarginError();
         }
         // Ensure decreased cross-margin balance remains sufficient for crossed markets
