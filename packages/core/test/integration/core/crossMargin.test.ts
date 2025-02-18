@@ -272,6 +272,11 @@ describe('Cross Margin', () => {
     await expect(
       margin.connect(userA).isolate(userA.address, marketC.market.address, maxWithdrawl.add(1)),
     ).to.be.revertedWithCustomError(margin, 'MarketInsufficientMarginError')
+
+    // can isolate slighty less collateral than is needed to maintain margin requirements for crossed markets
+    await expect(margin.connect(userA).isolate(userA.address, marketC.market.address, maxWithdrawl.sub(1))).to.not.be
+      .reverted
+    expect(await margin.isolatedBalances(userA.address, marketC.market.address)).to.equal(maxWithdrawl.sub(1))
   })
 
   it('collects pnl and fees', async () => {

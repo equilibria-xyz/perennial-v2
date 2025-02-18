@@ -21,16 +21,16 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @inheritdoc IMargin
     uint256 public constant MAX_CROSS_MARGIN_MARKETS = 8;
 
-    /// inheritdoc IMargin
+    /// @inheritdoc IMargin
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
 
     /// @dev Contract used to validate markets
     IMarketFactory public marketFactory;
 
-    // Iterable collection of cross-margined markets for a user (account => markets)
+    /// @dev Iterable collection of cross-margined markets for a user (account => markets)
     mapping(address => IMarket[]) private crossMarginMarkets;
 
-    // Looks up index of the cross-margined market (account => market => index)
+    /// @dev Looks up index of the cross-margined market (account => market => index)
     mapping(address => mapping(IMarket => uint256)) private crossMarginMarketIndex;
 
     // TODO: Once exposure is eliminated, make this unsigned
