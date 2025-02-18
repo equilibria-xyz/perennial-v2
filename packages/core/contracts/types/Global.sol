@@ -31,9 +31,6 @@ struct Global {
     /// @dev The latest valid price in the market
     Fixed6 latestPrice;
 
-    /// @dev The accumulated market exposure
-    Fixed6 exposure;
-
     /// @dev The current PAccumulator state
     PAccumulator6 pAccumulator;
 }
@@ -45,22 +42,6 @@ using GlobalStorageLib for GlobalStorage global;
 /// @dev (external-unsafe): this library must be used internally only
 /// @notice Holds the global market state
 library GlobalLib {
-    /// @notice Updates market exposure based on a change in the risk parameter configuration
-    /// @param self The Global object to update
-    /// @param latestRiskParameter The latest risk parameter configuration
-    /// @param newRiskParameter The new risk parameter configuration
-    /// @param latestPosition The latest position
-    function update(
-        Global memory self,
-        RiskParameter memory latestRiskParameter,
-        RiskParameter memory newRiskParameter,
-        Position memory latestPosition
-    ) internal pure {
-        Fixed6 exposureChange = latestRiskParameter.takerFee
-            .exposure(newRiskParameter.takerFee, latestPosition.skew(), self.latestPrice.abs());
-        self.exposure = self.exposure.sub(exposureChange);
-    }
-
     /// @notice Increments the fees by `amount` using current parameters
     /// @dev Computes the fees based on the current market parameters
     ///      market fee -> trade fee + market's trade offset + funding fee + interest fee
@@ -91,7 +72,6 @@ library GlobalLib {
         self.protocolFee = self.protocolFee.add(marketFee);
         self.oracleFee = self.oracleFee.add(accumulation.settlementFee).add(oracleFee);
         self.riskFee = self.riskFee.add(riskFee);
-        self.exposure = self.exposure.add(accumulation.marketExposure);
     }
 
     /// @notice Overrides the price of the oracle with the latest global version if it is empty
@@ -117,7 +97,7 @@ library GlobalLib {
 ///         int32 pAccumulator.value;   // <= 214000%
 ///         int24 pAccumulator.skew;    // <= 838%
 ///         int64 latestPrice;          // <= 9.22t
-///         int64 exposure;             // <= 9.22t
+///         int64 __unallocated__;
 ///     }
 ///
 library GlobalStorageLib {
@@ -133,7 +113,6 @@ library GlobalStorageLib {
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 48 - 48)) >> (256 - 48)),
             UFixed6.wrap(uint256(slot0 << (256 - 32 - 32 - 48 - 48 - 48)) >> (256 - 48)),
             Fixed6.wrap(int256(slot1 << (256 - 32 - 24 - 64)) >> (256 - 64)),
-            Fixed6.wrap(int256(slot1 << (256 - 32 - 24 - 64 - 64)) >> (256 - 64)),
             PAccumulator6(
                 Fixed6.wrap(int256(slot1 << (256 - 32)) >> (256 - 32)),
                 Fixed6.wrap(int256(slot1 << (256 - 32 - 24)) >> (256 - 24))
@@ -149,8 +128,6 @@ library GlobalStorageLib {
         if (newValue.riskFee.gt(UFixed6.wrap(type(uint48).max))) revert GlobalStorageInvalidError();
         if (newValue.latestPrice.gt(Fixed6.wrap(type(int64).max))) revert GlobalStorageInvalidError();
         if (newValue.latestPrice.lt(Fixed6.wrap(type(int64).min))) revert GlobalStorageInvalidError();
-        if (newValue.exposure.gt(Fixed6.wrap(type(int64).max))) revert GlobalStorageInvalidError();
-        if (newValue.exposure.lt(Fixed6.wrap(type(int64).min))) revert GlobalStorageInvalidError();
         if (newValue.pAccumulator._value.gt(Fixed6.wrap(type(int32).max))) revert GlobalStorageInvalidError();
         if (newValue.pAccumulator._value.lt(Fixed6.wrap(type(int32).min))) revert GlobalStorageInvalidError();
         if (newValue.pAccumulator._skew.gt(Fixed6.wrap(type(int24).max))) revert GlobalStorageInvalidError();
@@ -166,8 +143,7 @@ library GlobalStorageLib {
         uint256 encoded1 =
             uint256(Fixed6.unwrap(newValue.pAccumulator._value) << (256 - 32)) >> (256 - 32) |
             uint256(Fixed6.unwrap(newValue.pAccumulator._skew) << (256 - 24)) >> (256 - 32 - 24) |
-            uint256(Fixed6.unwrap(newValue.latestPrice) << (256 - 64)) >> (256 - 32 - 24 - 64) |
-            uint256(Fixed6.unwrap(newValue.exposure) << (256 - 64)) >> (256 - 32 - 24 - 64 - 64);
+            uint256(Fixed6.unwrap(newValue.latestPrice) << (256 - 64)) >> (256 - 32 - 24 - 64);
 
         assembly {
             sstore(self.slot, encoded0)

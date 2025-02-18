@@ -165,8 +165,9 @@ abstract contract Manager is IManager, Kept {
 
         // compensate keeper
         uint256 applicableGas = startGas - gasleft();
-        bytes memory data = abi.encode(market, account, order.maxFee);
-        _handleKeeperFee(keepConfigBuffered, applicableGas, abi.encode(market, account, orderId), 0, data);
+        bytes memory data = abi.encode(account, order.maxFee);
+
+        _handleKeeperFee(keepConfigBuffered, applicableGas, abi.encode(account, orderId), 0, data);
     }
 
     /// @inheritdoc IManager
@@ -187,7 +188,7 @@ abstract contract Manager is IManager, Kept {
         UFixed18 amount,
         bytes memory data
     ) internal virtual override returns (UFixed18) {
-        (IMarket market, address account, UFixed6 maxFee) = abi.decode(data, (IMarket, address, UFixed6));
+        (address account, UFixed6 maxFee) = abi.decode(data, (address, UFixed6));
         UFixed6 raisedKeeperFee = UFixed6Lib.from(amount, true).min(maxFee);
 
         _marginWithdraw(account, raisedKeeperFee);
@@ -247,7 +248,7 @@ abstract contract Manager is IManager, Kept {
     }
 
     modifier keepAction(Action calldata action, bytes memory applicableCalldata) {
-        bytes memory data = abi.encode(action.market, action.common.account, action.maxFee);
+        bytes memory data = abi.encode(action.common.account, action.maxFee);
 
         uint256 startGas = gasleft();
         _;

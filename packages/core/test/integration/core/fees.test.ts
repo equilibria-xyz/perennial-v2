@@ -40,15 +40,11 @@ export const TIMESTAMP_4 = 1631115371
 export const TIMESTAMP_5 = 1631118731
 
 const RISK_PARAMS = {
-  takerFee: {
-    linearFee: parse6decimal('0.05'),
-    proportionalFee: parse6decimal('0.06'),
-    adiabaticFee: parse6decimal('0.14'),
-    scale: parse6decimal('1'),
-  },
-  makerFee: {
-    linearFee: parse6decimal('0.09'),
-    proportionalFee: parse6decimal('0.08'),
+  synBook: {
+    d0: 0,
+    d1: 0,
+    d2: 0,
+    d3: 0,
     scale: parse6decimal('10'),
   },
   makerLimit: parse6decimal('20'),
@@ -68,8 +64,6 @@ const MARKET_PARAMS = {
   fundingFee: parse6decimal('0.1'),
   interestFee: parse6decimal('0.2'),
   riskFee: parse6decimal('0.571428'),
-  makerFee: parse6decimal('0.05'),
-  takerFee: parse6decimal('0.025'),
 }
 
 describe('Fees', () => {
@@ -114,8 +108,17 @@ describe('Fees', () => {
     margin = instanceVars.margin
   })
 
-  describe('position fees', () => {
-    it('charges make fees on open', async () => {
+  describe('trade fees', () => {
+    beforeEach(async () => {
+      const marketParameter = await market.parameter()
+      await market.updateParameter({
+        ...marketParameter,
+        takerFee: parse6decimal('0.025'),
+        makerFee: parse6decimal('0.05'),
+      })
+    })
+
+    it('charges maker trade fees', async () => {
       const POSITION = parse6decimal('10')
       const COLLATERAL = parse6decimal('1000')
       const { user, dsu } = instanceVars
@@ -158,13 +161,8 @@ describe('Fees', () => {
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
       const expectedMakerFee = parse6decimal('56.941490') // = 3374.655169**2 * 0.0001 * (0.05)
-      const expectedMakerLinear = parse6decimal('102.494680') // = 3374.655169**2 * 0.0001 * (0.09)
-      const expectedMakerProportional = parse6decimal('91.106380') // = 3374.655169**2 * 0.0001 * (0.08)
 
       expect(accountProcessEvent?.accumulationResult.tradeFee).to.equal(expectedMakerFee)
-      expect(accountProcessEvent?.accumulationResult.offset).to.equal(
-        expectedMakerLinear.add(expectedMakerProportional),
-      )
 
       // check user state
       expectLocalEq(await market.locals(user.address), {
@@ -172,9 +170,7 @@ describe('Fees', () => {
         currentId: 1,
         latestId: 1,
       })
-      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
-        COLLATERAL.sub(expectedMakerFee).sub(expectedMakerLinear).sub(expectedMakerProportional),
-      )
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.sub(expectedMakerFee))
       expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_1,
@@ -184,7 +180,7 @@ describe('Fees', () => {
       })
       expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
         ...DEFAULT_CHECKPOINT,
-        tradeFee: expectedMakerFee.add(expectedMakerLinear).add(expectedMakerProportional),
+        tradeFee: expectedMakerFee,
         transfer: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
@@ -193,10 +189,10 @@ describe('Fees', () => {
         maker: POSITION,
       })
 
-      // Check global post-settlement state (no existing makers so all fees go to protocol/market)
-      const expectedOracleFee = BigNumber.from('75162763') // = (250542544) * 0.3
-      const expectedRiskFee = BigNumber.from('100216917') // = (250542544) * 0.4
-      const expectedProtocolFee = BigNumber.from('75162864') // = 250542544 - 75162763 - 100217017
+      // Check global post-settlement state
+      const expectedOracleFee = BigNumber.from('17082446') // = (56941487) * 0.3
+      const expectedRiskFee = BigNumber.from('22776572') // = (56941487) * 0.4
+      const expectedProtocolFee = BigNumber.from('17082469') // = 56941487 - 17082446 - 22776572
       expectGlobalEq(await market.global(), {
         ...DEFAULT_GLOBAL,
         currentId: 1,
@@ -205,7 +201,6 @@ describe('Fees', () => {
         riskFee: expectedRiskFee,
         oracleFee: expectedOracleFee,
         latestPrice: PRICE,
-        exposure: 0,
       })
       expectOrderEq(await market.pendingOrder(1), {
         ...DEFAULT_ORDER,
@@ -221,27 +216,185 @@ describe('Fees', () => {
       })
     })
 
-    it('charges make fees on close', async () => {
-      const riskParams = { ...(await market.riskParameter()) }
-      const previousRiskParams = { ...riskParams }
-      const riskParamsMakerFee = { ...riskParams.makerFee }
-      riskParamsMakerFee.linearFee = BigNumber.from('0')
-      riskParamsMakerFee.proportionalFee = BigNumber.from('0')
-      riskParams.makerFee = riskParamsMakerFee
-      await market.updateRiskParameter(riskParams)
-
+    it('charges taker trade fees', async () => {
       const marketParams = { ...(await market.parameter()) }
-      const previousMarketParams = { ...marketParams }
       marketParams.makerFee = BigNumber.from('0')
       await market.updateParameter(marketParams)
 
-      const POSITION = parse6decimal('10')
+      const MAKER_POSITION = parse6decimal('10')
+      const LONG_POSITION = parse6decimal('1')
       const COLLATERAL = parse6decimal('1000')
-      const { user, dsu } = instanceVars
+      const { user, userB, dsu } = instanceVars
 
       await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(user).deposit(user.address, COLLATERAL)
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
+      await market
+        .connect(user)
+        ['update(address,int256,int256,int256,address)'](
+          user.address,
+          MAKER_POSITION,
+          0,
+          COLLATERAL,
+          constants.AddressZero,
+        )
+      await expect(
+        market
+          .connect(userB)
+          ['update(address,int256,int256,int256,address)'](
+            userB.address,
+            0,
+            LONG_POSITION,
+            COLLATERAL,
+            constants.AddressZero,
+          ),
+      )
+        .to.emit(market, 'OrderCreated')
+        .withArgs(
+          userB.address,
+          {
+            ...DEFAULT_ORDER,
+            timestamp: TIMESTAMP_1,
+            orders: 1,
+            longPos: LONG_POSITION,
+            collateral: COLLATERAL,
+            invalidation: 1,
+          },
+          { ...DEFAULT_GUARANTEE },
+          constants.AddressZero,
+          constants.AddressZero,
+          constants.AddressZero,
+        )
+
+      await nextWithConstantPrice()
+      const txLong = await settle(market, userB)
+      const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
+        e => e.event === 'AccountPositionProcessed',
+      )?.args as unknown as AccountPositionProcessedEventObject
+      const processEvent: PositionProcessedEventObject = (await txLong.wait()).events?.find(
+        e => e.event === 'PositionProcessed',
+      )?.args as unknown as PositionProcessedEventObject
+
+      // 100% long so taker takes full skew and impact
+      const expectedTakerFee = parse6decimal('2.847074') // = 3374.655169**2 * 0.00001 * (0.025)
+
+      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedTakerFee)
+      expect(processEvent.accumulationResult.tradeFee).to.eq(expectedTakerFee)
+
+      const expectedOracleFee = BigNumber.from('854122') // = (2847074) * 0.3
+      const expectedRiskFee = BigNumber.from('1138828') // = (2847074) * 0.4
+      const expectedProtocolFee = BigNumber.from('854124') // = 2847074 - 854122 - 1138829
+
+      // Global State
+      expectGlobalEq(await market.global(), {
+        ...DEFAULT_GLOBAL,
+        currentId: 1,
+        latestId: 1,
+        protocolFee: expectedProtocolFee,
+        riskFee: expectedRiskFee,
+        oracleFee: expectedOracleFee,
+        latestPrice: PRICE,
+      })
+      expectOrderEq(await market.pendingOrder(1), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 2,
+        longPos: LONG_POSITION,
+        makerPos: MAKER_POSITION,
+        collateral: COLLATERAL.mul(2),
+      })
+      expectPositionEq(await market.position(), {
+        ...DEFAULT_POSITION,
+        timestamp: TIMESTAMP_1,
+        maker: MAKER_POSITION,
+        long: LONG_POSITION,
+      })
+
+      // Long State
+      expectLocalEq(await market.locals(userB.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 1,
+        latestId: 1,
+      })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL.sub(expectedTakerFee))
+      expectOrderEq(await market.pendingOrders(userB.address, 1), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        longPos: LONG_POSITION,
+        collateral: COLLATERAL,
+      })
+      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_1), {
+        ...DEFAULT_CHECKPOINT,
+        tradeFee: expectedTakerFee,
+        transfer: COLLATERAL,
+      })
+      expectPositionEq(await market.positions(userB.address), {
+        ...DEFAULT_POSITION,
+        timestamp: TIMESTAMP_1,
+        long: LONG_POSITION,
+      })
+    })
+  })
+
+  describe('impact fees', () => {
+    const POSITION = parse6decimal('10')
+    const COLLATERAL = parse6decimal('1000')
+
+    beforeEach(async () => {
+      const { userB, userC, userD, dsu } = instanceVars
+
+      // setup initial positions + skew
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
+      await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userC).deposit(userC.address, COLLATERAL)
+      await dsu.connect(userD).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userD).deposit(userD.address, COLLATERAL)
+
+      await market
+        .connect(userB)
+        ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
+      await market
+        .connect(userC)
+        ['update(address,int256,int256,int256,address)'](userC.address, 0, POSITION, COLLATERAL, constants.AddressZero)
+
+      await dsu.connect(userD).approve(market.address, COLLATERAL.mul(1e12))
+      await market
+        .connect(userD)
+        ['update(address,int256,int256,int256,address)'](
+          userD.address,
+          0,
+          -POSITION.div(2),
+          COLLATERAL,
+          constants.AddressZero,
+        )
+
+      await nextWithConstantPrice()
+      await settle(market, userB)
+      await settle(market, userC)
+      await settle(market, userD)
+
+      const riskParameter = await market.riskParameter()
+      await market.updateRiskParameter({
+        ...riskParameter,
+        synBook: {
+          ...riskParameter.synBook,
+          d0: parse6decimal('0.001'),
+          d1: parse6decimal('0.002'),
+          d2: parse6decimal('0.004'),
+          d3: parse6decimal('0.008'),
+        },
+      })
+    })
+
+    it('charges price impact on make open', async () => {
+      const { user, userB, dsu } = instanceVars
+
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
       await expect(
         market
           .connect(user)
@@ -258,7 +411,7 @@ describe('Fees', () => {
           user.address,
           {
             ...DEFAULT_ORDER,
-            timestamp: TIMESTAMP_1,
+            timestamp: TIMESTAMP_2,
             orders: 1,
             makerPos: POSITION,
             collateral: COLLATERAL,
@@ -270,273 +423,92 @@ describe('Fees', () => {
           constants.AddressZero,
         )
 
-      await nextWithConstantPrice()
-      await settle(market, user)
+      // skew -0.5 -> -.25, price 3374.655169^2/100000, exposure +2.5
+      const expectedPriceImpact = parse6decimal('0.025953')
 
-      await market.updateRiskParameter(previousRiskParams)
-      await market.updateParameter(previousMarketParams)
-      await market.connect(user).close(user.address, false, constants.AddressZero)
-
-      // Settle the market with a new oracle version
       await nextWithConstantPrice()
       const tx = await settle(market, user)
       const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
-      const expectedMakerFee = parse6decimal('56.941490') // = 3374.655169**2 * 0.0001 * (0.05)
-      const expectedMakerLinear = parse6decimal('102.494680') // = 3374.655169**2 * 0.0001 * (0.09)
-      const expectedMakerProportional = parse6decimal('91.106380') // = 3374.655169**2 * 0.0001 * (0.08)
 
-      expect(accountProcessEvent?.accumulationResult.tradeFee).to.equal(expectedMakerFee)
-      expect(accountProcessEvent?.accumulationResult.offset).to.equal(
-        expectedMakerLinear.add(expectedMakerProportional),
-      )
+      expect(accountProcessEvent?.accumulationResult.spread).to.equal(expectedPriceImpact)
+
+      await settle(market, userB)
 
       // check user state
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
-        currentId: 2,
-        latestId: 2,
+        currentId: 1,
+        latestId: 1,
       })
-      // Maker gets part of their fee refunded since they were an exisiting maker
-      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
-        COLLATERAL.sub(expectedMakerFee).sub(10),
-      )
-      expectOrderEq(await market.pendingOrders(user.address, 2), {
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.sub(expectedPriceImpact))
+      expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
         orders: 1,
-        makerNeg: POSITION,
+        makerPos: POSITION,
+        collateral: COLLATERAL,
       })
       expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
         ...DEFAULT_CHECKPOINT,
-        tradeFee: expectedMakerFee.add(expectedMakerLinear).add(expectedMakerProportional),
-        collateral: COLLATERAL.add(expectedMakerLinear).add(expectedMakerProportional).sub(10),
+        tradeFee: expectedPriceImpact,
+        transfer: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
         timestamp: TIMESTAMP_2,
+        maker: POSITION,
       })
-
-      // Check global post-settlement state. Existing makers so protocol only gets 50% of fees
-      const expectedOracleFee = BigNumber.from('17082446') // = (56941487) * 0.3
-      const expectedRiskFee = BigNumber.from('22776572') // = (56941487) * 0.4
-      const expectedProtocolFee = BigNumber.from('17082469') // = 56941487 - 17082446 - 22776594
-      expectGlobalEq(await market.global(), {
-        ...DEFAULT_GLOBAL,
-        currentId: 2,
-        latestId: 2,
-        protocolFee: expectedProtocolFee,
-        riskFee: expectedRiskFee,
-        oracleFee: expectedOracleFee,
-        latestPrice: PRICE,
-        exposure: 0,
-      })
-      expectOrderEq(await market.pendingOrder(2), {
-        ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_2,
-        orders: 1,
-        makerNeg: POSITION,
-      })
-      expectPositionEq(await market.position(), {
-        ...DEFAULT_POSITION,
-        timestamp: TIMESTAMP_2,
-      })
-    })
-
-    it('charges take fees on long open', async () => {
-      const riskParams = { ...(await market.riskParameter()) }
-      const riskParamsMakerFee = { ...riskParams.makerFee }
-      riskParamsMakerFee.linearFee = BigNumber.from('0')
-      riskParamsMakerFee.proportionalFee = BigNumber.from('0')
-      riskParams.makerFee = riskParamsMakerFee
-      await market.updateRiskParameter(riskParams)
-
-      const marketParams = { ...(await market.parameter()) }
-      marketParams.makerFee = BigNumber.from('0')
-      await market.updateParameter(marketParams)
-
-      const MAKER_POSITION = parse6decimal('10')
-      const LONG_POSITION = parse6decimal('1')
-      const COLLATERAL = parse6decimal('1000')
-      const { user, userB, dsu } = instanceVars
-
-      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
-      await margin.connect(user).deposit(user.address, COLLATERAL)
-      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
-      await margin.connect(userB).deposit(userB.address, COLLATERAL)
-
-      await market
-        .connect(user)
-        ['update(address,int256,int256,int256,address)'](
-          user.address,
-          MAKER_POSITION,
-          0,
-          COLLATERAL,
-          constants.AddressZero,
-        )
-      await expect(
-        market
-          .connect(userB)
-          ['update(address,int256,int256,int256,address)'](
-            userB.address,
-            0,
-            LONG_POSITION,
-            COLLATERAL,
-            constants.AddressZero,
-          ),
-      )
-        .to.emit(market, 'OrderCreated')
-        .withArgs(
-          userB.address,
-          {
-            ...DEFAULT_ORDER,
-            timestamp: TIMESTAMP_1,
-            orders: 1,
-            longPos: LONG_POSITION,
-            collateral: COLLATERAL,
-            invalidation: 1,
-          },
-          { ...DEFAULT_GUARANTEE },
-          constants.AddressZero,
-          constants.AddressZero,
-          constants.AddressZero,
-        )
-
-      await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
-      const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
-        e => e.event === 'AccountPositionProcessed',
-      )?.args as unknown as AccountPositionProcessedEventObject
-      const processEvent: PositionProcessedEventObject = (await txLong.wait()).events?.find(
-        e => e.event === 'PositionProcessed',
-      )?.args as unknown as PositionProcessedEventObject
-
-      // 100% long so taker takes full skew and impact
-      const expectedTakerFee = parse6decimal('2.847074') // = 3374.655169**2 * 0.00001 * (0.025)
-      const expectedTakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
-      const expectedTakerProportional = parse6decimal('6.832978') // = 3374.655169**2 * 0.00001 * (0.06)
-      const expectedtakerAdiabatic = parse6decimal('7.971808') // = 3374.655169**2 * 0.00001 * (0.07)
-
-      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedTakerFee)
-      expect(accountProcessEventLong.accumulationResult.offset).to.eq(
-        expectedTakerLinear.add(expectedTakerProportional).add(expectedtakerAdiabatic),
-      )
-
-      expect(processEvent.accumulationResult.tradeFee).to.eq(expectedTakerFee)
-      expect(processEvent.accumulationResult.tradeOffset).to.eq(
-        expectedTakerLinear.add(expectedTakerProportional).add(expectedtakerAdiabatic),
-      )
-      expect(processEvent.accumulationResult.tradeOffsetMaker).to.eq(0)
-      expect(processEvent.accumulationResult.tradeOffsetMarket).to.eq(
-        expectedTakerLinear.add(expectedTakerProportional),
-      )
-
-      const expectedOracleFee = BigNumber.from('4612260') // = (15374200) * 0.3
-      const expectedRiskFee = BigNumber.from('6149673') // = (15374200) * 0.4
-      const expectedProtocolFee = BigNumber.from('4612267') // = 15374200 - 4612260 - 6149680
-
-      // Global State
-      expectGlobalEq(await market.global(), {
-        ...DEFAULT_GLOBAL,
-        currentId: 1,
-        latestId: 1,
-        protocolFee: expectedProtocolFee,
-        riskFee: expectedRiskFee,
-        oracleFee: expectedOracleFee,
-        latestPrice: PRICE,
-        exposure: 0,
-      })
-      expectOrderEq(await market.pendingOrder(1), {
-        ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_1,
-        orders: 2,
-        longPos: LONG_POSITION,
-        makerPos: MAKER_POSITION,
-        collateral: COLLATERAL.mul(2),
-      })
-      expectPositionEq(await market.position(), {
-        ...DEFAULT_POSITION,
-        timestamp: TIMESTAMP_1,
-        maker: MAKER_POSITION,
-        long: LONG_POSITION,
-      })
-
-      // Long State
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
       })
       expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
-        COLLATERAL.sub(expectedTakerFee)
-          .sub(expectedTakerLinear)
-          .sub(expectedTakerProportional)
-          .sub(expectedtakerAdiabatic),
+        COLLATERAL.add(expectedPriceImpact).sub(3),
       )
-      expectOrderEq(await market.pendingOrders(userB.address, 1), {
+      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
+        ...DEFAULT_CHECKPOINT,
+        collateral: COLLATERAL.add(expectedPriceImpact).sub(3),
+      })
+
+      expectGlobalEq(await market.global(), {
+        ...DEFAULT_GLOBAL,
+        currentId: 2,
+        latestId: 2,
+        protocolFee: 0,
+        riskFee: 0,
+        oracleFee: 0,
+        latestPrice: PRICE,
+      })
+      expectOrderEq(await market.pendingOrder(2), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_1,
+        timestamp: TIMESTAMP_2,
         orders: 1,
-        longPos: LONG_POSITION,
+        makerPos: POSITION,
         collateral: COLLATERAL,
       })
-      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_1), {
-        ...DEFAULT_CHECKPOINT,
-        tradeFee: expectedTakerFee.add(expectedTakerLinear).add(expectedTakerProportional).add(expectedtakerAdiabatic),
-        transfer: COLLATERAL,
-      })
-      expectPositionEq(await market.positions(userB.address), {
+      expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
-        timestamp: TIMESTAMP_1,
-        long: LONG_POSITION,
+        timestamp: TIMESTAMP_2,
+        maker: POSITION.mul(2),
+        long: POSITION,
+        short: POSITION.div(2),
       })
     })
 
-    it('charges take fees on long open, distributes to existing makes', async () => {
-      const riskParams = { ...(await market.riskParameter()) }
-      const riskParamsMakerFee = { ...riskParams.makerFee }
-      riskParamsMakerFee.linearFee = BigNumber.from('0')
-      riskParamsMakerFee.proportionalFee = BigNumber.from('0')
-      riskParams.makerFee = riskParamsMakerFee
-      await market.updateRiskParameter(riskParams)
-
-      const marketParams = { ...(await market.parameter()) }
-      marketParams.makerFee = BigNumber.from('0')
-      await market.updateParameter(marketParams)
-
-      const MAKER_POSITION = parse6decimal('10')
-      const LONG_POSITION = parse6decimal('1')
-      const COLLATERAL = parse6decimal('1000')
+    it('charges price impact on make close', async () => {
       const { user, userB, dsu } = instanceVars
-
-      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
-      await margin.connect(user).deposit(user.address, COLLATERAL)
-      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
-      await margin.connect(userB).deposit(userB.address, COLLATERAL)
-
-      await market
-        .connect(user)
-        ['update(address,int256,int256,int256,address)'](
-          user.address,
-          MAKER_POSITION,
-          0,
-          COLLATERAL,
-          constants.AddressZero,
-        )
-
-      // Settle maker to give them portion of fees
-      await nextWithConstantPrice()
-      await settle(market, user)
 
       await expect(
         market
           .connect(userB)
           ['update(address,int256,int256,int256,address)'](
             userB.address,
+            -POSITION.div(2),
             0,
-            LONG_POSITION,
-            COLLATERAL,
+            0,
             constants.AddressZero,
           ),
       )
@@ -547,8 +519,8 @@ describe('Fees', () => {
             ...DEFAULT_ORDER,
             timestamp: TIMESTAMP_2,
             orders: 1,
-            longPos: LONG_POSITION,
-            collateral: COLLATERAL,
+            makerNeg: POSITION.div(2),
+            collateral: 0,
             invalidation: 1,
           },
           { ...DEFAULT_GUARANTEE },
@@ -557,530 +529,88 @@ describe('Fees', () => {
           constants.AddressZero,
         )
 
+      // skew -0.5 -> -0.75, price 3374.655169^2/100000, exposure -2.5
+      const expectedPriceImpact = parse6decimal('0.417423')
+
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
-      const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
-        e => e.event === 'AccountPositionProcessed',
-      )?.args as unknown as AccountPositionProcessedEventObject
-      const processEvent: PositionProcessedEventObject = (await txLong.wait()).events?.find(
-        e => e.event === 'PositionProcessed',
-      )?.args as unknown as PositionProcessedEventObject
-
-      // 100% long so taker takes full skew and impact
-      const expectedTakerFee = parse6decimal('2.847074') // = 3374.655169**2 * 0.00001 * (0.025)
-      const expectedTakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
-      const expectedTakerProportional = parse6decimal('6.832978') // = 3374.655169**2 * 0.00001 * (0.06)
-      const expectedTakerAdiabatic = parse6decimal('7.971808') // = 3374.655169**2 * 0.00001 * (0.07)
-
-      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedTakerFee)
-      expect(accountProcessEventLong.accumulationResult.offset).to.eq(
-        expectedTakerLinear.add(expectedTakerProportional).add(expectedTakerAdiabatic),
-      )
-
-      expect(processEvent.accumulationResult.tradeFee).to.eq(expectedTakerFee)
-      expect(processEvent.accumulationResult.tradeOffset).to.eq(
-        expectedTakerLinear.add(expectedTakerProportional).add(expectedTakerAdiabatic),
-      )
-      expect(processEvent.accumulationResult.tradeOffsetMaker).to.eq(expectedTakerLinear.add(expectedTakerProportional))
-      expect(processEvent.accumulationResult.tradeOffsetMarket).to.eq(0)
-
-      const expectedOracleFee = BigNumber.from('854122') // = (2847074) * 0.3
-      const expectedRiskFee = BigNumber.from('1138828') // = (2847074) * 0.4
-      const expectedProtocolFee = BigNumber.from('854124') // = 2847074 - 854122 - 1138829
-
-      // Global State
-      expectGlobalEq(await market.global(), {
-        ...DEFAULT_GLOBAL,
-        currentId: 2,
-        latestId: 2,
-        protocolFee: expectedProtocolFee,
-        riskFee: expectedRiskFee,
-        oracleFee: expectedOracleFee,
-        latestPrice: PRICE,
-        exposure: 0,
-      })
-      expectOrderEq(await market.pendingOrder(2), {
-        ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_2,
-        orders: 1,
-        longPos: LONG_POSITION,
-        collateral: COLLATERAL,
-      })
-      expectPositionEq(await market.position(), {
-        ...DEFAULT_POSITION,
-        timestamp: TIMESTAMP_2,
-        maker: MAKER_POSITION,
-        long: LONG_POSITION,
-      })
-
-      // Long State
-      expectLocalEq(await market.locals(userB.address), {
-        ...DEFAULT_LOCAL,
-        currentId: 1,
-        latestId: 1,
-      })
-      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
-        COLLATERAL.sub(expectedTakerFee)
-          .sub(expectedTakerLinear)
-          .sub(expectedTakerProportional)
-          .sub(expectedTakerAdiabatic),
-      )
-      expectOrderEq(await market.pendingOrders(userB.address, 1), {
-        ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_2,
-        orders: 1,
-        longPos: LONG_POSITION,
-        collateral: COLLATERAL,
-      })
-      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
-        ...DEFAULT_CHECKPOINT,
-        tradeFee: expectedTakerFee.add(expectedTakerLinear).add(expectedTakerProportional).add(expectedTakerAdiabatic),
-        transfer: COLLATERAL,
-      })
-      expectPositionEq(await market.positions(userB.address), {
-        ...DEFAULT_POSITION,
-        timestamp: TIMESTAMP_2,
-        long: LONG_POSITION,
-      })
-
-      const txMaker = await settle(market, user)
-      const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
+      const tx = await settle(market, userB)
+      const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
 
-      const expectedMakerFee = expectedTakerLinear.add(expectedTakerProportional).sub(16)
-      expect(accountProcessEventMaker.accumulationResult.collateral).to.equal(expectedMakerFee)
+      expect(accountProcessEvent?.accumulationResult.spread).to.equal(expectedPriceImpact)
 
-      // Maker State
-      expectLocalEq(await market.locals(user.address), {
-        ...DEFAULT_LOCAL,
-        currentId: 1,
-        latestId: 1,
-      })
-      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.add(expectedMakerFee))
-      expectOrderEq(await market.pendingOrders(user.address, 1), {
-        ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_1,
-        orders: 1,
-        makerPos: MAKER_POSITION,
-        collateral: COLLATERAL,
-      })
-      expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
-        ...DEFAULT_CHECKPOINT,
-        transfer: COLLATERAL,
-      })
-      expectPositionEq(await market.positions(user.address), {
-        ...DEFAULT_POSITION,
-        timestamp: TIMESTAMP_2,
-        maker: MAKER_POSITION,
-      })
-    })
-
-    it('charges take fees on long close', async () => {
-      const riskParams = await market.riskParameter()
-      const marketParams = await market.parameter()
-      await market.updateRiskParameter({
-        ...riskParams,
-        makerFee: {
-          ...riskParams.makerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-        },
-        takerFee: {
-          ...riskParams.takerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
-        },
-      })
-      await market.updateParameter({
-        ...marketParams,
-        fundingFee: BigNumber.from('0'),
-        makerFee: 0,
-        takerFee: 0,
-      })
-
-      const MAKER_POSITION = parse6decimal('10')
-      const LONG_POSITION = parse6decimal('1')
-      const COLLATERAL = parse6decimal('1000')
-      const { user, userB, dsu } = instanceVars
-
-      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
-      await margin.connect(user).deposit(user.address, COLLATERAL)
-      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
-      await margin.connect(userB).deposit(userB.address, COLLATERAL)
-
-      await market
-        .connect(user)
-        ['update(address,int256,int256,int256,address)'](
-          user.address,
-          MAKER_POSITION,
-          0,
-          COLLATERAL,
-          constants.AddressZero,
-        )
-      await expect(
-        market
-          .connect(userB)
-          ['update(address,int256,int256,int256,address)'](
-            userB.address,
-            0,
-            LONG_POSITION,
-            COLLATERAL,
-            constants.AddressZero,
-          ),
-      )
-        .to.emit(market, 'OrderCreated')
-        .withArgs(
-          userB.address,
-          {
-            ...DEFAULT_ORDER,
-            timestamp: TIMESTAMP_1,
-            orders: 1,
-            longPos: LONG_POSITION,
-            collateral: COLLATERAL,
-            invalidation: 1,
-          },
-          { ...DEFAULT_GUARANTEE },
-          constants.AddressZero,
-          constants.AddressZero,
-          constants.AddressZero,
-        )
-
-      await nextWithConstantPrice()
-      await settle(market, userB)
-      await settle(market, user)
-
-      // Re-enable fees for close, disable skew and impact for ease of calculation
-      await market.updateRiskParameter({
-        ...riskParams,
-        makerFee: {
-          ...riskParams.makerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-        },
-        takerFee: {
-          ...riskParams.takerFee,
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
-        },
-      })
-      await market.updateParameter({
-        ...marketParams,
-        fundingFee: BigNumber.from('0'),
-        makerFee: 0,
-      })
-
-      await market.connect(userB).close(userB.address, false, constants.AddressZero)
-
-      await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
-
-      const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
-        e => e.event === 'AccountPositionProcessed',
-      )?.args as unknown as AccountPositionProcessedEventObject
-
-      const expectedTakerFee = parse6decimal('2.847074') // = 3374.655169**2 * 0.00001 * (0.025)
-      const expectedTakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
-      const expectedTakerProportional = 0
-      const expectedTakerAdiabatic = 0
-
-      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedTakerFee)
-      expect(accountProcessEventLong.accumulationResult.offset).to.eq(
-        expectedTakerLinear.add(expectedTakerProportional).add(expectedTakerAdiabatic),
-      )
-
-      const expectedOracleFee = BigNumber.from('854122') // = (2847074) * 0.3
-      const expectedRiskFee = BigNumber.from('1138828') // = (2847074) * 0.4
-      const expectedProtocolFee = BigNumber.from('854124') // = 2847074 - 854122 - 1138829
-
-      // Global State
-      expectGlobalEq(await market.global(), {
-        ...DEFAULT_GLOBAL,
-        currentId: 2,
-        latestId: 2,
-        protocolFee: expectedProtocolFee,
-        riskFee: expectedRiskFee,
-        oracleFee: expectedOracleFee,
-        latestPrice: PRICE,
-        exposure: 0,
-      })
-      expectOrderEq(await market.pendingOrder(2), {
-        ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_2,
-        orders: 1,
-        longNeg: LONG_POSITION,
-      })
-      expectPositionEq(await market.position(), {
-        ...DEFAULT_POSITION,
-        timestamp: TIMESTAMP_2,
-        maker: MAKER_POSITION,
-      })
-
-      // Long State
+      // check user state
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
         currentId: 2,
         latestId: 2,
       })
       expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
-        COLLATERAL.sub(expectedTakerFee)
-          .sub(expectedTakerLinear)
-          .sub(expectedTakerProportional)
-          .sub(expectedTakerAdiabatic),
+        COLLATERAL.sub(3), // impact fee is returned to existing maker minus dust
       )
       expectOrderEq(await market.pendingOrders(userB.address, 2), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
         orders: 1,
-        longNeg: LONG_POSITION,
+        makerNeg: POSITION.div(2),
       })
       expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
         ...DEFAULT_CHECKPOINT,
-        tradeFee: expectedTakerFee.add(expectedTakerLinear).add(expectedTakerProportional).add(expectedTakerAdiabatic),
-        collateral: COLLATERAL,
+        tradeFee: expectedPriceImpact,
+        collateral: COLLATERAL.add(expectedPriceImpact.sub(3)),
       })
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
         timestamp: TIMESTAMP_2,
+        maker: POSITION.div(2),
       })
 
-      const txMaker = await settle(market, user)
-      const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
-        e => e.event === 'AccountPositionProcessed',
-      )?.args as unknown as AccountPositionProcessedEventObject
-
-      const expectedMakerFee = expectedTakerLinear.add(expectedTakerProportional).sub(8)
-      expect(accountProcessEventMaker.accumulationResult.collateral).to.equal(expectedMakerFee)
-
-      // Maker State
-      expectLocalEq(await market.locals(user.address), {
-        ...DEFAULT_LOCAL,
-        currentId: 1,
-        latestId: 1,
-      })
-      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.add(expectedMakerFee))
-      expectOrderEq(await market.pendingOrders(user.address, 1), {
-        ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_1,
-        orders: 1,
-        makerPos: MAKER_POSITION,
-        collateral: COLLATERAL,
-      })
-      expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
-        ...DEFAULT_CHECKPOINT,
-        transfer: COLLATERAL,
-      })
-      expectPositionEq(await market.positions(user.address), {
-        ...DEFAULT_POSITION,
-        timestamp: TIMESTAMP_2,
-        maker: MAKER_POSITION,
-      })
-    })
-
-    it('charges take fees on short open', async () => {
-      const riskParams = { ...(await market.riskParameter()) }
-      const riskParamsMakerFee = { ...riskParams.makerFee }
-      riskParamsMakerFee.linearFee = BigNumber.from('0')
-      riskParamsMakerFee.proportionalFee = BigNumber.from('0')
-      riskParams.makerFee = riskParamsMakerFee
-      await market.updateRiskParameter(riskParams)
-
-      const marketParams = { ...(await market.parameter()) }
-      marketParams.makerFee = BigNumber.from('0')
-      await market.updateParameter(marketParams)
-
-      const MAKER_POSITION = parse6decimal('10')
-      const SHORT_POSITION = parse6decimal('1')
-      const COLLATERAL = parse6decimal('1000')
-      const { user, userB, dsu } = instanceVars
-
-      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
-      await margin.connect(user).deposit(user.address, COLLATERAL)
-      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
-      await margin.connect(userB).deposit(userB.address, COLLATERAL)
-
-      await market
-        .connect(user)
-        ['update(address,int256,int256,int256,address)'](
-          user.address,
-          MAKER_POSITION,
-          0,
-          COLLATERAL,
-          constants.AddressZero,
-        )
-      await expect(
-        market
-          .connect(userB)
-          ['update(address,int256,int256,int256,address)'](
-            userB.address,
-            0,
-            SHORT_POSITION.mul(-1),
-            COLLATERAL,
-            constants.AddressZero,
-          ),
-      )
-        .to.emit(market, 'OrderCreated')
-        .withArgs(
-          userB.address,
-          {
-            ...DEFAULT_ORDER,
-            timestamp: TIMESTAMP_1,
-            orders: 1,
-            shortPos: SHORT_POSITION,
-            collateral: COLLATERAL,
-            invalidation: 1,
-          },
-          { ...DEFAULT_GUARANTEE },
-          constants.AddressZero,
-          constants.AddressZero,
-          constants.AddressZero,
-        )
-
-      await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
-      const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
-        e => e.event === 'AccountPositionProcessed',
-      )?.args as unknown as AccountPositionProcessedEventObject
-      const processEvent: PositionProcessedEventObject = (await txLong.wait()).events?.find(
-        e => e.event === 'PositionProcessed',
-      )?.args as unknown as PositionProcessedEventObject
-
-      // 100% long so taker takes full skew and impact
-      const expectedTakerFee = parse6decimal('2.847074') // = 3374.655169**2 * 0.00001 * (0.025)
-      const expectedTakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
-      const expectedTakerProportional = parse6decimal('6.832978') // = 3374.655169**2 * 0.00001 * (0.06)
-      const expectedtakerAdiabatic = parse6decimal('7.971808') // = 3374.655169**2 * 0.00001 * (0.07)
-
-      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedTakerFee)
-      expect(accountProcessEventLong.accumulationResult.offset).to.eq(
-        expectedTakerLinear.add(expectedTakerProportional).add(expectedtakerAdiabatic),
-      )
-
-      expect(processEvent.accumulationResult.tradeFee).to.eq(expectedTakerFee)
-      expect(processEvent.accumulationResult.tradeOffset).to.eq(
-        expectedTakerLinear.add(expectedTakerProportional).add(expectedtakerAdiabatic),
-      )
-      expect(processEvent.accumulationResult.tradeOffsetMaker).to.eq(0)
-      expect(processEvent.accumulationResult.tradeOffsetMarket).to.eq(
-        expectedTakerLinear.add(expectedTakerProportional),
-      )
-
-      const expectedOracleFee = BigNumber.from('4612260') // = (15374200) * 0.3
-      const expectedRiskFee = BigNumber.from('6149673') // = (15374200) * 0.4
-      const expectedProtocolFee = BigNumber.from('4612267') // = 15374200 - 4612260 - 6149680
-
-      // Global State
       expectGlobalEq(await market.global(), {
         ...DEFAULT_GLOBAL,
-        currentId: 1,
-        latestId: 1,
-        protocolFee: expectedProtocolFee,
-        riskFee: expectedRiskFee,
-        oracleFee: expectedOracleFee,
+        currentId: 2,
+        latestId: 2,
         latestPrice: PRICE,
-        exposure: 0,
       })
-      expectOrderEq(await market.pendingOrder(1), {
+      expectOrderEq(await market.pendingOrder(2), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_1,
-        orders: 2,
-        makerPos: MAKER_POSITION,
-        shortPos: SHORT_POSITION,
-        collateral: COLLATERAL.mul(2),
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        makerNeg: POSITION.div(2),
       })
       expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
-        timestamp: TIMESTAMP_1,
-        maker: MAKER_POSITION,
-        short: SHORT_POSITION,
-      })
-
-      // Long State
-      expectLocalEq(await market.locals(userB.address), {
-        ...DEFAULT_LOCAL,
-        currentId: 1,
-        latestId: 1,
-      })
-      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
-        COLLATERAL.sub(expectedTakerFee)
-          .sub(expectedTakerLinear)
-          .sub(expectedTakerProportional)
-          .sub(expectedtakerAdiabatic),
-      )
-      expectOrderEq(await market.pendingOrders(userB.address, 1), {
-        ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_1,
-        orders: 1,
-        shortPos: SHORT_POSITION,
-        collateral: COLLATERAL,
-      })
-      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_1), {
-        ...DEFAULT_CHECKPOINT,
-        tradeFee: expectedTakerFee.add(expectedTakerLinear).add(expectedTakerProportional).add(expectedtakerAdiabatic),
-        transfer: COLLATERAL,
-      })
-      expectPositionEq(await market.positions(userB.address), {
-        ...DEFAULT_POSITION,
-        timestamp: TIMESTAMP_1,
-        short: SHORT_POSITION,
+        timestamp: TIMESTAMP_2,
+        maker: POSITION.div(2),
+        long: POSITION,
+        short: POSITION.div(2),
       })
     })
 
-    it('charges take fees on short open, distributes to existing makes', async () => {
-      const riskParams = { ...(await market.riskParameter()) }
-      const riskParamsMakerFee = { ...riskParams.makerFee }
-      riskParamsMakerFee.linearFee = BigNumber.from('0')
-      riskParamsMakerFee.proportionalFee = BigNumber.from('0')
-      riskParams.makerFee = riskParamsMakerFee
-      await market.updateRiskParameter(riskParams)
-
-      const marketParams = { ...(await market.parameter()) }
-      marketParams.makerFee = BigNumber.from('0')
-      await market.updateParameter(marketParams)
-
-      const MAKER_POSITION = parse6decimal('10')
-      const SHORT_POSITION = parse6decimal('1')
-      const COLLATERAL = parse6decimal('1000')
+    it('charges price impact on long open', async () => {
       const { user, userB, dsu } = instanceVars
 
       await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(user).deposit(user.address, COLLATERAL)
-      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
-      await margin.connect(userB).deposit(userB.address, COLLATERAL)
-
-      await market
-        .connect(user)
-        ['update(address,int256,int256,int256,address)'](
-          user.address,
-          MAKER_POSITION,
-          0,
-          COLLATERAL,
-          constants.AddressZero,
-        )
-      // Settle maker to give them portion of fees
-      await nextWithConstantPrice()
-      await settle(market, user)
-
       await expect(
         market
-          .connect(userB)
+          .connect(user)
           ['update(address,int256,int256,int256,address)'](
-            userB.address,
+            user.address,
             0,
-            SHORT_POSITION.mul(-1),
+            POSITION.div(2),
             COLLATERAL,
             constants.AddressZero,
           ),
       )
         .to.emit(market, 'OrderCreated')
         .withArgs(
-          userB.address,
+          user.address,
           {
             ...DEFAULT_ORDER,
             timestamp: TIMESTAMP_2,
             orders: 1,
-            shortPos: SHORT_POSITION,
+            longPos: POSITION.div(2),
             collateral: COLLATERAL,
             invalidation: 1,
           },
@@ -1090,156 +620,398 @@ describe('Fees', () => {
           constants.AddressZero,
         )
 
+      // skew 0.5 -> 1.0, price 3374.655169^2/100000, exposure +5
+      const expectedPriceImpact = parse6decimal('2.44374')
+
       await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
-      const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
+      const tx = await settle(market, user)
+      const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
-      const processEvent: PositionProcessedEventObject = (await txLong.wait()).events?.find(
-        e => e.event === 'PositionProcessed',
-      )?.args as unknown as PositionProcessedEventObject
 
-      // 100% long so taker takes full skew and impact
-      const expectedTakerFee = parse6decimal('2.847074') // = 3374.655169**2 * 0.00001 * (0.025)
-      const expectedTakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
-      const expectedTakerProportional = parse6decimal('6.832978') // = 3374.655169**2 * 0.00001 * (0.06)
-      const expectedTakerAdiabatic = parse6decimal('7.971808') // = 3374.655169**2 * 0.00001 * (0.07)
+      expect(accountProcessEvent?.accumulationResult.spread).to.equal(expectedPriceImpact)
 
-      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedTakerFee)
-      expect(accountProcessEventLong.accumulationResult.offset).to.eq(
-        expectedTakerLinear.add(expectedTakerProportional).add(expectedTakerAdiabatic),
-      )
+      await settle(market, userB)
 
-      expect(processEvent.accumulationResult.tradeFee).to.eq(expectedTakerFee)
-      expect(processEvent.accumulationResult.tradeOffset).to.eq(
-        expectedTakerLinear.add(expectedTakerProportional).add(expectedTakerAdiabatic),
-      )
-      expect(processEvent.accumulationResult.tradeOffsetMaker).to.eq(expectedTakerLinear.add(expectedTakerProportional))
-      expect(processEvent.accumulationResult.tradeOffsetMarket).to.eq(0)
-
-      const expectedOracleFee = BigNumber.from('854122') // = (2847074) * 0.3
-      const expectedRiskFee = BigNumber.from('1138828') // = (2847074) * 0.4
-      const expectedProtocolFee = BigNumber.from('854124') // = 2847074 - 854122 - 1138829
-
-      // Global State
-      expectGlobalEq(await market.global(), {
-        ...DEFAULT_GLOBAL,
-        currentId: 2,
-        latestId: 2,
-        protocolFee: expectedProtocolFee,
-        riskFee: expectedRiskFee,
-        oracleFee: expectedOracleFee,
-        latestPrice: PRICE,
-        exposure: 0,
+      // check user state
+      expectLocalEq(await market.locals(user.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 1,
+        latestId: 1,
       })
-      expectOrderEq(await market.pendingOrder(2), {
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.sub(expectedPriceImpact))
+      expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
         orders: 1,
-        shortPos: SHORT_POSITION,
+        longPos: POSITION.div(2),
         collateral: COLLATERAL,
       })
-      expectPositionEq(await market.position(), {
+      expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
+        ...DEFAULT_CHECKPOINT,
+        tradeFee: expectedPriceImpact,
+        transfer: COLLATERAL,
+      })
+      expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
         timestamp: TIMESTAMP_2,
-        maker: MAKER_POSITION,
-        short: SHORT_POSITION,
+        long: POSITION.div(2),
       })
-
-      // Long State
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
       })
       expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
-        COLLATERAL.sub(expectedTakerFee)
-          .sub(expectedTakerLinear)
-          .sub(expectedTakerProportional)
-          .sub(expectedTakerAdiabatic),
+        COLLATERAL.add(expectedPriceImpact).sub(10),
       )
-      expectOrderEq(await market.pendingOrders(userB.address, 1), {
+      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
+        ...DEFAULT_CHECKPOINT,
+        collateral: COLLATERAL.add(expectedPriceImpact).sub(10),
+      })
+
+      expectGlobalEq(await market.global(), {
+        ...DEFAULT_GLOBAL,
+        currentId: 2,
+        latestId: 2,
+        protocolFee: 0,
+        riskFee: 0,
+        oracleFee: 0,
+        latestPrice: PRICE,
+      })
+      expectOrderEq(await market.pendingOrder(2), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
         orders: 1,
-        shortPos: SHORT_POSITION,
+        longPos: POSITION.div(2),
         collateral: COLLATERAL,
       })
-      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_1), {
-        ...DEFAULT_CHECKPOINT,
-      })
-      expectPositionEq(await market.positions(userB.address), {
+      expectPositionEq(await market.position(), {
         ...DEFAULT_POSITION,
         timestamp: TIMESTAMP_2,
-        short: SHORT_POSITION,
+        maker: POSITION,
+        long: POSITION.mul(3).div(2),
+        short: POSITION.div(2),
       })
+    })
 
-      const txMaker = await settle(market, user)
-      const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
+    it('charges price impact on long close', async () => {
+      const { userB, userC } = instanceVars
+
+      await expect(
+        market
+          .connect(userC)
+          ['update(address,int256,int256,int256,address)'](
+            userC.address,
+            0,
+            -POSITION.div(2),
+            0,
+            constants.AddressZero,
+          ),
+      )
+        .to.emit(market, 'OrderCreated')
+        .withArgs(
+          userC.address,
+          {
+            ...DEFAULT_ORDER,
+            timestamp: TIMESTAMP_2,
+            orders: 1,
+            longNeg: POSITION.div(2),
+            collateral: 0,
+            invalidation: 1,
+          },
+          { ...DEFAULT_GUARANTEE },
+          constants.AddressZero,
+          constants.AddressZero,
+          constants.AddressZero,
+        )
+
+      // skew 0.5 -> 0.0, price 3374.655169^2/100000, exposure 5
+      const expectedPriceImpact = parse6decimal('0.166080')
+
+      await nextWithConstantPrice()
+      const tx = await settle(market, userC)
+      const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
 
-      const expectedMakerFee = expectedTakerLinear.add(expectedTakerProportional).sub(16)
-      expect(accountProcessEventMaker.accumulationResult.collateral).to.equal(expectedMakerFee)
+      expect(accountProcessEvent?.accumulationResult.spread).to.equal(expectedPriceImpact)
 
-      // Maker State
+      await settle(market, userB)
+
+      // check user state
+      expectLocalEq(await market.locals(userC.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 2,
+        latestId: 2,
+      })
+      expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(COLLATERAL.sub(expectedPriceImpact))
+      expectOrderEq(await market.pendingOrders(userC.address, 2), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        longNeg: POSITION.div(2),
+      })
+      expectCheckpointEq(await market.checkpoints(userC.address, TIMESTAMP_2), {
+        ...DEFAULT_CHECKPOINT,
+        tradeFee: expectedPriceImpact,
+        collateral: COLLATERAL,
+      })
+      expectPositionEq(await market.positions(userC.address), {
+        ...DEFAULT_POSITION,
+        timestamp: TIMESTAMP_2,
+        long: POSITION.div(2),
+      })
+      expectLocalEq(await market.locals(userB.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 1,
+        latestId: 1,
+      })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL.add(expectedPriceImpact))
+      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
+        ...DEFAULT_CHECKPOINT,
+        collateral: COLLATERAL.add(expectedPriceImpact),
+      })
+
+      expectGlobalEq(await market.global(), {
+        ...DEFAULT_GLOBAL,
+        currentId: 2,
+        latestId: 2,
+        latestPrice: PRICE,
+      })
+      expectOrderEq(await market.pendingOrder(2), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        longNeg: POSITION.div(2),
+      })
+      expectPositionEq(await market.position(), {
+        ...DEFAULT_POSITION,
+        timestamp: TIMESTAMP_2,
+        maker: POSITION,
+        long: POSITION.div(2),
+        short: POSITION.div(2),
+      })
+    })
+
+    it('charges price impact on short open', async () => {
+      const { user, userB, dsu } = instanceVars
+
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+      await expect(
+        market
+          .connect(user)
+          ['update(address,int256,int256,int256,address)'](
+            user.address,
+            0,
+            -POSITION.div(2),
+            COLLATERAL,
+            constants.AddressZero,
+          ),
+      )
+        .to.emit(market, 'OrderCreated')
+        .withArgs(
+          user.address,
+          {
+            ...DEFAULT_ORDER,
+            timestamp: TIMESTAMP_2,
+            orders: 1,
+            shortPos: POSITION.div(2),
+            collateral: COLLATERAL,
+            invalidation: 1,
+          },
+          { ...DEFAULT_GUARANTEE },
+          constants.AddressZero,
+          constants.AddressZero,
+          constants.AddressZero,
+        )
+
+      // skew 0.5 -> 0.0, price 3374.655169^2/100000, exposure +5
+      const expectedPriceImpact = parse6decimal('0.166080')
+
+      await nextWithConstantPrice()
+      const tx = await settle(market, user)
+      const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
+        e => e.event === 'AccountPositionProcessed',
+      )?.args as unknown as AccountPositionProcessedEventObject
+
+      expect(accountProcessEvent?.accumulationResult.spread).to.equal(expectedPriceImpact)
+
+      await settle(market, userB)
+
+      // check user state
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
       })
-      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.add(expectedMakerFee))
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.sub(expectedPriceImpact))
       expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_1,
+        timestamp: TIMESTAMP_2,
         orders: 1,
-        makerPos: MAKER_POSITION,
+        shortPos: POSITION.div(2),
         collateral: COLLATERAL,
       })
-      expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
+      expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
         ...DEFAULT_CHECKPOINT,
+        tradeFee: expectedPriceImpact,
         transfer: COLLATERAL,
       })
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
         timestamp: TIMESTAMP_2,
-        maker: MAKER_POSITION,
+        short: POSITION.div(2),
+      })
+      expectLocalEq(await market.locals(userB.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 1,
+        latestId: 1,
+      })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL.add(expectedPriceImpact))
+      expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
+        ...DEFAULT_CHECKPOINT,
+        tradeFee: expectedPriceImpact,
+        transfer: COLLATERAL,
+      })
+
+      expectGlobalEq(await market.global(), {
+        ...DEFAULT_GLOBAL,
+        currentId: 2,
+        latestId: 2,
+        protocolFee: 0,
+        riskFee: 0,
+        oracleFee: 0,
+        latestPrice: PRICE,
+      })
+      expectOrderEq(await market.pendingOrder(2), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        shortPos: POSITION.div(2),
+        collateral: COLLATERAL,
+      })
+      expectPositionEq(await market.position(), {
+        ...DEFAULT_POSITION,
+        timestamp: TIMESTAMP_2,
+        maker: POSITION,
+        long: POSITION,
+        short: POSITION,
       })
     })
 
-    it('charges take fees on short close', async () => {
-      const riskParams = await market.riskParameter()
-      const marketParams = await market.parameter()
-      await market.updateRiskParameter({
-        ...riskParams,
-        makerFee: {
-          ...riskParams.makerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-        },
-        takerFee: {
-          ...riskParams.takerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
-        },
+    it('charges price impact on short close', async () => {
+      const { userB, userD } = instanceVars
+
+      await expect(
+        market
+          .connect(userD)
+          ['update(address,int256,int256,int256,address)'](userD.address, 0, POSITION.div(2), 0, constants.AddressZero),
+      )
+        .to.emit(market, 'OrderCreated')
+        .withArgs(
+          userD.address,
+          {
+            ...DEFAULT_ORDER,
+            timestamp: TIMESTAMP_2,
+            orders: 1,
+            shortNeg: POSITION.div(2),
+            collateral: 0,
+            invalidation: 1,
+          },
+          { ...DEFAULT_GUARANTEE },
+          constants.AddressZero,
+          constants.AddressZero,
+          constants.AddressZero,
+        )
+
+      // skew 0.5 -> 1.0, price 3374.655169^2/100000, exposure 5
+      const expectedPriceImpact = parse6decimal('2.44374')
+
+      await nextWithConstantPrice()
+      const tx = await settle(market, userD)
+      const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
+        e => e.event === 'AccountPositionProcessed',
+      )?.args as unknown as AccountPositionProcessedEventObject
+
+      expect(accountProcessEvent?.accumulationResult.spread).to.equal(expectedPriceImpact)
+
+      await settle(market, userB)
+
+      // check user state
+      expectLocalEq(await market.locals(userD.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 2,
+        latestId: 2,
       })
-      await market.updateParameter({
-        ...marketParams,
-        fundingFee: BigNumber.from('0'),
-        makerFee: 0,
-        takerFee: 0,
+      expect(await margin.isolatedBalances(userD.address, market.address)).to.equal(COLLATERAL.sub(expectedPriceImpact))
+      expectOrderEq(await market.pendingOrders(userD.address, 2), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        shortNeg: POSITION.div(2),
+      })
+      expectCheckpointEq(await market.checkpoints(userD.address, TIMESTAMP_2), {
+        ...DEFAULT_CHECKPOINT,
+        tradeFee: expectedPriceImpact,
+        collateral: COLLATERAL,
+      })
+      expectPositionEq(await market.positions(userD.address), {
+        ...DEFAULT_POSITION,
+        timestamp: TIMESTAMP_2,
+        short: 0,
+      })
+      expectLocalEq(await market.locals(userB.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 1,
+        latestId: 1,
+      })
+      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+        COLLATERAL.add(expectedPriceImpact).sub(10),
+      )
+      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
+        ...DEFAULT_CHECKPOINT,
+        collateral: COLLATERAL.add(expectedPriceImpact).sub(10),
       })
 
-      const MAKER_POSITION = parse6decimal('10')
-      const SHORT_POSITION = parse6decimal('1')
-      const COLLATERAL = parse6decimal('1000')
-      const { user, userB, dsu } = instanceVars
+      expectGlobalEq(await market.global(), {
+        ...DEFAULT_GLOBAL,
+        currentId: 2,
+        latestId: 2,
+        latestPrice: PRICE,
+      })
+      expectOrderEq(await market.pendingOrder(2), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_2,
+        orders: 1,
+        shortNeg: POSITION.div(2),
+      })
+      expectPositionEq(await market.position(), {
+        ...DEFAULT_POSITION,
+        timestamp: TIMESTAMP_2,
+        maker: POSITION,
+        long: POSITION,
+        short: 0,
+      })
+    })
+  })
+
+  describe('settlement fee', () => {
+    const MAKER_POSITION = parse6decimal('10')
+    const SHORT_POSITION = parse6decimal('1')
+    const LONG_POSITION = parse6decimal('1')
+    const COLLATERAL = parse6decimal('1000')
+
+    beforeEach(async () => {
+      const { user, userB, userC, dsu } = instanceVars
 
       await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(user).deposit(user.address, COLLATERAL)
       await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(userB).deposit(userB.address, COLLATERAL)
+      await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
       await market
         .connect(user)
@@ -1250,633 +1022,84 @@ describe('Fees', () => {
           COLLATERAL,
           constants.AddressZero,
         )
-      await expect(
-        market
-          .connect(userB)
-          ['update(address,int256,int256,int256,address)'](
-            userB.address,
-            0,
-            SHORT_POSITION.mul(-1),
-            COLLATERAL,
-            constants.AddressZero,
-          ),
-      )
-        .to.emit(market, 'OrderCreated')
-        .withArgs(
-          userB.address,
-          {
-            ...DEFAULT_ORDER,
-            timestamp: TIMESTAMP_1,
-            orders: 1,
-            shortPos: SHORT_POSITION,
-            collateral: COLLATERAL,
-            invalidation: 1,
-          },
-          { ...DEFAULT_GUARANTEE },
-          constants.AddressZero,
-          constants.AddressZero,
+      await nextWithConstantPrice()
+      await settle(market, user)
+
+      instanceVars.chainlink.updateParams(parse6decimal('1.23'), instanceVars.chainlink.oracleFee)
+    })
+
+    it('charges settlement fee for maker', async () => {
+      await market
+        .connect(instanceVars.user)
+        ['update(address,int256,int256,int256,address)'](
+          instanceVars.user.address,
+          MAKER_POSITION,
+          0,
+          0,
           constants.AddressZero,
         )
 
       await nextWithConstantPrice()
-      await settle(market, userB)
-      await settle(market, user)
+      const tx = await settle(market, instanceVars.user)
 
-      // Re-enable fees for close, disable skew and impact for ease of calculation
-      await market.updateRiskParameter({
-        ...riskParams,
-        makerFee: {
-          ...riskParams.makerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-        },
-        takerFee: {
-          ...riskParams.takerFee,
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
-        },
-      })
-      await market.updateParameter({
-        ...marketParams,
-        fundingFee: BigNumber.from('0'),
-        makerFee: 0,
-      })
-      await market.connect(userB).close(userB.address, false, constants.AddressZero)
-
-      await nextWithConstantPrice()
-      const txLong = await settle(market, userB)
-
-      const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
+      const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
 
-      const expectedTakerFee = parse6decimal('2.847074') // = 3374.655169**2 * 0.00001 * (0.025)
-      const expectedTakerLinear = parse6decimal('5.694148') // = 3374.655169**2 * 0.00001 * (0.05)
-      const expectedTakerProportional = 0
-      const expectedTakerAdiabatic = 0
+      const expectedSettlementFee = parse6decimal('1.23')
+      expect(accountProcessEvent.accumulationResult.settlementFee).to.equal(expectedSettlementFee)
 
-      expect(accountProcessEventLong.accumulationResult.tradeFee).to.eq(expectedTakerFee)
-      expect(accountProcessEventLong.accumulationResult.offset).to.eq(
-        expectedTakerLinear.add(expectedTakerProportional).add(expectedTakerAdiabatic),
-      )
-
-      const expectedOracleFee = BigNumber.from('854122') // = (2847074) * 0.3
-      const expectedRiskFee = BigNumber.from('1138828') // = (2847074) * 0.4
-      const expectedProtocolFee = BigNumber.from('854124') // = 2847074 - 854122 - 1138829
-
-      // Global State
       expectGlobalEq(await market.global(), {
         ...DEFAULT_GLOBAL,
         currentId: 2,
         latestId: 2,
-        protocolFee: expectedProtocolFee,
-        riskFee: expectedRiskFee,
-        oracleFee: expectedOracleFee,
+        oracleFee: expectedSettlementFee,
         latestPrice: PRICE,
       })
-      expectOrderEq(await market.pendingOrder(2), {
-        ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_2,
-        orders: 1,
-        shortNeg: SHORT_POSITION,
-      })
-      expectPositionEq(await market.position(), {
-        ...DEFAULT_POSITION,
-        timestamp: TIMESTAMP_2,
-        maker: MAKER_POSITION,
-      })
+    })
 
-      // Long State
-      expectLocalEq(await market.locals(userB.address), {
-        ...DEFAULT_LOCAL,
-        currentId: 2,
-        latestId: 2,
-      })
-      expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
-        COLLATERAL.sub(expectedTakerFee)
-          .sub(expectedTakerLinear)
-          .sub(expectedTakerProportional)
-          .sub(expectedTakerAdiabatic),
-      )
-      expectOrderEq(await market.pendingOrders(userB.address, 2), {
-        ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_2,
-        orders: 1,
-        shortNeg: SHORT_POSITION,
-      })
-      expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
-        ...DEFAULT_CHECKPOINT,
-        tradeFee: expectedTakerFee.add(expectedTakerLinear).add(expectedTakerProportional).add(expectedTakerAdiabatic),
-        collateral: COLLATERAL,
-      })
-      expectPositionEq(await market.positions(userB.address), {
-        ...DEFAULT_POSITION,
-        timestamp: TIMESTAMP_2,
-      })
+    it('charges settlement fee for taker', async () => {
+      const { userB, userC } = instanceVars
+      await market
+        .connect(userB)
+        ['update(address,int256,int256,int256,address)'](
+          userB.address,
+          0,
+          LONG_POSITION,
+          COLLATERAL,
+          constants.AddressZero,
+        )
+      await market
+        .connect(userC)
+        ['update(address,int256,int256,int256,address)'](
+          userC.address,
+          0,
+          -SHORT_POSITION,
+          COLLATERAL,
+          constants.AddressZero,
+        )
 
-      const txMaker = await settle(market, user)
-      const accountProcessEventMaker: AccountPositionProcessedEventObject = (await txMaker.wait()).events?.find(
+      await nextWithConstantPrice()
+      const txB = await settle(market, userB)
+      const txC = await settle(market, userC)
+
+      const accountProcessEventB: AccountPositionProcessedEventObject = (await txB.wait()).events?.find(
+        e => e.event === 'AccountPositionProcessed',
+      )?.args as unknown as AccountPositionProcessedEventObject
+      const accountProcessEventC: AccountPositionProcessedEventObject = (await txC.wait()).events?.find(
         e => e.event === 'AccountPositionProcessed',
       )?.args as unknown as AccountPositionProcessedEventObject
 
-      const expectedMakerFee = expectedTakerLinear.add(expectedTakerProportional).sub(8)
-      expect(accountProcessEventMaker.accumulationResult.collateral).to.equal(expectedMakerFee)
+      const expectedSettlementFee = parse6decimal('1.23')
+      expect(accountProcessEventB.accumulationResult.settlementFee).to.equal(expectedSettlementFee.div(2))
+      expect(accountProcessEventC.accumulationResult.settlementFee).to.equal(expectedSettlementFee.div(2))
 
-      // Maker State
-      expectLocalEq(await market.locals(user.address), {
-        ...DEFAULT_LOCAL,
-        currentId: 1,
-        latestId: 1,
-      })
-      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.add(expectedMakerFee))
-      expectOrderEq(await market.pendingOrders(user.address, 1), {
-        ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_1,
-        orders: 1,
-        makerPos: MAKER_POSITION,
-        collateral: COLLATERAL,
-      })
-      expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
-        ...DEFAULT_CHECKPOINT,
-        transfer: COLLATERAL,
-      })
-      expectPositionEq(await market.positions(user.address), {
-        ...DEFAULT_POSITION,
-        timestamp: TIMESTAMP_2,
-        maker: MAKER_POSITION,
-      })
-    })
-
-    describe('proportional fee', () => {
-      const MAKER_POSITION = parse6decimal('10')
-      const SHORT_POSITION = parse6decimal('1')
-      const LONG_POSITION = parse6decimal('1')
-      const COLLATERAL = parse6decimal('1000')
-
-      beforeEach(async () => {
-        const riskParams = { ...(await market.riskParameter()) }
-        const marketParams = { ...(await market.parameter()) }
-        await market.updateRiskParameter({
-          ...riskParams,
-          makerFee: {
-            ...riskParams.makerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-          },
-          takerFee: {
-            ...riskParams.takerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: parse6decimal('0.01'),
-            adiabaticFee: BigNumber.from('0'),
-          },
-        })
-        await market.updateParameter({
-          ...marketParams,
-          makerFee: 0,
-          takerFee: 0,
-        })
-
-        const { user, userB, userC, dsu } = instanceVars
-
-        await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
-        await margin.connect(user).deposit(user.address, COLLATERAL)
-        await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
-        await margin.connect(userB).deposit(userB.address, COLLATERAL)
-        await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
-        await margin.connect(userC).deposit(userC.address, COLLATERAL)
-
-        await market
-          .connect(user)
-          ['update(address,int256,int256,int256,address)'](
-            user.address,
-            MAKER_POSITION,
-            0,
-            COLLATERAL,
-            constants.AddressZero,
-          )
-        await nextWithConstantPrice()
-        await settle(market, user)
-      })
-
-      it('charges skew fee for changing skew', async () => {
-        const { userB, userC } = instanceVars
-
-        // Bring skew from 0 to 100% -> total skew change of 100%
-        await market
-          .connect(userB)
-          ['update(address,int256,int256,int256,address)'](
-            userB.address,
-            0,
-            SHORT_POSITION.mul(-1),
-            COLLATERAL,
-            constants.AddressZero,
-          )
-
-        await nextWithConstantPrice()
-        const txShort = await settle(market, userB)
-        const accountProcessEventShort: AccountPositionProcessedEventObject = (await txShort.wait()).events?.find(
-          e => e.event === 'AccountPositionProcessed',
-        )?.args as unknown as AccountPositionProcessedEventObject
-        const positionProcessEventShort: PositionProcessedEventObject = (await txShort.wait()).events?.find(
-          e => e.event === 'PositionProcessed',
-        )?.args as unknown as PositionProcessedEventObject
-
-        const expectedShortProportionalFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
-        expect(accountProcessEventShort.accumulationResult.offset).to.equal(expectedShortProportionalFee)
-        expect(
-          positionProcessEventShort.accumulationResult.tradeOffsetMaker.add(
-            positionProcessEventShort.accumulationResult.tradeOffsetMarket,
-          ),
-        ).to.equal(expectedShortProportionalFee)
-
-        // Bring skew from -100% to +50% -> total skew change of 150%
-        await market
-          .connect(userC)
-          ['update(address,int256,int256,int256,address)'](
-            userC.address,
-            0,
-            LONG_POSITION.mul(2),
-            COLLATERAL,
-            constants.AddressZero,
-          )
-
-        await nextWithConstantPrice()
-        const txLong = await settle(market, userC)
-        const accountProcessEventLong: AccountPositionProcessedEventObject = (await txLong.wait()).events?.find(
-          e => e.event === 'AccountPositionProcessed',
-        )?.args as unknown as AccountPositionProcessedEventObject
-        const positionProcessEventLong: PositionProcessedEventObject = (await txLong.wait()).events?.find(
-          e => e.event === 'PositionProcessed',
-        )?.args as unknown as PositionProcessedEventObject
-
-        const expectedLongProportionalFee = BigNumber.from('4555319') // = 3374.655169**2 / 100000 * 2 * 200% * 0.01
-
-        expect(accountProcessEventLong.accumulationResult.offset).to.within(
-          expectedLongProportionalFee,
-          expectedLongProportionalFee.add(10),
-        )
-        expect(
-          positionProcessEventLong.accumulationResult.tradeOffsetMaker.add(
-            positionProcessEventLong.accumulationResult.tradeOffsetMarket,
-          ),
-        ).to.equal(expectedLongProportionalFee)
-      })
-    })
-
-    describe('adiabatic fee', () => {
-      const MAKER_POSITION = parse6decimal('10')
-      const SHORT_POSITION = parse6decimal('1')
-      const LONG_POSITION = parse6decimal('1')
-      const COLLATERAL = parse6decimal('1000')
-
-      beforeEach(async () => {
-        const riskParams = { ...(await market.riskParameter()) }
-        const marketParams = { ...(await market.parameter()) }
-        await market.updateRiskParameter({
-          ...riskParams,
-          makerFee: {
-            ...riskParams.makerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-          },
-          takerFee: {
-            ...riskParams.takerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: parse6decimal('0.02'),
-          },
-        })
-        await market.updateParameter({
-          ...marketParams,
-          makerFee: 0,
-          takerFee: 0,
-        })
-
-        const { user, userB, userC, dsu } = instanceVars
-
-        await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
-        await margin.connect(user).deposit(user.address, COLLATERAL)
-        await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
-        await margin.connect(userB).deposit(userB.address, COLLATERAL)
-        await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
-        await margin.connect(userC).deposit(userC.address, COLLATERAL)
-
-        await market
-          .connect(user)
-          ['update(address,int256,int256,int256,address)'](
-            user.address,
-            MAKER_POSITION,
-            0,
-            COLLATERAL,
-            constants.AddressZero,
-          )
-        await nextWithConstantPrice()
-        await settle(market, user)
-      })
-
-      it('charges taker impact fee for changing skew (short)', async () => {
-        const { userB } = instanceVars
-
-        // Bring skew from 0 to 100% -> total impact change of 100%
-        await market
-          .connect(userB)
-          ['update(address,int256,int256,int256,address)'](
-            userB.address,
-            0,
-            SHORT_POSITION.mul(-1),
-            COLLATERAL,
-            constants.AddressZero,
-          )
-
-        await nextWithConstantPrice()
-        const tx = await settle(market, userB)
-        const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
-          e => e.event === 'AccountPositionProcessed',
-        )?.args as unknown as AccountPositionProcessedEventObject
-        const positionProcessEvent: PositionProcessedEventObject = (await tx.wait()).events?.find(
-          e => e.event === 'PositionProcessed',
-        )?.args as unknown as PositionProcessedEventObject
-
-        const expectedShortAdiabaticFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
-        expect(accountProcessEvent.accumulationResult.offset).to.equal(expectedShortAdiabaticFee)
-        expect(positionProcessEvent.accumulationResult.tradeOffset).to.equal(expectedShortAdiabaticFee)
-      })
-
-      it('charges taker impact fee for changing skew (long)', async () => {
-        const { userB } = instanceVars
-
-        // Bring skew from 0 to 100% -> total impact change of 100%
-        await market
-          .connect(userB)
-          ['update(address,int256,int256,int256,address)'](
-            userB.address,
-            0,
-            LONG_POSITION,
-            COLLATERAL,
-            constants.AddressZero,
-          )
-
-        await nextWithConstantPrice()
-        const tx = await settle(market, userB)
-        const accountProcessEventShort: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
-          e => e.event === 'AccountPositionProcessed',
-        )?.args as unknown as AccountPositionProcessedEventObject
-        const positionProcessEventShort: PositionProcessedEventObject = (await tx.wait()).events?.find(
-          e => e.event === 'PositionProcessed',
-        )?.args as unknown as PositionProcessedEventObject
-
-        const expectedShortAdiabaticFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
-        expect(accountProcessEventShort.accumulationResult.offset).to.equal(expectedShortAdiabaticFee)
-        expect(positionProcessEventShort.accumulationResult.tradeOffset).to.equal(expectedShortAdiabaticFee)
-      })
-
-      it('refunds taker position fee for negative impact', async () => {
-        const { userB, userC } = instanceVars
-
-        // Bring skew from 0 to 100% -> total impact change of 100%
-        await market
-          .connect(userB)
-          ['update(address,int256,int256,int256,address)'](
-            userB.address,
-            0,
-            SHORT_POSITION.mul(-1),
-            COLLATERAL,
-            constants.AddressZero,
-          )
-
-        await nextWithConstantPrice()
-        await settle(market, userB)
-
-        // Enable position fee to test refund
-        const riskParams = await market.riskParameter()
-        await market.updateRiskParameter({
-          ...riskParams,
-          takerFee: {
-            ...riskParams.takerFee,
-            linearFee: parse6decimal('0.01'),
-            adiabaticFee: parse6decimal('0.02'),
-          },
-        })
-        // Bring skew from -100% to 0% -> total impact change of -100%
-        await market
-          .connect(userC)
-          ['update(address,int256,int256,int256,address)'](
-            userC.address,
-            0,
-            LONG_POSITION,
-            COLLATERAL,
-            constants.AddressZero,
-          )
-
-        await nextWithConstantPrice()
-        const tx = await settle(market, userC)
-        const accountProcessEventShort: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
-          e => e.event === 'AccountPositionProcessed',
-        )?.args as unknown as AccountPositionProcessedEventObject
-        const positionProcessEventShort: PositionProcessedEventObject = (await tx.wait()).events?.find(
-          e => e.event === 'PositionProcessed',
-        )?.args as unknown as PositionProcessedEventObject
-
-        const expectedShortLinearFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
-        const expectedShortAdiabaticFee = BigNumber.from('-1138829') // = 3374.655169**2 * -0.00001 * 100% * 0.01
-        expect(accountProcessEventShort.accumulationResult.offset).to.equal(
-          expectedShortLinearFee.add(expectedShortAdiabaticFee),
-        )
-        expect(positionProcessEventShort.accumulationResult.tradeOffset).to.equal(
-          expectedShortLinearFee.add(expectedShortAdiabaticFee),
-        )
-      })
-
-      it('refunds taker position fee for negative impact (negative fees)', async () => {
-        const { userB, userC } = instanceVars
-
-        // Bring skew from 0 to 100% -> total impact change of 100%
-        await market
-          .connect(userB)
-          ['update(address,int256,int256,int256,address)'](
-            userB.address,
-            0,
-            SHORT_POSITION.mul(-1),
-            COLLATERAL,
-            constants.AddressZero,
-          )
-
-        await nextWithConstantPrice()
-        await settle(market, userB)
-
-        // Enable position fee to test refund
-        const riskParams = await market.riskParameter()
-        await market.updateRiskParameter({
-          ...riskParams,
-          takerFee: {
-            ...riskParams.takerFee,
-            linearFee: parse6decimal('0.01'),
-            adiabaticFee: parse6decimal('0.04'),
-          },
-        })
-        // Bring skew from -100% to 0% -> total impact change of -100%
-        await market
-          .connect(userC)
-          ['update(address,int256,int256,int256,address)'](
-            userC.address,
-            0,
-            LONG_POSITION,
-            COLLATERAL,
-            constants.AddressZero,
-          )
-
-        await nextWithConstantPrice()
-        const tx = await settle(market, userC)
-        const accountProcessEventShort: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
-          e => e.event === 'AccountPositionProcessed',
-        )?.args as unknown as AccountPositionProcessedEventObject
-        const positionProcessEventShort: PositionProcessedEventObject = (await tx.wait()).events?.find(
-          e => e.event === 'PositionProcessed',
-        )?.args as unknown as PositionProcessedEventObject
-
-        const expectedShortLinearFee = BigNumber.from('1138829') // = 3374.655169**2 * 0.00001 * 100% * 0.01
-        const expectedShortAdiabaticFee = BigNumber.from('-2277659') // = 3374.655169**2 *-0.00001 * 100% * 0.02
-        expect(accountProcessEventShort.accumulationResult.offset).to.equal(
-          expectedShortLinearFee.add(expectedShortAdiabaticFee),
-        )
-        expect(positionProcessEventShort.accumulationResult.tradeOffset).to.equal(
-          expectedShortLinearFee.add(expectedShortAdiabaticFee),
-        )
-      })
-    })
-
-    describe('settlement fee', () => {
-      const MAKER_POSITION = parse6decimal('10')
-      const SHORT_POSITION = parse6decimal('1')
-      const LONG_POSITION = parse6decimal('1')
-      const COLLATERAL = parse6decimal('1000')
-
-      beforeEach(async () => {
-        const riskParams = await market.riskParameter()
-        const marketParams = await market.parameter()
-        await market.updateRiskParameter({
-          ...riskParams,
-          makerFee: {
-            ...riskParams.makerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-          },
-          takerFee: {
-            ...riskParams.takerFee,
-            linearFee: BigNumber.from('0'),
-            proportionalFee: BigNumber.from('0'),
-            adiabaticFee: BigNumber.from('0'),
-          },
-        })
-        await market.updateParameter({
-          ...marketParams,
-          makerFee: 0,
-          takerFee: 0,
-        })
-
-        const { user, userB, userC, dsu } = instanceVars
-
-        await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
-        await margin.connect(user).deposit(user.address, COLLATERAL)
-        await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
-        await margin.connect(userB).deposit(userB.address, COLLATERAL)
-        await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
-        await margin.connect(userC).deposit(userC.address, COLLATERAL)
-
-        await market
-          .connect(user)
-          ['update(address,int256,int256,int256,address)'](
-            user.address,
-            MAKER_POSITION,
-            0,
-            COLLATERAL,
-            constants.AddressZero,
-          )
-        await nextWithConstantPrice()
-        await settle(market, user)
-
-        await market.updateParameter({
-          ...marketParams,
-          makerFee: 0,
-          takerFee: 0,
-        })
-        instanceVars.chainlink.updateParams(parse6decimal('1.23'), instanceVars.chainlink.oracleFee)
-      })
-
-      it('charges settlement fee for maker', async () => {
-        // bring position from 10 to 20
-        await market
-          .connect(instanceVars.user)
-          ['update(address,int256,int256,int256,address)'](
-            instanceVars.user.address,
-            MAKER_POSITION,
-            0,
-            0,
-            constants.AddressZero,
-          )
-
-        await nextWithConstantPrice()
-        const tx = await settle(market, instanceVars.user)
-
-        const accountProcessEvent: AccountPositionProcessedEventObject = (await tx.wait()).events?.find(
-          e => e.event === 'AccountPositionProcessed',
-        )?.args as unknown as AccountPositionProcessedEventObject
-
-        const expectedSettlementFee = parse6decimal('1.23')
-        expect(accountProcessEvent.accumulationResult.settlementFee).to.equal(expectedSettlementFee)
-
-        expectGlobalEq(await market.global(), {
-          ...DEFAULT_GLOBAL,
-          currentId: 2,
-          latestId: 2,
-          oracleFee: expectedSettlementFee,
-          latestPrice: PRICE,
-        })
-      })
-
-      it('charges settlement fee for taker', async () => {
-        const { userB, userC } = instanceVars
-        await market
-          .connect(userB)
-          ['update(address,int256,int256,int256,address)'](
-            userB.address,
-            0,
-            LONG_POSITION,
-            COLLATERAL,
-            constants.AddressZero,
-          )
-        await market
-          .connect(userC)
-          ['update(address,int256,int256,int256,address)'](
-            userC.address,
-            0,
-            SHORT_POSITION.mul(-1),
-            COLLATERAL,
-            constants.AddressZero,
-          )
-
-        await nextWithConstantPrice()
-        const txB = await settle(market, userB)
-        const txC = await settle(market, userC)
-
-        const accountProcessEventB: AccountPositionProcessedEventObject = (await txB.wait()).events?.find(
-          e => e.event === 'AccountPositionProcessed',
-        )?.args as unknown as AccountPositionProcessedEventObject
-        const accountProcessEventC: AccountPositionProcessedEventObject = (await txC.wait()).events?.find(
-          e => e.event === 'AccountPositionProcessed',
-        )?.args as unknown as AccountPositionProcessedEventObject
-
-        const expectedSettlementFee = parse6decimal('1.23')
-        expect(accountProcessEventB.accumulationResult.settlementFee).to.equal(expectedSettlementFee.div(2))
-        expect(accountProcessEventC.accumulationResult.settlementFee).to.equal(expectedSettlementFee.div(2))
-
-        expectGlobalEq(await market.global(), {
-          ...DEFAULT_GLOBAL,
-          currentId: 2,
-          latestId: 2,
-          oracleFee: expectedSettlementFee,
-          latestPrice: PRICE,
-        })
+      expectGlobalEq(await market.global(), {
+        ...DEFAULT_GLOBAL,
+        currentId: 2,
+        latestId: 2,
+        oracleFee: expectedSettlementFee,
+        latestPrice: PRICE,
       })
     })
   })
@@ -1891,17 +1114,6 @@ describe('Fees', () => {
       const riskParams = await market.riskParameter()
       await market.updateRiskParameter({
         ...riskParams,
-        makerFee: {
-          ...riskParams.makerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-        },
-        takerFee: {
-          ...riskParams.takerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
-        },
         utilizationCurve: {
           minRate: parse6decimal('0.01'),
           maxRate: parse6decimal('0.01'),
@@ -2028,19 +1240,12 @@ describe('Fees', () => {
     const COLLATERAL = parse6decimal('1000')
 
     beforeEach(async () => {
-      const riskParams = await market.riskParameter()
+      const riskParameter = await market.riskParameter()
       await market.updateRiskParameter({
-        ...riskParams,
-        makerFee: {
-          ...riskParams.makerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-        },
-        takerFee: {
-          ...riskParams.takerFee,
-          linearFee: BigNumber.from('0'),
-          proportionalFee: BigNumber.from('0'),
-          adiabaticFee: BigNumber.from('0'),
+        ...riskParameter,
+        synBook: {
+          ...riskParameter.synBook,
+          scale: parse6decimal('1'),
         },
         pController: {
           k: parse6decimal('10'),
@@ -2174,6 +1379,22 @@ describe('Fees', () => {
       await margin.connect(userC).deposit(userC.address, COLLATERAL.mul(2))
       await dsu.connect(userD).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(userD).deposit(userD.address, COLLATERAL)
+
+      const riskParameter = await market.riskParameter()
+      await market.updateRiskParameter({
+        ...riskParameter,
+        synBook: {
+          ...riskParameter.synBook,
+          scale: parse6decimal('1'),
+        },
+      })
+
+      const marketParameter = await market.parameter()
+      await market.updateParameter({
+        ...marketParameter,
+        takerFee: parse6decimal('0.025'),
+        makerFee: parse6decimal('0.05'),
+      })
 
       // set default referral fee
       const protocolParameters = await marketFactory.parameter()
@@ -2388,7 +1609,7 @@ describe('Fees', () => {
         latestId: 1,
       })
       expect(await margin.claimables(user.address)).to.equal(expectedClaimableTakerReferral)
-      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('1071.540000'))
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('1165.835106'))
 
       // userD creates a short position referred by user
       await market
@@ -2498,7 +1719,7 @@ describe('Fees', () => {
         latestId: 1,
       })
       expect(await margin.claimables(user.address)).to.equal(expectedCloseClaimable)
-      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('1150.119246'))
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('1165.835106'))
       await expect(margin.connect(user).claim(user.address, user.address))
         .to.emit(margin, 'ClaimableWithdrawn')
         .withArgs(user.address, user.address, expectedCloseClaimable)
@@ -2513,6 +1734,24 @@ describe('Fees', () => {
   })
 
   describe('claim fee', async () => {
+    beforeEach(async () => {
+      const riskParameter = await market.riskParameter()
+      await market.updateRiskParameter({
+        ...riskParameter,
+        synBook: {
+          ...riskParameter.synBook,
+          scale: parse6decimal('1'),
+        },
+      })
+
+      const marketParameter = await market.parameter()
+      await market.updateParameter({
+        ...marketParameter,
+        takerFee: parse6decimal('0.025'),
+        makerFee: parse6decimal('0.05'),
+      })
+    })
+
     it('claim protocol, risk and oracle fee', async () => {
       const COLLATERAL = parse6decimal('600')
       const POSITION = parse6decimal('3')
@@ -2534,9 +1773,9 @@ describe('Fees', () => {
       await nextWithConstantPrice()
       await settle(market, user)
 
-      const expectedProtocolFee = parse6decimal('16.809150')
-      const expectedOracleFee = parse6decimal('16.809126')
-      const expectedRiskFee = parse6decimal('22.412147')
+      const expectedProtocolFee = parse6decimal('5.124741')
+      const expectedOracleFee = parse6decimal('5.124733')
+      const expectedRiskFee = parse6decimal('6.832972')
 
       expectGlobalEq(await market.global(), {
         ...DEFAULT_GLOBAL,
@@ -2592,9 +1831,9 @@ describe('Fees', () => {
       await nextWithConstantPrice()
       await settle(market, user)
 
-      const expectedProtocolFee = parse6decimal('16.809150')
-      const expectedOracleFee = parse6decimal('16.809126')
-      const expectedRiskFee = parse6decimal('22.412147')
+      const expectedProtocolFee = parse6decimal('5.124741')
+      const expectedOracleFee = parse6decimal('5.124733')
+      const expectedRiskFee = parse6decimal('6.832972')
 
       expectGlobalEq(await market.global(), {
         ...DEFAULT_GLOBAL,
@@ -2627,6 +1866,42 @@ describe('Fees', () => {
   })
 
   describe('intent order fee exclusion', async () => {
+    const POSITION = parse6decimal('10')
+    const COLLATERAL = parse6decimal('10000')
+
+    beforeEach(async () => {
+      const { userB, dsu } = instanceVars
+
+      const riskParameter = await market.riskParameter()
+      await market.updateRiskParameter({
+        ...riskParameter,
+        synBook: {
+          ...riskParameter.synBook,
+          d0: parse6decimal('0.001'),
+          d1: parse6decimal('0.002'),
+          d2: parse6decimal('0.004'),
+          d3: parse6decimal('0.008'),
+        },
+      })
+
+      const marketParameter = await market.parameter()
+      await market.updateParameter({
+        ...marketParameter,
+        takerFee: parse6decimal('0.025'),
+        makerFee: parse6decimal('0.05'),
+      })
+
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
+
+      await market
+        .connect(userB)
+        ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
+
+      await nextWithConstantPrice()
+      await settle(market, userB)
+    })
+
     it('opens long position and another intent order and settles later with fee', async () => {
       const { owner, user, userB, userC, userD, marketFactory, dsu, chainlink } = instanceVars
 
@@ -2638,40 +1913,27 @@ describe('Fees', () => {
 
       await marketFactory.updateParameter(protocolParameter)
 
-      const POSITION = parse6decimal('10')
-      const COLLATERAL = parse6decimal('10000')
-
       await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(user).deposit(user.address, COLLATERAL)
-
       await market
         .connect(user)
         ['update(address,int256,int256,int256,address)'](user.address, 0, 0, COLLATERAL, constants.AddressZero)
 
-      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
-      await margin.connect(userB).deposit(userB.address, COLLATERAL)
-
-      await market
-        .connect(userB)
-        ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
-
       await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(userC).deposit(userC.address, COLLATERAL)
-
       await market
         .connect(userC)
         ['update(address,int256,int256,int256,address)'](userC.address, 0, 0, COLLATERAL, constants.AddressZero)
 
       await dsu.connect(userD).approve(margin.address, COLLATERAL.mul(1e12))
       await margin.connect(userD).deposit(userD.address, COLLATERAL)
-
       await market
         .connect(userD)
         ['update(address,int256,int256,int256,address)'](userD.address, 0, POSITION, COLLATERAL, constants.AddressZero)
 
       const intent = {
         amount: POSITION.div(2),
-        price: PRICE.add(2),
+        price: PRICE.add(0.5e6),
         fee: parse6decimal('0.5'),
         originator: userC.address,
         solver: owner.address,
@@ -2696,6 +1958,7 @@ describe('Fees', () => {
           'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
         ](userC.address, intent, signature)
 
+      console.log(5)
       expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
         ...DEFAULT_GUARANTEE,
         orders: 2,
@@ -2707,16 +1970,15 @@ describe('Fees', () => {
       expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
         ...DEFAULT_GUARANTEE,
         orders: 1,
-        notional: POSITION.div(2).mul(PRICE.add(2)).div(1e6), // loss of precision
+        notional: POSITION.div(2).mul(PRICE.add(0.5e6)).div(1e6), // loss of precision
         longPos: POSITION.div(2),
         orderReferral: parse6decimal('1.0'),
         solverReferral: parse6decimal('0.5'),
       })
       expectOrderEq(await market.pending(), {
         ...DEFAULT_ORDER,
-        orders: 4,
-        collateral: COLLATERAL.mul(4),
-        makerPos: POSITION,
+        orders: 3,
+        collateral: COLLATERAL.mul(3),
         longPos: POSITION.mul(3).div(2),
         shortPos: POSITION.div(2),
         takerReferral: parse6decimal('1'),
@@ -2736,8 +1998,9 @@ describe('Fees', () => {
       await market.settle(userC.address)
       await market.settle(userD.address)
 
-      const EXPECTED_PNL = POSITION.div(2).mul(PRICE.add(2).sub(PRICE_1)).div(1e6) // position * price change
-      const TRADE_FEE_A = parse6decimal('14.224562') // position * (0.025) * price_1
+      const PRICE_IMPACT = parse6decimal('6.135790') // skew 0 -> 1, price_2, exposure +10
+      const EXPECTED_PNL = parse6decimal('3.31642') // position * (price_2 - (price_1 + 0.5))
+      const TRADE_FEE_A = parse6decimal('14.380785') // position * (0.025) * price_2
 
       expectLocalEq(await market.locals(user.address), {
         ...DEFAULT_LOCAL,
@@ -2745,17 +2008,17 @@ describe('Fees', () => {
         latestId: 1,
       })
       expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
-        COLLATERAL.sub(EXPECTED_PNL).sub(TRADE_FEE_A).sub(3),
+        COLLATERAL.add(EXPECTED_PNL).sub(TRADE_FEE_A),
       ) // loss of precision
 
       expectPositionEq(await market.positions(user.address), {
         ...DEFAULT_POSITION,
-        timestamp: TIMESTAMP_1,
+        timestamp: TIMESTAMP_2,
         long: POSITION.div(2),
       })
       expectOrderEq(await market.pendingOrders(user.address, 1), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_1,
+        timestamp: TIMESTAMP_2,
         orders: 1,
         longPos: POSITION.div(2),
         takerReferral: POSITION.div(2).mul(2).div(10),
@@ -2763,21 +2026,24 @@ describe('Fees', () => {
       })
       expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
         ...DEFAULT_CHECKPOINT,
+        tradeFee: TRADE_FEE_A,
+        transfer: COLLATERAL,
+        collateral: EXPECTED_PNL,
       })
-      const TRADE_FEE_B = parse6decimal('56.898250') // position * 0.05 * price_1
-      const MAKER_LINEAR_FEE = parse6decimal('102.416848') // position * 0.09 * price_1
-      const MAKER_PROPORTIONAL_FEE = parse6decimal('91.037198') // position * 0.08 * price_1
+
+      const TRADE_FEE_B = parse6decimal('56.941490') // position * 0.05 * price
+
       expectLocalEq(await market.locals(userB.address), {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
       })
       expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
-        COLLATERAL.sub(TRADE_FEE_B).sub(MAKER_LINEAR_FEE).sub(MAKER_PROPORTIONAL_FEE).sub(4),
+        COLLATERAL.sub(TRADE_FEE_B).add(PRICE_IMPACT),
       ) // loss of precision
       expectPositionEq(await market.positions(userB.address), {
         ...DEFAULT_POSITION,
-        timestamp: TIMESTAMP_1,
+        timestamp: TIMESTAMP_2,
         maker: POSITION,
       })
       expectOrderEq(await market.pendingOrders(userB.address, 1), {
@@ -2789,6 +2055,7 @@ describe('Fees', () => {
       })
       expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
         ...DEFAULT_CHECKPOINT,
+        collateral: COLLATERAL.sub(TRADE_FEE_B).add(PRICE_IMPACT),
       })
 
       // no trade fee deducted for userC for intent order
@@ -2798,49 +2065,50 @@ describe('Fees', () => {
         latestId: 1,
       })
       expect(await margin.claimables(userC.address)).to.equal(TRADE_FEE_A.div(10).add(1)) // loss of precision
-      expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(COLLATERAL.add(EXPECTED_PNL))
+      expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(COLLATERAL.sub(EXPECTED_PNL))
       expectPositionEq(await market.positions(userC.address), {
         ...DEFAULT_POSITION,
-        timestamp: TIMESTAMP_1,
+        timestamp: TIMESTAMP_2,
         short: POSITION.div(2),
       })
       expectOrderEq(await market.pendingOrders(userC.address, 1), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_1,
+        timestamp: TIMESTAMP_2,
         orders: 1,
         shortPos: POSITION.div(2),
         collateral: COLLATERAL,
       })
       expectCheckpointEq(await market.checkpoints(userC.address, TIMESTAMP_2), {
         ...DEFAULT_CHECKPOINT,
+        transfer: COLLATERAL,
+        collateral: -EXPECTED_PNL,
       })
 
-      const TRADE_FEE_D = parse6decimal('28.449124') // position * (0.025) * price_1
-      const TAKER_LINEAR_FEE = parse6decimal('56.898249') // position * 0.05 * price_1
-      const TAKER_PROPORITIONAL_FEE = parse6decimal('682.778988') // position * position / scale * 0.06 * price_1
-      const TAKER_ADIABATIC_FEE = parse6decimal('796.575485') // position * 0.14 * price_1 * change in position / scale
+      const TRADE_FEE_D = parse6decimal('28.761564') // position * (0.025) * price_2
       expectLocalEq(await market.locals(userD.address), {
         ...DEFAULT_LOCAL,
         currentId: 1,
         latestId: 1,
       })
       expect(await margin.isolatedBalances(userD.address, market.address)).to.equal(
-        COLLATERAL.sub(TRADE_FEE_D).sub(TAKER_LINEAR_FEE).sub(TAKER_PROPORITIONAL_FEE).sub(TAKER_ADIABATIC_FEE).sub(14),
+        COLLATERAL.sub(TRADE_FEE_D).sub(PRICE_IMPACT).sub(16),
       ) // loss of precision
       expectPositionEq(await market.positions(userD.address), {
         ...DEFAULT_POSITION,
-        timestamp: TIMESTAMP_1,
+        timestamp: TIMESTAMP_2,
         long: POSITION,
       })
       expectOrderEq(await market.pendingOrders(userD.address, 1), {
         ...DEFAULT_ORDER,
-        timestamp: TIMESTAMP_1,
+        timestamp: TIMESTAMP_2,
         orders: 1,
         longPos: POSITION,
         collateral: COLLATERAL,
       })
       expectCheckpointEq(await market.checkpoints(userD.address, TIMESTAMP_2), {
         ...DEFAULT_CHECKPOINT,
+        tradeFee: PRICE_IMPACT.add(TRADE_FEE_D).add(16), // loss of precision
+        transfer: COLLATERAL,
       })
     })
   })

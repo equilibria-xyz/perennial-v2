@@ -73,7 +73,6 @@ interface IMarket is IInstance {
     /// @param receiver Delegated operator of the account, or the account itself
     /// @param amount Collateral transferred from market to receiver
     event FeeClaimed(address indexed account, address indexed receiver, UFixed6 amount);
-    event ExposureClaimed(address indexed account, Fixed6 amount);
     event ParameterUpdated(MarketParameter newParameter);
     event RiskParameterUpdated(RiskParameter newRiskParameter);
 

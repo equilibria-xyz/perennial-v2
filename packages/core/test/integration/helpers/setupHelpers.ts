@@ -270,15 +270,11 @@ export async function createMarket(
   const riskParameter = {
     margin: parse6decimal('0.3'),
     maintenance: parse6decimal('0.3'),
-    takerFee: {
-      linearFee: 0,
-      proportionalFee: 0,
-      adiabaticFee: 0,
-      scale: parse6decimal('10000'),
-    },
-    makerFee: {
-      linearFee: 0,
-      proportionalFee: 0,
+    synBook: {
+      d0: 0,
+      d1: 0,
+      d2: 0,
+      d3: 0,
       scale: parse6decimal('10000'),
     },
     makerLimit: parse6decimal('1000'),
