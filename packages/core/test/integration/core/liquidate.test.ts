@@ -38,7 +38,7 @@ describe('Liquidate', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         user.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION, protection: 1 },
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION, protection: 1, invalidation: 1 },
         { ...DEFAULT_GUARANTEE },
         userB.address,
         constants.AddressZero,
@@ -184,7 +184,6 @@ describe('Liquidate', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await settle(market, user)
 
-    // FIXME: off by 0.50; figure out why - may only happen when running solo
     expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('-2524.654460'))
 
     // UserB deposits collateral to userB and isolates
@@ -244,7 +243,6 @@ describe('Liquidate', () => {
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await settle(market, user)
 
-    // FIXME: also off by 0.50; figure out why - may only happen when running solo
     const expectedCollateral = parse6decimal('-2524.654460')
 
     expect(await margin.isolatedBalances(user.address, market.address)).to.equal(expectedCollateral)
@@ -479,7 +477,7 @@ describe('Liquidate', () => {
       maxFee: parse6decimal('0.9'),
       referralFee: parse6decimal('0.12'),
     })
-    const market = await createMarket(instanceVars, {
+    const market = await createMarket(instanceVars, undefined, {
       makerFee: parse6decimal('0.05'),
     })
 

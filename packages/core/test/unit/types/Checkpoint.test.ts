@@ -301,14 +301,14 @@ describe('Checkpoint', () => {
           checkpoint,
           user.address,
           ORDER_ID,
-          { ...DEFAULT_ORDER, shortPos: parse6decimal('10'), shortNeg: parse6decimal('5') },
+          { ...DEFAULT_ORDER, longPos: parse6decimal('10'), longNeg: parse6decimal('5') },
           {
             ...DEFAULT_GUARANTEE,
             longNeg: parse6decimal('5'),
             longPos: parse6decimal('2'),
             notional: parse6decimal('-300'),
           },
-          { ...DEFAULT_POSITION },
+          { ...DEFAULT_POSITION, long: parse6decimal('5') },
           { ...DEFAULT_VERSION },
           { ...DEFAULT_VERSION, price: parse6decimal('123') },
         )
@@ -343,14 +343,14 @@ describe('Checkpoint', () => {
           checkpoint,
           user.address,
           ORDER_ID,
-          { ...DEFAULT_ORDER, longPos: parse6decimal('10'), longNeg: parse6decimal('5') },
+          { ...DEFAULT_ORDER, shortPos: parse6decimal('10'), shortNeg: parse6decimal('5') },
           {
             ...DEFAULT_GUARANTEE,
             shortNeg: parse6decimal('5'),
             shortPos: parse6decimal('2'),
             notional: parse6decimal('300'),
           },
-          { ...DEFAULT_POSITION },
+          { ...DEFAULT_POSITION, short: parse6decimal('5') },
           { ...DEFAULT_VERSION },
           { ...DEFAULT_VERSION, price: parse6decimal('123') },
         )

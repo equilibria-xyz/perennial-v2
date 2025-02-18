@@ -165,7 +165,8 @@ abstract contract Manager is IManager, Kept {
 
         // compensate keeper
         uint256 applicableGas = startGas - gasleft();
-        bytes memory data = abi.encode(market, account, order.maxFee);
+        bytes memory data = abi.encode(account, order.maxFee);
+
         _handleKeeperFee(keepConfigBuffered, applicableGas, abi.encode(account, orderId), 0, data);
     }
 
@@ -225,7 +226,6 @@ abstract contract Manager is IManager, Kept {
 
     /// @notice Transfers DSU from margin contract to manager contract to pay keeper or interface fee
     function _marginWithdraw(address account, UFixed6 amount) private {
-        // TODO: Update this to handle cross-margin use case
         margin.withdraw(account, amount);
     }
 

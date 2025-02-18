@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { BigNumber, CallOverrides, utils, constants } from 'ethers'
+import { CallOverrides, utils, Contract } from 'ethers'
 import {
   CheckpointLib__factory,
   CheckpointStorageLib__factory,
@@ -24,12 +24,11 @@ import {
 } from '@perennial/v2-core/types/generated'
 import { IOracle } from '@perennial/v2-oracle/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { ERC20, IERC20Metadata, IMargin, IOracleProvider, IVerifier } from '../../types/generated'
+import { IERC20Metadata, IOracleProvider, IVerifier } from '../../types/generated'
 import { parse6decimal } from '../../../common/testutil/types'
 import { MarketParameterStruct, RiskParameterStruct } from '@perennial/v2-core/types/generated/contracts/Market'
 import { MockContract, smock } from '@defi-wonderland/smock'
 import { impersonateWithBalance } from '../../../common/testutil/impersonate'
-import { IMargin__factory } from '@perennial/v2-vault/types/generated'
 
 export async function createMarket(
   owner: SignerWithAddress,
@@ -158,7 +157,7 @@ export async function mockMarket(): Promise<IMarket> {
   const factorySigner = await impersonateWithBalance(factory.address, utils.parseEther('10'))
 
   // mock a token which supports the IERC20Metadata interface
-  const dsuMock: MockContract<ERC20> = await (await smock.mock('ERC20')).deploy('Digital Standard Unit', 'DSU')
+  const dsuMock: MockContract<Contract> = await (await smock.mock('ERC20')).deploy('Digital Standard Unit', 'DSU')
   // create a fake for the mocked contract
   const dsu = await smock.fake(dsuMock)
 

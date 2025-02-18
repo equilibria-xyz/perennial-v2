@@ -107,11 +107,6 @@ describe('Manager', () => {
     dsu.transferFrom.returns(true)
     dsu.transfer.returns(true)
 
-    // fake the Margin contract, such that _marketWithdraw doesn't revert
-    const margin = await smock.fake<IMargin>('IMargin')
-    margin.withdraw.returns(true)
-    market.margin.returns(margin.address)
-
     // fake an oracle, for testing market comparison
     marketOracle = await smock.fake<IOracleProvider>('IOracleProvider')
     market.oracle.returns(marketOracle.address)

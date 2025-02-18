@@ -1,6 +1,5 @@
 import { BigNumber, BigNumberish, utils, constants } from 'ethers'
 import { expect } from 'chai'
-import exp from 'constants'
 
 export interface OracleVersion {
   valid: boolean

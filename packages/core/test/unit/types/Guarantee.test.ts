@@ -849,7 +849,7 @@ describe('Guarantee', () => {
               ...DEFAULT_GUARANTEE,
               longNeg: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'GuaranteeStorageInvalidError')
         })
       })
 
@@ -870,7 +870,7 @@ describe('Guarantee', () => {
               ...DEFAULT_GUARANTEE,
               shortPos: BigNumber.from(2).pow(STORAGE_SIZE),
             }),
-          ).to.be.revertedWithCustomError(guarantee, 'GuaranteeStorageInvalidError')
+          ).to.be.revertedWithCustomError(storageLib, 'GuaranteeStorageInvalidError')
         })
       })
 

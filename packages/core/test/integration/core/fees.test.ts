@@ -409,7 +409,14 @@ describe('Fees', () => {
         .to.emit(market, 'OrderCreated')
         .withArgs(
           user.address,
-          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerPos: POSITION, collateral: COLLATERAL },
+          {
+            ...DEFAULT_ORDER,
+            timestamp: TIMESTAMP_2,
+            orders: 1,
+            makerPos: POSITION,
+            collateral: COLLATERAL,
+            invalidation: 1,
+          },
           { ...DEFAULT_GUARANTEE },
           constants.AddressZero,
           constants.AddressZero,
@@ -508,7 +515,14 @@ describe('Fees', () => {
         .to.emit(market, 'OrderCreated')
         .withArgs(
           userB.address,
-          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION.div(2), collateral: 0 },
+          {
+            ...DEFAULT_ORDER,
+            timestamp: TIMESTAMP_2,
+            orders: 1,
+            makerNeg: POSITION.div(2),
+            collateral: 0,
+            invalidation: 1,
+          },
           { ...DEFAULT_GUARANTEE },
           constants.AddressZero,
           constants.AddressZero,
@@ -799,7 +813,14 @@ describe('Fees', () => {
         .to.emit(market, 'OrderCreated')
         .withArgs(
           user.address,
-          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, shortPos: POSITION.div(2), collateral: COLLATERAL },
+          {
+            ...DEFAULT_ORDER,
+            timestamp: TIMESTAMP_2,
+            orders: 1,
+            shortPos: POSITION.div(2),
+            collateral: COLLATERAL,
+            invalidation: 1,
+          },
           { ...DEFAULT_GUARANTEE },
           constants.AddressZero,
           constants.AddressZero,
@@ -891,7 +912,14 @@ describe('Fees', () => {
         .to.emit(market, 'OrderCreated')
         .withArgs(
           userD.address,
-          { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, shortNeg: POSITION.div(2), collateral: 0 },
+          {
+            ...DEFAULT_ORDER,
+            timestamp: TIMESTAMP_2,
+            orders: 1,
+            shortNeg: POSITION.div(2),
+            collateral: 0,
+            invalidation: 1,
+          },
           { ...DEFAULT_GUARANTEE },
           constants.AddressZero,
           constants.AddressZero,

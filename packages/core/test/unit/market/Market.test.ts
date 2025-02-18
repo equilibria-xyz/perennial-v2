@@ -18577,7 +18577,7 @@ describe('Market', () => {
             latestId: 1,
           })
           expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
-            COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE.div(2)).sub(4),
+            COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE).sub(4),
           ) // loss of precision
           expectPositionEq(await market.positions(userB.address), {
             ...DEFAULT_POSITION,
@@ -18600,7 +18600,7 @@ describe('Market', () => {
             latestId: 1,
           })
           expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(
-            COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL).sub(SETTLEMENT_FEE.div(2)),
+            COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL),
           )
           expectPositionEq(await market.positions(userC.address), {
             ...DEFAULT_POSITION,
@@ -20121,7 +20121,7 @@ describe('Market', () => {
               latestId: 1,
             })
             expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
-              COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE.div(2)).sub(4),
+              COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE).sub(4),
             ) // loss of precision
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -20144,7 +20144,7 @@ describe('Market', () => {
               latestId: 1,
             })
             expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(
-              COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL).sub(SETTLEMENT_FEE.div(2)),
+              COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL),
             )
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
@@ -20371,7 +20371,7 @@ describe('Market', () => {
               latestId: 1,
             })
             expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
-              COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE.div(2)).sub(4),
+              COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE).sub(4),
             ) // loss of precision
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -20394,7 +20394,7 @@ describe('Market', () => {
               latestId: 1,
             })
             expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(
-              COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).sub(EXPECTED_PNL).sub(SETTLEMENT_FEE.div(2)),
+              COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).sub(EXPECTED_PNL),
             )
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
@@ -20621,7 +20621,7 @@ describe('Market', () => {
               latestId: 1,
             })
             expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
-              COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE.div(2)).sub(4),
+              COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE).sub(4),
             ) // loss of precision
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -20644,7 +20644,7 @@ describe('Market', () => {
               latestId: 1,
             })
             expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(
-              COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).sub(EXPECTED_PNL).sub(SETTLEMENT_FEE.div(2)),
+              COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).sub(EXPECTED_PNL),
             )
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
@@ -20871,7 +20871,7 @@ describe('Market', () => {
               latestId: 1,
             })
             expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
-              COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE.div(2)).sub(4),
+              COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE).sub(4),
             ) // loss of precision
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -20894,7 +20894,7 @@ describe('Market', () => {
               latestId: 1,
             })
             expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(
-              COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL).sub(SETTLEMENT_FEE.div(2)),
+              COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL),
             )
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
@@ -21221,7 +21221,7 @@ describe('Market', () => {
               latestId: 1,
             })
             expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
-              COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF_2).sub(SETTLEMENT_FEE.div(3)).sub(7),
+              COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF_2).sub(SETTLEMENT_FEE).sub(6),
             ) // loss of precision
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -21470,7 +21470,7 @@ describe('Market', () => {
               latestId: 1,
             })
             expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
-              COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE.div(2)).sub(4),
+              COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE).sub(4),
             ) // loss of precision
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -21493,7 +21493,7 @@ describe('Market', () => {
               latestId: 1,
             })
             expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(
-              COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL).sub(SETTLEMENT_FEE.div(2)),
+              COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL),
             )
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
@@ -21926,9 +21926,9 @@ describe('Market', () => {
             expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
               COLLATERAL.add(expectedInterestWithoutFee)
                 .add(expectedMakerFundingFee)
-                .sub(SETTLEMENT_FEE.div(3))
+                .sub(SETTLEMENT_FEE.div(2))
                 .sub(PRICE_IMPACT)
-                .sub(10), // loss of precision
+                .sub(9), // loss of precision
             )
             expectPositionEq(await market.positions(userB.address), {
               ...DEFAULT_POSITION,
@@ -21952,11 +21952,7 @@ describe('Market', () => {
               latestId: 1,
             })
             expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(
-              COLLATERAL.sub(expectedInterest.div(4))
-                .add(expectedShortFundingFee)
-                .add(EXPECTED_PNL)
-                .sub(SETTLEMENT_FEE.div(3))
-                .sub(6), // loss of precision
+              COLLATERAL.sub(expectedInterest.div(4)).add(expectedShortFundingFee).add(EXPECTED_PNL).sub(5), // loss of precision
             )
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
@@ -21982,9 +21978,9 @@ describe('Market', () => {
               COLLATERAL.sub(expectedLongInterest.mul(2).div(3))
                 .sub(expectedFundingFee.mul(2))
                 .sub(TAKER_FEE.mul(2))
-                .sub(SETTLEMENT_FEE.div(3))
+                .sub(SETTLEMENT_FEE.div(2))
                 .add(PRICE_IMPACT.mul(2).div(3))
-                .sub(13), // loss of precision
+                .sub(12), // loss of precision
             )
             expectPositionEq(await market.positions(userD.address), {
               ...DEFAULT_POSITION,
@@ -22768,9 +22764,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
             })
-            expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(
-              COLLATERAL.sub(SETTLEMENT_FEE).sub(EXPECTED_PNL),
-            ) // open
+            expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(COLLATERAL.sub(EXPECTED_PNL)) // open
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
@@ -22817,6 +22811,7 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
+              valid: false,
               makerPreValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_5_123.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).div(10),
               },
@@ -23029,9 +23024,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
             })
-            expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(
-              COLLATERAL.sub(SETTLEMENT_FEE).add(EXPECTED_PNL),
-            ) // open
+            expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(COLLATERAL.add(EXPECTED_PNL)) // open
             expectPositionEq(await market.positions(userC.address), {
               ...DEFAULT_POSITION,
               timestamp: ORACLE_VERSION_3.timestamp,
@@ -23078,6 +23071,7 @@ describe('Market', () => {
             })
             expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
               ...DEFAULT_VERSION,
+              valid: false,
               makerPreValue: {
                 _value: EXPECTED_INTEREST_WITHOUT_FEE_5_123.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123).div(10),
               },

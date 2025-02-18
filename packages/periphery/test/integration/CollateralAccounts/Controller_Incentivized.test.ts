@@ -461,7 +461,7 @@ export function RunIncentivizedTests(
       })
 
       // TODO: Add Margin support for full withdrawals
-      it.skip('collects fee for withdrawing native deposit from market', async () => {
+      it('collects fee for withdrawing native deposit from market', async () => {
         // user directly isolates collateral to the market
         const depositAmount = parse6decimal('13000')
         await deployment.fundWalletDSU(userA, depositAmount.mul(1e12), TX_OVERRIDES)
