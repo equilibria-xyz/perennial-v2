@@ -167,6 +167,13 @@ library GuaranteeLib {
 ///         uint64 longNeg;
 ///         uint64 shortPos;
 ///         uint64 shortNeg;
+///         uint64 orderReferral;
+///
+///         /* slot 1 */
+///         uint64 longPos;
+///         uint64 longNeg;
+///         uint64 shortPos;
+///         uint64 shortNeg;
 ///     }
 ///
 library GuaranteeStorageGlobalLib {
@@ -191,8 +198,8 @@ library GuaranteeStorageGlobalLib {
         uint256 encoded0 =
             uint256(newValue.orders << (256 - 32)) >> (256 - 32) |
             uint256(UFixed6.unwrap(newValue.takerFee) << (256 - 64)) >> (256 - 32 - 64) |
+            uint256(UFixed6.unwrap(newValue.takerFee) << (256 - 64)) >> (256 - 32 - 64) |
             uint256(UFixed6.unwrap(newValue.orderReferral) << (256 - 64)) >> (256 - 32 - 64 - 64);
-
         uint256 encode1 =
             uint256(UFixed6.unwrap(newValue.longPos) << (256 - 64)) >> (256 - 64) |
             uint256(UFixed6.unwrap(newValue.longNeg) << (256 - 64)) >> (256 - 64 - 64) |

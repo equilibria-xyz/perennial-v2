@@ -193,33 +193,32 @@ export function RunInvokerTests(
 
     const buildMarketUpdateAction = async ({
       market,
-      maker,
-      long,
-      short,
-      collateral,
+      makerDelta = BigNumber.from(0),
+      longDelta = BigNumber.from(0),
+      shortDelta = BigNumber.from(0),
+      collateral = BigNumber.from(0),
       handleWrap,
       interfaceFee1,
       interfaceFee2,
     }: {
       market: IMarket
-      maker?: BigNumberish
-      long?: BigNumberish
-      short?: BigNumberish
-      collateral?: BigNumberish
+      makerDelta?: BigNumber
+      longDelta?: BigNumber
+      shortDelta?: BigNumber
+      collateral?: BigNumber
       handleWrap?: boolean
       interfaceFee1?: InterfaceFeeStruct
       interfaceFee2?: InterfaceFeeStruct
     }): Promise<Actions> => {
       const { user, margin } = instanceVars
-      const positions = await market.positions(user.address)
       collateral = collateral ?? (await margin.isolatedBalances(user.address, market.address)).mul(-1)
 
       return buildUpdateMarket({
         market: market.address,
+        makerDelta: makerDelta,
+        longDelta: longDelta,
+        shortDelta: shortDelta,
         collateral: collateral,
-        maker: maker ?? positions.maker,
-        long: long ?? positions.long,
-        short: short ?? positions.short,
         handleWrap: handleWrap,
         interfaceFee1: interfaceFee1,
         interfaceFee2: interfaceFee2,

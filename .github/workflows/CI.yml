@@ -6,7 +6,6 @@ on:
   pull_request:
     branches:
       - main
-      - v2.4-mini
       - v2.4
       - v2.5
   workflow_dispatch:

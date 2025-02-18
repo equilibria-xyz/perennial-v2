@@ -254,15 +254,11 @@ describe('SolverVault', () => {
       makerLimit: parse6decimal('1000'),
       minMargin: parse6decimal('50'),
       minMaintenance: parse6decimal('50'),
-      takerFee: {
-        linearFee: 0,
-        proportionalFee: 0,
-        adiabaticFee: 0,
-        scale: parse6decimal('100'),
-      },
-      makerFee: {
-        linearFee: 0,
-        proportionalFee: 0,
+      synBook: {
+        d0: 0,
+        d1: 0,
+        d2: 0,
+        d3: 0,
         scale: parse6decimal('100'),
       },
     })
@@ -272,15 +268,11 @@ describe('SolverVault', () => {
       oracle: btcRootOracle.address,
       minMargin: parse6decimal('50'),
       minMaintenance: parse6decimal('50'),
-      takerFee: {
-        linearFee: 0,
-        proportionalFee: 0,
-        adiabaticFee: 0,
-        scale: parse6decimal('10'),
-      },
-      makerFee: {
-        linearFee: 0,
-        proportionalFee: 0,
+      synBook: {
+        d0: 0,
+        d1: 0,
+        d2: 0,
+        d3: 0,
         scale: parse6decimal('10'),
       },
     })
@@ -492,15 +484,11 @@ describe('SolverVault', () => {
         owner: owner,
         oracle: rootOracle3.address,
         makerLimit: parse6decimal('1000000'),
-        takerFee: {
-          linearFee: 0,
-          proportionalFee: 0,
-          adiabaticFee: 0,
-          scale: parse6decimal('100000'),
-        },
-        makerFee: {
-          linearFee: 0,
-          proportionalFee: 0,
+        synBook: {
+          d0: 0,
+          d1: 0,
+          d2: 0,
+          d3: 0,
           scale: parse6decimal('100000'),
         },
       })
@@ -1370,17 +1358,23 @@ describe('SolverVault', () => {
       const riskParameters = { ...(await market.riskParameter()) }
       await market.updateRiskParameter({
         ...riskParameters,
-        makerFee: {
-          ...riskParameters.makerFee,
-          linearFee: parse6decimal('0.001'),
+        synBook: {
+          ...riskParameters.synBook,
+          d0: parse6decimal('0.001'),
+          d1: parse6decimal('0.002'),
+          d2: parse6decimal('0.004'),
+          d3: parse6decimal('0.008'),
         },
       })
       const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
       await btcMarket.updateRiskParameter({
         ...btcRiskParameters,
-        makerFee: {
-          ...btcRiskParameters.makerFee,
-          linearFee: parse6decimal('0.001'),
+        synBook: {
+          ...riskParameters.synBook,
+          d0: parse6decimal('0.001'),
+          d1: parse6decimal('0.002'),
+          d2: parse6decimal('0.004'),
+          d3: parse6decimal('0.008'),
         },
       })
 
@@ -1754,20 +1748,17 @@ describe('SolverVault', () => {
 
       const market3 = await deployProductOnFork({
         factory: factory,
-        token: asset,
         owner: owner,
         oracle: rootOracle3.address,
-        makerLimit: parse6decimal('1000000'),
-        takerFee: {
-          linearFee: 0,
-          proportionalFee: 0,
-          adiabaticFee: 0,
-          scale: parse6decimal('100000'),
-        },
-        makerFee: {
-          linearFee: 0,
-          proportionalFee: 0,
-          scale: parse6decimal('100000'),
+        makerLimit: parse6decimal('1000'),
+        minMargin: parse6decimal('50'),
+        minMaintenance: parse6decimal('50'),
+        synBook: {
+          d0: 0,
+          d1: 0,
+          d2: 0,
+          d3: 0,
+          scale: parse6decimal('100'),
         },
       })
 

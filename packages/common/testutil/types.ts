@@ -71,7 +71,6 @@ export interface Global {
   riskFee: BigNumberish
   latestPrice: BigNumberish
   pAccumulator: PAccumulator
-  exposure: BigNumberish
 }
 
 export interface Local {
@@ -84,14 +83,24 @@ export interface Local {
 export interface Version {
   valid: boolean
   price: BigNumberish
-  makerValue: Accumulator
-  longValue: Accumulator
-  shortValue: Accumulator
+  makerPosExposure: BigNumberish
+  makerNegExposure: BigNumberish
+  longPosExposure: BigNumberish
+  longNegExposure: BigNumberish
+  shortPosExposure: BigNumberish
+  shortNegExposure: BigNumberish
+  makerPreValue: Accumulator
+  longPreValue: Accumulator
+  shortPreValue: Accumulator
+  makerCloseValue: Accumulator
+  longCloseValue: Accumulator
+  shortCloseValue: Accumulator
+  longPostValue: Accumulator
+  shortPostValue: Accumulator
+  spreadPos: Accumulator
+  spreadNeg: Accumulator
   makerFee: Accumulator
   takerFee: Accumulator
-  makerOffset: Accumulator
-  takerPosOffset: Accumulator
-  takerNegOffset: Accumulator
   settlementFee: Accumulator
   liquidationFee: Accumulator
 }
@@ -114,10 +123,11 @@ export interface MarketParameter {
   settle: boolean
 }
 
-export interface AdiabaticFee {
-  linearFee: BigNumberish
-  proportionalFee: BigNumberish
-  adiabaticFee: BigNumberish
+export interface SynBook {
+  d0: BigNumberish
+  d1: BigNumberish
+  d2: BigNumberish
+  d3: BigNumberish
   scale: BigNumberish
 }
 
@@ -137,8 +147,7 @@ export interface PController {
 export interface RiskParameter {
   margin: BigNumberish
   maintenance: BigNumberish
-  takerFee: AdiabaticFee
-  makerFee: AdiabaticFee
+  synBook: SynBook
   makerLimit: BigNumberish
   efficiencyLimit: BigNumberish
   liquidationFee: BigNumberish
@@ -230,6 +239,8 @@ export function expectGuaranteeEq(a: Guarantee, b: Guarantee): void {
   expect(a.orders).to.equal(b.orders, 'Order:Orders')
   expect(a.longPos).to.equal(b.longPos, 'Order:LongPos')
   expect(a.longNeg).to.equal(b.longNeg, 'Order:LongNeg')
+  expect(a.shortPos).to.equal(b.shortPos, 'Order:ShortPos')
+  expect(a.shortNeg).to.equal(b.shortNeg, 'Order:ShortNeg')
   expect(a.notional).to.equal(b.notional, 'Order:Notional')
   expect(a.takerFee).to.equal(b.takerFee, 'Order:TakerFee')
   expect(a.orderReferral).to.equal(b.orderReferral, 'Order:OrderReferral')
@@ -250,7 +261,6 @@ export function expectGlobalEq(a: Global, b: Global): void {
   expect(a.oracleFee).to.equal(b.oracleFee, 'Global:OracleFee')
   expect(a.riskFee).to.equal(b.riskFee, 'Global:RiskFee')
   expect(a.latestPrice).to.equal(b.latestPrice, 'Global:LatestPrice')
-  expect(a.exposure).to.equal(b.exposure, 'Global:Exposure')
 }
 
 export function expectLocalEq(a: Local, b: Local): void {
@@ -267,14 +277,18 @@ export function expectLocalEq(a: Local, b: Local): void {
 export function expectVersionEq(a: Version, b: Version): void {
   expect(a.valid).to.equal(b.valid, 'Version:Valid')
   expect(a.price).to.equal(b.price, 'Version:Price')
-  expect(a.makerValue._value).to.equal(b.makerValue._value, 'Version:MakerValue')
-  expect(a.longValue._value).to.equal(b.longValue._value, 'Version:LongValue')
-  expect(a.shortValue._value).to.equal(b.shortValue._value, 'Version:ShortValue')
+  expect(a.makerPreValue._value).to.equal(b.makerPreValue._value, 'Version:MakerPreValue')
+  expect(a.longPreValue._value).to.equal(b.longPreValue._value, 'Version:LongPreValue')
+  expect(a.shortPreValue._value).to.equal(b.shortPreValue._value, 'Version:ShortPreValue')
+  expect(a.makerCloseValue._value).to.equal(b.makerCloseValue._value, 'Version:MakerCloseValue')
+  expect(a.longCloseValue._value).to.equal(b.longCloseValue._value, 'Version:LongCloseValue')
+  expect(a.shortCloseValue._value).to.equal(b.shortCloseValue._value, 'Version:ShortCloseValue')
+  expect(a.longPostValue._value).to.equal(b.longPostValue._value, 'Version:LongPostValue')
+  expect(a.shortPostValue._value).to.equal(b.shortPostValue._value, 'Version:ShortPostValue')
+  expect(a.spreadPos._value).to.equal(b.spreadPos._value, 'Version:SpreadPos')
+  expect(a.spreadNeg._value).to.equal(b.spreadNeg._value, 'Version:SpreadNeg')
   expect(a.makerFee._value).to.equal(b.makerFee._value, 'Version:MakerFee')
   expect(a.takerFee._value).to.equal(b.takerFee._value, 'Version:TakerFee')
-  expect(a.makerOffset._value).to.equal(b.makerOffset._value, 'Version:MakerOffset')
-  expect(a.takerPosOffset._value).to.equal(b.takerPosOffset._value, 'Version:TakerPosOffset')
-  expect(a.takerNegOffset._value).to.equal(b.takerNegOffset._value, 'Version:TakerNegOffset')
   expect(a.settlementFee._value).to.equal(b.settlementFee._value, 'Version:SettlementFee')
   expect(a.liquidationFee._value).to.equal(b.liquidationFee._value, 'Version:LiquidationFee')
 }
@@ -367,7 +381,6 @@ export const DEFAULT_GLOBAL: Global = {
     _value: 0,
     _skew: 0,
   },
-  exposure: 0,
 }
 
 export const DEFAULT_LOCAL: Local = {
@@ -408,14 +421,24 @@ export const DEFAULT_GUARANTEE: Guarantee = {
 export const DEFAULT_VERSION: Version = {
   valid: true,
   price: 0,
-  makerValue: { _value: 0 },
-  longValue: { _value: 0 },
-  shortValue: { _value: 0 },
+  makerPosExposure: 0,
+  makerNegExposure: 0,
+  longPosExposure: 0,
+  longNegExposure: 0,
+  shortPosExposure: 0,
+  shortNegExposure: 0,
+  makerPreValue: { _value: 0 },
+  longPreValue: { _value: 0 },
+  shortPreValue: { _value: 0 },
+  makerCloseValue: { _value: 0 },
+  longCloseValue: { _value: 0 },
+  shortCloseValue: { _value: 0 },
+  longPostValue: { _value: 0 },
+  shortPostValue: { _value: 0 },
+  spreadPos: { _value: 0 },
+  spreadNeg: { _value: 0 },
   makerFee: { _value: 0 },
   takerFee: { _value: 0 },
-  makerOffset: { _value: 0 },
-  takerPosOffset: { _value: 0 },
-  takerNegOffset: { _value: 0 },
   settlementFee: { _value: 0 },
   liquidationFee: { _value: 0 },
 }
@@ -444,10 +467,11 @@ export const DEFAULT_MARKET_PARAMETER: MarketParameter = {
   settle: false,
 }
 
-export const DEFAULT_ADIABATIC_FEE: AdiabaticFee = {
-  linearFee: 0,
-  proportionalFee: 0,
-  adiabaticFee: 0,
+export const DEFAULT_SYN_BOOK: SynBook = {
+  d0: 0,
+  d1: 0,
+  d2: 0,
+  d3: 0,
   scale: 0,
 }
 
@@ -467,8 +491,7 @@ export const DEFAULT_PCONTROLLER: PController = {
 export const DEFAULT_RISK_PARAMETER: RiskParameter = {
   margin: 0,
   maintenance: 0,
-  takerFee: DEFAULT_ADIABATIC_FEE,
-  makerFee: DEFAULT_ADIABATIC_FEE,
+  synBook: DEFAULT_SYN_BOOK,
   makerLimit: 0,
   efficiencyLimit: 0,
   liquidationFee: 0,
