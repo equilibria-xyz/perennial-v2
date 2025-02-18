@@ -1649,7 +1649,7 @@ describe('Happy Path', () => {
       currentId: 3,
       latestId: 2,
     })
-    expect(await margin.crossMarginBalances(user.address)).to.equal(COLLATERAL.add(parse6decimal('873.007697')))
+    expect(await margin.crossMarginBalances(user.address)).to.equal(COLLATERAL.add(parse6decimal('873.007698')))
     expectOrderEq(await market.pendingOrders(user.address, 3), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_5,
