@@ -63,11 +63,10 @@ struct MatchingResult {
 
 /// @title MatchingLib
 /// @dev (external-safe): this library is safe to externalize
-///     // need to apply to appropriate accumulator
-        // - maker close -> applies to position - makerNeg
-        // - long / short -> applies to position - makerNeg - (short neg / long neg)
-        // - maker open -> applies to position - neg + takerPos
-/// @notice
+/// @notice need to apply to appropriate accumulator
+/// - maker close -> applies to position - makerNeg
+/// - long / short -> applies to position - makerNeg - (short neg / long neg)
+/// - maker open -> applies to position - neg + takerPos
 library MatchingLib {
     function execute(
         MatchingPosition memory position,
