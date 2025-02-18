@@ -9,8 +9,8 @@ import { getEventArguments, getTimestamp } from '../../../../common/testutil/tra
 import { parse6decimal } from '../../../../common/testutil/types'
 
 import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@perennial/v2-core/types/generated'
-import { IKeeperOracle } from '@perennial/v2-oracle/types/generated'
-import { IManager, IMargin, IOrderVerifier } from '../../../types/generated'
+import { IKeeperOracle, IMargin__factory } from '@perennial/v2-oracle/types/generated'
+import { IController, IManager, IMargin, IOrderVerifier } from '../../../types/generated'
 import { PlaceOrderActionStruct } from '../../../types/generated/contracts/TriggerOrders/Manager'
 
 import { signAction, signCancelOrderAction, signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
@@ -26,7 +26,7 @@ import { advanceToPrice } from '../../helpers/oracleHelpers'
 import { Address } from 'hardhat-deploy/dist/types'
 import { impersonate } from '../../../../common/testutil'
 import { FixtureVars } from './setupTypes'
-import { IMargin__factory } from '@perennial/v2-vault/types/generated'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
 const MAX_FEE = utils.parseEther('0.88')
 
@@ -42,7 +42,11 @@ const NO_INTERFACE_FEE = {
 // because we called hardhat_setNextBlockBaseFeePerGas, need this when running tests under coverage
 const TX_OVERRIDES = { maxPriorityFeePerGas: 0, maxFeePerGas: 150_000_000 }
 
-export function RunManagerTests(name: string, getFixture: (overrides?: CallOverrides) => Promise<FixtureVars>): void {
+export function RunManagerTests(
+  name: string,
+  getFixture: (overrides?: CallOverrides) => Promise<FixtureVars>,
+  fundWalletDSU: (wallet: SignerWithAddress, amount: BigNumber, overrides?: CallOverrides) => Promise<undefined>,
+): void {
   describe(name, () => {
     let dsu: IERC20Metadata
     let usdc: IERC20Metadata
@@ -53,6 +57,7 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
     let market: IMarket
     let oracle: IOracleProvider
     let verifier: IOrderVerifier
+    let controller: IController
     let owner: SignerWithAddress
     let userA: SignerWithAddress
     let userB: SignerWithAddress
@@ -82,7 +87,7 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
 
       // cost of transaction
       const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2603)
-      // keeper should be compensated between 100-200% of actual gas cost
+      // keeper should be compensated between 100-250% of actual gas cost
       // please retain below for debugging purposes
       /*console.log(
         'keeperFeesPaid',
@@ -167,6 +172,7 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
           await expect(tx)
             .to.emit(manager, 'TriggerOrderInterfaceFeeCharged')
             .withArgs(user.address, market.address, order.interfaceFee)
+          const collateralAccountAddress = await controller.getAccountAddress(user.address)
           if (order.interfaceFee.unwrap) {
             await expect(tx)
               .to.emit(dsu, 'Transfer')
@@ -290,8 +296,27 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
       await HRE.ethers.provider.send('hardhat_setNextBlockBaseFeePerGas', ['0x5F5E100']) // 0.1 gwei
     }
 
-    // running tests serially; can build a few scenario scripts and test multiple things within each script
-    before(async () => {
+    // prepares an account for use with the market and manager
+    async function setupUser(
+      dsu: IERC20Metadata,
+      marketFactory: IMarketFactory,
+      market: IMarket,
+      manager: IManager,
+      user: SignerWithAddress,
+      amount: BigNumber,
+    ) {
+      // funds, approves, and deposits DSU into the market
+      const reservedForFees = amount.mul(1).div(100)
+      await fundWalletDSU(user, amount.mul(1e12))
+      await dsu.connect(user).approve(await market.margin(), amount.mul(1e12))
+      await margin.connect(user).deposit(user.address, amount)
+      await margin.connect(user).isolate(user.address, market.address, amount.sub(reservedForFees))
+
+      // allows manager to interact with markets on the user's behalf
+      await marketFactory.connect(user).updateOperator(manager.address, true)
+    }
+
+    const fixture = async () => {
       currentTime = BigNumber.from(await currentBlockTimestamp())
       const fixture = await getFixture(TX_OVERRIDES)
       dsu = fixture.dsu
@@ -302,6 +327,7 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
       market = fixture.market
       oracle = fixture.oracle
       verifier = fixture.verifier
+      controller = fixture.controller
       owner = fixture.owner
       userA = fixture.userA
       userB = fixture.userB
@@ -315,8 +341,20 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
       nextOrderId[userA.address] = BigNumber.from(500)
       nextOrderId[userB.address] = BigNumber.from(500)
 
+      // fund accounts and deposit all into market
+      const amount = parse6decimal('100000')
+      await setupUser(dsu, marketFactory, market, manager, userA, amount)
+      await setupUser(dsu, marketFactory, market, manager, userB, amount)
+      await setupUser(dsu, marketFactory, market, manager, userC, amount)
+      await setupUser(dsu, marketFactory, market, manager, userD, amount)
+
       // commit a start price
       await commitPrice(parse6decimal('4444'))
+    }
+
+    // running tests serially; can build a few scenario scripts and test multiple things within each script
+    before(async () => {
+      await loadFixture(fixture)
     })
 
     beforeEach(async () => {
@@ -878,6 +916,7 @@ export function RunManagerTests(name: string, getFixture: (overrides?: CallOverr
         expect((await market.positions(userD.address)).long).to.equal(parse6decimal('0'))
       })
 
+      // FIXME: This test is failing in checkCompensation
       it('charges notional interface fee on whole position when closing', async () => {
         const interfaceBalanceBefore = await dsu.balanceOf(userB.address)
 

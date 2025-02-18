@@ -8,6 +8,7 @@ import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { IMarketFactory } from "@perennial/v2-core/contracts/interfaces/IMarketFactory.sol";
 
 import { IAccount, IMarket } from "./interfaces/IAccount.sol";
@@ -167,6 +168,17 @@ contract Controller is Factory, IController {
         _rebalanceGroup(owner, group);
     }
 
+    /// @inheritdoc IController
+    function chargeFee(address owner, UFixed6 amount) virtual external onlyOperator(owner, msg.sender) {
+        address account = getAccountAddress(owner);
+        UFixed18 transferAmount = UFixed18Lib.from(amount);
+
+        // if the account has insufficient DSU to pay the fee, wrap
+        IAccount(account).wrapIfNecessary(transferAmount, false);
+        // transfer DSU from account to the caller
+        DSU.pullTo(account, msg.sender, transferAmount);
+    }
+
     function _changeRebalanceConfigWithSignature(RebalanceConfigChange calldata configChange, bytes calldata signature) internal {
         // ensure the message was signed by the owner or a delegated signer
         verifier.verifyRebalanceConfigChange(configChange, signature);
@@ -310,5 +322,11 @@ contract Controller is Factory, IController {
             revert ControllerInvalidRebalanceTargetsError();
 
         emit RebalanceGroupConfigured(owner, message.group, message.markets.length);
+    }
+
+    /// @notice Only an operator can call
+    modifier onlyOperator(address owner, address operator) {
+        if (!marketFactory.operators(owner, operator)) revert ControllerNotOperatorError();
+        _;
     }
 }

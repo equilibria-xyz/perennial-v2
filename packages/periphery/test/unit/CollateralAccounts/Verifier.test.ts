@@ -17,6 +17,7 @@ import {
   signRelayedNonceCancellation,
   signRelayedOperatorUpdate,
   signRelayedSignerUpdate,
+  signRelayedTake,
   signWithdrawal,
 } from '../../helpers/CollateralAccounts/eip712'
 import {
@@ -25,12 +26,23 @@ import {
   signCommon as signNonceCancellation,
   signOperatorUpdate,
   signSignerUpdate,
+  signTake,
 } from '@perennial/v2-core/test/helpers/erc712'
 import { impersonate } from '../../../../common/testutil'
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { Verifier, Verifier__factory } from '@perennial/v2-core/types/generated'
-import { AccountVerifier, AccountVerifier__factory, IController, IMarketFactory } from '../../../types/generated'
+import {
+  AccountVerifier,
+  AccountVerifier__factory,
+  IController,
+  IMarket,
+  IMarketFactory,
+} from '../../../types/generated'
+import {
+  RelayedTakeStruct,
+  TakeStruct,
+} from '../../../types/generated/contracts/CollateralAccounts/interfaces/IRelayVerifier'
 
 const { ethers } = HRE
 
@@ -38,8 +50,10 @@ describe('Verifier', () => {
   let accountVerifier: AccountVerifier
   let accountVerifierSigner: SignerWithAddress
   let controller: FakeContract<IController>
-  let marketFactory: FakeContract<IMarketFactory>
   let controllerSigner: SignerWithAddress
+  let marketFactory: FakeContract<IMarketFactory>
+  let market: FakeContract<IMarket>
+  let marketSigner: SignerWithAddress
   let owner: SignerWithAddress
   let userA: SignerWithAddress
   let userB: SignerWithAddress
@@ -82,6 +96,8 @@ describe('Verifier', () => {
     accountVerifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address)
     accountVerifierSigner = await impersonate.impersonateWithBalance(accountVerifier.address, utils.parseEther('10'))
     controllerSigner = await impersonate.impersonateWithBalance(controller.address, utils.parseEther('10'))
+    market = await smock.fake('IMarket')
+    marketSigner = await impersonate.impersonateWithBalance(market.address, utils.parseEther('10'))
   }
 
   beforeEach(async () => {
@@ -297,6 +313,37 @@ describe('Verifier', () => {
       downstreamVerifier = await new Verifier__factory(owner).deploy()
       await downstreamVerifier.initialize(marketFactory.address)
       currentTime = BigNumber.from(await currentBlockTimestamp())
+    })
+
+    it('verifies relayedTake messages', async () => {
+      const take: TakeStruct = {
+        amount: parse6decimal('15'),
+        referrer: userC.address,
+        common: {
+          account: userB.address,
+          signer: userB.address,
+          domain: market.address,
+          nonce: 1,
+          group: 0,
+          expiry: currentTime.add(60),
+        },
+      }
+      const innerSignature = await signTake(userB, downstreamVerifier, take)
+      // ensure downstream verification will succeed
+      await expect(downstreamVerifier.connect(marketSigner).verifyTake(take, innerSignature))
+        .to.emit(downstreamVerifier, 'NonceCancelled')
+        .withArgs(userB.address, take.common.nonce)
+
+      // create and sign the outer messsage
+      const relayedTake: RelayedTakeStruct = {
+        take: take,
+        ...createAction(userA.address),
+      }
+      const outerSignature = await signRelayedTake(userA, accountVerifier, relayedTake)
+      // ensure outer message verification succeeds
+      await expect(accountVerifier.connect(controllerSigner).verifyRelayedTake(relayedTake, outerSignature))
+        .to.emit(accountVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedTake.action.common.nonce)
     })
 
     it('verifies relayedNonceCancellation messages', async () => {

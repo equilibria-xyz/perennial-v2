@@ -72,19 +72,19 @@ async function deployController(
 
   const keepConfig = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 160_000, // buffer for handling the keeper fee
+    bufferBase: 175_000, // buffer for handling the keeper fee
     multiplierCalldata: ethers.utils.parseEther('1'),
     bufferCalldata: 0,
   }
   const keepConfigBuffered = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 1_475_000, // for price commitment
+    bufferBase: 1_375_000, // for price commitment
     multiplierCalldata: ethers.utils.parseEther('1'),
-    bufferCalldata: 0,
+    bufferCalldata: 500,
   }
   const keepConfigWithdrawal = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 700_000,
+    bufferBase: 750_000,
     multiplierCalldata: ethers.utils.parseEther('1'),
     bufferCalldata: 2000,
   }

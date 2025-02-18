@@ -179,7 +179,7 @@ library CheckpointLib {
         // compute portion of subtractive fees that are solver fees
         solverFee = takerTotal.isZero() ?
             UFixed6Lib.ZERO :
-            takerFee.muldiv(guarantee.referral, takerTotal); // guarantee.referral is instantiated as a subset of order.takerReferral
+            takerFee.muldiv(guarantee.solverReferral, takerTotal); // guarantee.solverReferral is instantiated as a subset of order.takerReferral
 
         tradeFee = makerFee.add(takerFee);
         subtractiveFee = makerSubtractiveFee.add(takerSubtractiveFee).sub(solverFee);
@@ -235,7 +235,6 @@ library CheckpointLib {
         Guarantee memory guarantee,
         Version memory toVersion
     ) private pure returns (Fixed6) {
-        if (!toVersion.valid) return Fixed6Lib.ZERO;
         return guarantee.priceAdjustment(toVersion.price);
     }
 }

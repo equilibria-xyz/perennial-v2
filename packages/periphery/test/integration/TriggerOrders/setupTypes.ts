@@ -1,5 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import {
+  IController,
   IEmptySetReserve,
   IERC20Metadata,
   IKeeperOracle,
@@ -20,6 +21,7 @@ export interface FixtureVars {
   market: IMarket
   oracle: IOracleProvider
   verifier: IOrderVerifier
+  controller: IController
   owner: SignerWithAddress
   userA: SignerWithAddress
   userB: SignerWithAddress

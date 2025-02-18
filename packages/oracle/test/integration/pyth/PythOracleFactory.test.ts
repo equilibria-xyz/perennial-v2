@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { utils } from 'ethers'
-import HRE from 'hardhat'
+import HRE, { network } from 'hardhat'
 import { time } from '../../../../common/testutil'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 import {
@@ -455,8 +455,10 @@ testOracles.forEach(testOracle => {
       beforeEach(async () => {
         await loadFixture(fixture)
         const stagingTime = STARTING_TIME - 10
-        if ((await time.currentBlockTimestamp()) >= stagingTime)
+        if ((await time.currentBlockTimestamp()) >= stagingTime) {
+          console.log('current', await time.currentBlockTimestamp(), 'staging', stagingTime)
           throw new Error('Fork block does not allow sufficient time for test setup')
+        }
         await time.increaseTo(stagingTime)
 
         await time.includeAt(async () => {

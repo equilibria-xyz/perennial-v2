@@ -143,6 +143,7 @@ describe('TriggerOrder', () => {
         shortPos: side === Side.SHORT && pending.gt(0) ? pending : constants.Zero,
         shortNeg: side === Side.SHORT && pending.lt(0) ? pending.mul(-1) : constants.Zero,
         protection: constants.Zero,
+        invalidation: pending.isZero() ? 0 : 1,
         makerReferral: constants.Zero,
         takerReferral: constants.Zero,
       })
@@ -188,6 +189,7 @@ describe('TriggerOrder', () => {
         },
       }
       const expectedNotional = parse6decimal('24400') // price * position
+
       expect(await orderTester.notionalValue(order, market.address, user.address)).to.equal(expectedNotional)
     })
 

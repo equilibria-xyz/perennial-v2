@@ -275,7 +275,7 @@ describe('Checkpoint', () => {
         expect(value.transfer).to.equal(parse6decimal('123'))
       })
 
-      it('accumulates price override pnl (long)', async () => {
+      it('accumulates price override pnl (long open)', async () => {
         const { ret, value } = await accumulateWithReturn(
           checkpoint,
           user.address,
@@ -296,7 +296,28 @@ describe('Checkpoint', () => {
         expect(value.collateral).to.equal(parse6decimal('69'))
       })
 
-      it('accumulates price override pnl (short)', async () => {
+      it('accumulates price override pnl (long close)', async () => {
+        const { ret, value } = await accumulateWithReturn(
+          checkpoint,
+          user.address,
+          ORDER_ID,
+          { ...DEFAULT_ORDER, shortPos: parse6decimal('10'), shortNeg: parse6decimal('5') },
+          {
+            ...DEFAULT_GUARANTEE,
+            longNeg: parse6decimal('5'),
+            longPos: parse6decimal('2'),
+            notional: parse6decimal('-300'),
+          },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, price: parse6decimal('123') },
+        )
+        expect(ret.priceOverride).to.equal(parse6decimal('-69')) // open 3 short @ 100 w/ 123 price
+
+        expect(value.collateral).to.equal(parse6decimal('-69'))
+      })
+
+      it('accumulates price override pnl (short open)', async () => {
         const { ret, value } = await accumulateWithReturn(
           checkpoint,
           user.address,
@@ -315,6 +336,27 @@ describe('Checkpoint', () => {
         expect(ret.priceOverride).to.equal(parse6decimal('-69')) // open 3 short @ 100 w/ 123 price
 
         expect(value.collateral).to.equal(parse6decimal('-69'))
+      })
+
+      it('accumulates price override pnl (short close)', async () => {
+        const { ret, value } = await accumulateWithReturn(
+          checkpoint,
+          user.address,
+          ORDER_ID,
+          { ...DEFAULT_ORDER, longPos: parse6decimal('10'), longNeg: parse6decimal('5') },
+          {
+            ...DEFAULT_GUARANTEE,
+            shortNeg: parse6decimal('5'),
+            shortPos: parse6decimal('2'),
+            notional: parse6decimal('300'),
+          },
+          { ...DEFAULT_POSITION },
+          { ...DEFAULT_VERSION },
+          { ...DEFAULT_VERSION, price: parse6decimal('123') },
+        )
+        expect(ret.priceOverride).to.equal(parse6decimal('69')) // open 3 long @ 100 w/ 123 price
+
+        expect(value.collateral).to.equal(parse6decimal('69'))
       })
 
       it('accumulates pnl (maker)', async () => {

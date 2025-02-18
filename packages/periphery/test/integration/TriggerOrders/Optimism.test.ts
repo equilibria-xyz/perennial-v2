@@ -1,86 +1,28 @@
-import { expect } from 'chai'
-import { BigNumber, CallOverrides, utils } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
 
 import {
   IEmptySetReserve__factory,
-  IERC20Metadata,
   IERC20Metadata__factory,
-  IManager,
-  IMarket,
-  IMarketFactory,
   Manager_Optimism__factory,
   OptGasInfo,
   OrderVerifier__factory,
 } from '../../../types/generated'
-import { impersonate } from '../../../../common/testutil'
-import { parse6decimal } from '../../../../common/testutil/types'
-import { transferCollateral } from '../../helpers/marketHelpers'
-import { deployPythOracleFactory } from '../../helpers/oracleHelpers'
-import { createMarketETH, deployProtocol } from '../../helpers/setupHelpers'
+import { createMarketETH, deployController, deployProtocol } from '../../helpers/setupHelpers'
 import { RunManagerTests } from './Manager.test'
 import { FixtureVars } from './setupTypes'
 import {
   CHAINLINK_ETH_USD_FEED,
   DSU_ADDRESS,
   DSU_RESERVE,
+  fundWalletDSU,
   PYTH_ADDRESS,
   USDC_ADDRESS,
-  USDC_HOLDER,
 } from '../../helpers/baseHelpers'
 import { smock } from '@defi-wonderland/smock'
+import { deployPythOracleFactory } from '../../helpers/oracleHelpers'
 
 const { ethers } = HRE
-
-export async function fundWalletDSU(
-  wallet: SignerWithAddress,
-  amount: BigNumber,
-  overrides?: CallOverrides,
-): Promise<undefined> {
-  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, wallet)
-  const reserve = IEmptySetReserve__factory.connect(DSU_RESERVE, wallet)
-  const balanceBefore = await dsu.balanceOf(wallet.address)
-
-  // fund wallet with USDC and then mint using reserve
-  await fundWalletUSDC(wallet, amount.div(1e12), overrides)
-  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, wallet)
-  await usdc.connect(wallet).approve(reserve.address, amount.div(1e12))
-  await reserve.mint(amount)
-
-  expect((await dsu.balanceOf(wallet.address)).sub(balanceBefore)).to.equal(amount)
-}
-
-async function fundWalletUSDC(
-  wallet: SignerWithAddress,
-  amount: BigNumber,
-  overrides?: CallOverrides,
-): Promise<undefined> {
-  const usdcOwner = await impersonate.impersonateWithBalance(USDC_HOLDER, utils.parseEther('10'))
-  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, usdcOwner)
-
-  expect(await usdc.balanceOf(USDC_HOLDER)).to.be.greaterThan(amount)
-  await usdc.transfer(wallet.address, amount, overrides ?? {})
-}
-
-// prepares an account for use with the market and manager
-async function setupUser(
-  dsu: IERC20Metadata,
-  marketFactory: IMarketFactory,
-  market: IMarket,
-  manager: IManager,
-  user: SignerWithAddress,
-  amount: BigNumber,
-) {
-  // funds, approves, and deposits DSU into the market
-  await fundWalletDSU(user, amount.mul(1e12))
-  await dsu.connect(user).approve(await market.margin(), amount.mul(1e12))
-  await transferCollateral(user, market, amount)
-
-  // allows manager to interact with markets on the user's behalf
-  await marketFactory.connect(user).updateOperator(manager.address, true)
-}
 
 const fixture = async (): Promise<FixtureVars> => {
   // deploy the protocol and create a market
@@ -94,34 +36,29 @@ const fixture = async (): Promise<FixtureVars> => {
 
   // deploy the order manager
   const verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
+  const controller = await deployController(owner, usdc.address, dsu.address, reserve.address, marketFactory.address)
   const manager = await new Manager_Optimism__factory(owner).deploy(
     USDC_ADDRESS,
     dsu.address,
     DSU_RESERVE,
     marketFactory.address,
     verifier.address,
+    await market.margin(),
   )
 
   const keepConfig = {
-    multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 600_000, // buffer for withdrawing keeper fee from margin contract
-    multiplierCalldata: ethers.utils.parseEther('1'),
+    multiplierBase: ethers.utils.parseEther('0.01'),
+    bufferBase: 50_000, // buffer for withdrawing keeper fee from margin contract
+    multiplierCalldata: ethers.utils.parseEther('0.01'),
     bufferCalldata: 0,
   }
   const keepConfigBuffered = {
-    multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 700_000, // for price commitment
-    multiplierCalldata: ethers.utils.parseEther('1'),
+    multiplierBase: ethers.utils.parseEther('0.05'),
+    bufferBase: 1_500_000, // for price commitment
+    multiplierCalldata: ethers.utils.parseEther('0.05'),
     bufferCalldata: 0,
   }
   await manager.initialize(CHAINLINK_ETH_USD_FEED, keepConfig, keepConfigBuffered)
-
-  // fund accounts and deposit all into market
-  const amount = parse6decimal('100000')
-  await setupUser(dsu, marketFactory, market, manager, userA, amount)
-  await setupUser(dsu, marketFactory, market, manager, userB, amount)
-  await setupUser(dsu, marketFactory, market, manager, userC, amount)
-  await setupUser(dsu, marketFactory, market, manager, userD, amount)
 
   await mockGasInfo()
 
@@ -135,6 +72,7 @@ const fixture = async (): Promise<FixtureVars> => {
     market,
     oracle: marketWithOracle.oracle,
     verifier,
+    controller,
     owner,
     userA,
     userB,
@@ -155,9 +93,9 @@ async function mockGasInfo() {
     address: '0x420000000000000000000000000000000000000F',
   })
   gasInfo.getL1GasUsed.returns(1600)
-  gasInfo.l1BaseFee.returns(18476655731)
-  gasInfo.baseFeeScalar.returns(2768304)
+  gasInfo.l1BaseFee.returns(96617457705)
+  gasInfo.baseFeeScalar.returns(13841697)
   gasInfo.decimals.returns(6)
 }
 
-if (process.env.FORK_NETWORK === 'base') RunManagerTests('Manager_Optimism', getFixture)
+if (process.env.FORK_NETWORK === 'base') RunManagerTests('Manager_Optimism', getFixture, fundWalletDSU)

@@ -1,6 +1,5 @@
 import { ethers } from 'hardhat'
 import { BigNumber, CallOverrides, utils, constants } from 'ethers'
-import { Address } from 'hardhat-deploy/dist/types'
 import {
   CheckpointLib__factory,
   CheckpointStorageLib__factory,
@@ -14,6 +13,10 @@ import {
   PositionStorageGlobalLib__factory,
   PositionStorageLocalLib__factory,
   RiskParameterStorageLib__factory,
+  GuaranteeStorageLocalLib__factory,
+  GuaranteeStorageGlobalLib__factory,
+  OrderStorageLocalLib__factory,
+  OrderStorageGlobalLib__factory,
   VersionLib__factory,
   VersionStorageLib__factory,
   Margin__factory,
@@ -129,6 +132,18 @@ export async function deployMarketImplementation(
         await new RiskParameterStorageLib__factory(owner).deploy()
       ).address,
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
+      'contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': (
+        await new GuaranteeStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Guarantee.sol:GuaranteeStorageGlobalLib': (
+        await new GuaranteeStorageGlobalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Order.sol:OrderStorageLocalLib': (
+        await new OrderStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Order.sol:OrderStorageGlobalLib': (
+        await new OrderStorageGlobalLib__factory(owner).deploy()
+      ).address,
     },
     owner,
   ).deploy(verifier.address, margin.address)
@@ -178,22 +193,22 @@ export async function mockMarket(): Promise<IMarket> {
         await new RiskParameterStorageLib__factory(owner).deploy()
       ).address,
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
+      'contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': (
+        await new GuaranteeStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Guarantee.sol:GuaranteeStorageGlobalLib': (
+        await new GuaranteeStorageGlobalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Order.sol:OrderStorageLocalLib': (
+        await new OrderStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Order.sol:OrderStorageGlobalLib': (
+        await new OrderStorageGlobalLib__factory(owner).deploy()
+      ).address,
     },
     owner,
   ).deploy(verifier.address, margin.address)
 
   await market.connect(factorySigner).initialize(oracle.address)
   return market
-}
-
-// Deposits collateral to (amount > 0) or withdraws collateral from (amount < 0) a market
-export async function transferCollateral(user: SignerWithAddress, market: IMarket, amount: BigNumber) {
-  const margin: IMargin = IMargin__factory.connect(await market.margin(), user)
-  if (amount.gt(0)) {
-    await margin.deposit(user.address, amount)
-    await margin.isolate(user.address, market.address, amount)
-  } else if (amount.lt(0)) {
-    await margin.isolate(user.address, market.address, amount)
-    await margin.withdraw(user.address, amount.mul(-1))
-  }
 }

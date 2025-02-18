@@ -35,7 +35,10 @@ contract MultiInvoker is IMultiInvoker, Initializable {
     IMarketFactory public immutable marketFactory;
 
     /// @dev Vault factory to validate vault approvals
-    IFactory public immutable vaultFactory;
+    IFactory public immutable makerVaultFactory;
+
+    /// @dev Vault factory to validate vault approvals
+    IFactory public immutable solverVaultFactory;
 
     /// @dev Batcher address
     IBatcher public immutable batcher;
@@ -59,21 +62,24 @@ contract MultiInvoker is IMultiInvoker, Initializable {
     /// @param usdc_ USDC stablecoin address
     /// @param dsu_ DSU address
     /// @param marketFactory_ Protocol factory to validate market approvals
-    /// @param vaultFactory_ Protocol factory to validate vault approvals
+    /// @param makerVaultFactory_ Protocol factory to validate maker vault approvals
+    /// @param solverVaultFactory_ Protocol factory to validate solver vault approvals
     /// @param batcher_ Batcher address
     /// @param reserve_ Reserve address
     constructor(
         Token6 usdc_,
         Token18 dsu_,
         IMarketFactory marketFactory_,
-        IFactory vaultFactory_,
+        IFactory makerVaultFactory_,
+        IFactory solverVaultFactory_,
         IBatcher batcher_,
         IEmptySetReserve reserve_
     ) {
         USDC = usdc_;
         DSU = dsu_;
         marketFactory = marketFactory_;
-        vaultFactory = vaultFactory_;
+        makerVaultFactory = makerVaultFactory_;
+        solverVaultFactory = solverVaultFactory_;
         batcher = batcher_;
         reserve = reserve_;
     }
@@ -255,7 +261,9 @@ contract MultiInvoker is IMultiInvoker, Initializable {
     function _approve(address target) internal {
         if (marketFactory.instances(IInstance(target))) {
             DSU.approve(address(IMarket(target).margin()));
-        } else if (vaultFactory.instances(IInstance(target))) {
+        } else if (makerVaultFactory.instances(IInstance(target)) ||
+            solverVaultFactory.instances(IInstance(target)))
+        {
             DSU.approve(target);
         } else {
             revert MultiInvokerInvalidInstanceError();
@@ -383,7 +391,7 @@ contract MultiInvoker is IMultiInvoker, Initializable {
 
     /// @notice Target vault must be created by VaultFactory
     modifier isVaultInstance(IVault vault) {
-        if (!vaultFactory.instances(vault))
+        if (!makerVaultFactory.instances(vault) && !solverVaultFactory.instances(vault))
             revert MultiInvokerInvalidInstanceError();
         _;
     }

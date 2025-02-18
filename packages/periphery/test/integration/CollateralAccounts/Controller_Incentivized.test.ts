@@ -8,7 +8,7 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { advanceBlock, currentBlockTimestamp } from '../../../../common/testutil/time'
 import { getEventArguments } from '../../../../common/testutil/transaction'
 
-import { parse6decimal } from '../../../../common/testutil/types'
+import { DEFAULT_GUARANTEE, DEFAULT_ORDER, expectOrderEq, parse6decimal, Take } from '../../../../common/testutil/types'
 import {
   Account,
   Account__factory,
@@ -30,6 +30,7 @@ import {
   signRelayedNonceCancellation,
   signRelayedOperatorUpdate,
   signRelayedSignerUpdate,
+  signRelayedTake,
   signWithdrawal,
 } from '../../helpers/CollateralAccounts/eip712'
 import {
@@ -38,15 +39,20 @@ import {
   signCommon as signNonceCancellation,
   signOperatorUpdate,
   signSignerUpdate,
+  signTake,
 } from '@perennial/v2-core/test/helpers/erc712'
 import { Verifier, Verifier__factory } from '@perennial/v2-core/types/generated'
 import { AggregatorV3Interface } from '@perennial/v2-oracle/types/generated'
 import { DeploymentVars } from './setupTypes'
 import { advanceToPrice } from '../../helpers/oracleHelpers'
+import { RelayedTakeStruct } from '../../../../types/generated/contracts/CollateralAccounts/AccountVerifier'
 
 const { ethers } = HRE
 
 const DEFAULT_MAX_FEE = parse6decimal('0.5')
+
+const MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE = 'update(address,int256,int256,int256,address)'
+const MARKET_UPDATE_DELTA_PROTOTYPE = 'update(address,int256,int256,address)'
 
 // hack around issues estimating gas for instrumented contracts when running tests under coverage
 // also, need higher gasLimit to deploy incentivized controllers with optimizer disabled
@@ -146,6 +152,15 @@ export function RunIncentivizedTests(
       // TODO: Support different ETH price on different chains (currently 2620 on Base fork)
       const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2603)
       // keeper should be compensated between 100-125% of actual gas cost
+      // please retain below for debugging purposes
+      /*console.log(
+        'keeperFeesPaid',
+        keeperFeesPaid.div(1e9).toNumber() / 1e9,
+        'keeperGasCostInUSD',
+        keeperGasCostInUSD.div(1e9).toNumber() / 1e9,
+        'keeperGasUpperLimit',
+        keeperGasCostInUSD.mul(125).div(100e9).toNumber() / 1e9,
+      )*/
       expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(125).div(100))
     }
 
@@ -236,6 +251,7 @@ export function RunIncentivizedTests(
 
       // fund userA
       await dsu.connect(userA).approve(deployment.margin.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
+      await deployment.fundWalletDSU(userA, utils.parseEther('5000'), TX_OVERRIDES)
       await deployment.fundWalletUSDC(userA, parse6decimal('50000'), { maxFeePerGas: 100000000 })
     }
 
@@ -456,7 +472,7 @@ export function RunIncentivizedTests(
         // sign a message to withdraw everything from the market back into the collateral account
         const marketTransferMessage = {
           market: ethMarket.address,
-          amount: (await ethMarket.locals(userA.address)).collateral.mul(-1),
+          amount: (await margin.isolatedBalances(userA.address, ethMarket.address)).mul(-1),
           ...createAction(userA.address, userA.address),
         }
         const signature = await signMarketTransfer(userA, accountVerifier, marketTransferMessage)
@@ -772,6 +788,88 @@ export function RunIncentivizedTests(
       afterEach(async () => {
         // confirm keeper earned their fee
         await checkCompensation()
+      })
+
+      it('relays take messages', async () => {
+        // user deposits into the market
+        const COLLATERAL_A = parse6decimal('5000')
+        await margin.connect(userA).deposit(userA.address, COLLATERAL_A, TX_OVERRIDES)
+        await ethMarket
+          .connect(userA)
+          [MARKET_UPDATE_DELTA_PROTOTYPE](userA.address, 0, COLLATERAL_A, constants.AddressZero, TX_OVERRIDES)
+        // userB deposits and opens maker position, adding liquidity to market
+        const COLLATERAL_B = parse6decimal('10000')
+        const POSITION_B = parse6decimal('2')
+        await dsu.connect(userB).approve(margin.address, constants.MaxUint256, TX_OVERRIDES)
+        await deployment.fundWalletDSU(userB, utils.parseEther('10000'), TX_OVERRIDES)
+        await margin.connect(userB).deposit(userB.address, COLLATERAL_B, TX_OVERRIDES)
+        await ethMarket
+          .connect(userB)
+          [MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE](
+            userB.address,
+            POSITION_B,
+            0,
+            COLLATERAL_B,
+            constants.AddressZero,
+            TX_OVERRIDES,
+          )
+        expectOrderEq(await ethMarket.pending(), {
+          ...DEFAULT_ORDER,
+          orders: 1,
+          collateral: COLLATERAL_A.add(COLLATERAL_B),
+          makerPos: POSITION_B,
+        })
+
+        // userA signs a message to establish a long position
+        const POSITION_A = parse6decimal('1.5')
+        const take: Take = {
+          amount: POSITION_A,
+          referrer: constants.AddressZero,
+          common: {
+            account: userA.address,
+            signer: userA.address,
+            domain: ethMarket.address,
+            nonce: nextNonce(),
+            group: 0,
+            expiry: (await currentBlockTimestamp()) + 12,
+          },
+        }
+        const innerSignature = await signTake(userA, downstreamVerifier, take)
+
+        // userA signs a request to relay the take message
+        const relayedTake: RelayedTakeStruct = {
+          take: take,
+          ...createAction(userA.address, userA.address),
+        }
+        const outerSignature = await signRelayedTake(userA, accountVerifier, relayedTake)
+
+        // perform the action
+        await expect(controller.connect(keeper).relayTake(relayedTake, outerSignature, innerSignature, TX_OVERRIDES))
+          .to.emit(ethMarket, 'OrderCreated')
+          .withArgs(
+            userA.address,
+            anyValue,
+            { ...DEFAULT_GUARANTEE },
+            constants.AddressZero,
+            constants.AddressZero,
+            constants.AddressZero,
+          )
+          .to.emit(controller, 'KeeperCall')
+          .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
+
+        expectOrderEq(await ethMarket.pending(), {
+          ...DEFAULT_ORDER,
+          orders: 2,
+          collateral: COLLATERAL_A.add(COLLATERAL_B),
+          makerPos: POSITION_B,
+          longPos: POSITION_A,
+        })
+        expectOrderEq(await ethMarket.pendings(userA.address), {
+          ...DEFAULT_ORDER,
+          orders: 1,
+          collateral: COLLATERAL_A,
+          longPos: POSITION_A,
+        })
       })
 
       it('relays nonce cancellation messages', async () => {

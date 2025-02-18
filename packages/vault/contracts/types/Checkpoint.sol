@@ -2,9 +2,11 @@
 pragma solidity ^0.8.13;
 
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Checkpoint as PerennialCheckpoint } from "@perennial/v2-core/contracts/types/Checkpoint.sol";
 import { Account } from "./Account.sol";
+import { VaultParameter } from "./VaultParameter.sol";
 
 /// @dev Checkpoint type
 struct Checkpoint {
@@ -84,11 +86,59 @@ library CheckpointLib {
     /// @notice Completes the checkpoint
     /// @dev Increments the assets by the snapshotted amount of collateral in the underlying markets
     /// @param self The checkpoint to complete
+    /// @param mark The high-water mark of the vault prior to this completion
+    /// @param parameter The vault parameter
     /// @param marketCheckpoint The checkpoint to complete with
-    function complete(Checkpoint memory self, PerennialCheckpoint memory marketCheckpoint) internal pure {
+    /// @return newMark The new high-water mark for the vault
+    /// @return profitShares The newly minted profit shares for the checkpoint
+    function complete(
+        Checkpoint memory self,
+        UFixed18 mark,
+        VaultParameter memory parameter,
+        PerennialCheckpoint memory marketCheckpoint
+    ) internal pure returns (UFixed18 newMark, UFixed6 profitShares) {
+        // finalize vault collateral
         self.assets = self.assets.add(marketCheckpoint.collateral);
+
+        // apply profit share
+        (newMark, profitShares) = _calculateProfitShare(self, mark, parameter);
+        self.shares = self.shares.add(profitShares);
+
+        // apply fees
         self.tradeFee = marketCheckpoint.tradeFee;
         self.settlementFee = marketCheckpoint.settlementFee;
+    }
+
+    /// @notice Calculates the profit share for the checkpoint
+    /// @dev The coordinator accrues a percentage of the Vault's profit over the high-water mark in the form of shares
+    /// @param self The checkpoint to calculate the profit share for
+    /// @param mark The The high-water mark of the vault prior to this completion
+    /// @param parameter The vault parameter
+    /// @return newMark The new high-water mark for the vault
+    /// @return profitShares The newly minted profit shares for the checkpoint
+    function _calculateProfitShare(
+        Checkpoint memory self,
+        UFixed18 mark,
+        VaultParameter memory parameter
+    ) private pure returns (UFixed18 newMark, UFixed6 profitShares) {
+        // vault is fresh, use par value
+        if (self.shares.isZero()) return (UFixed18Lib.ONE, UFixed6Lib.ZERO);
+
+        // calculate new mark
+        newMark = mark.max(UFixed18Lib.from(UFixed6Lib.unsafeFrom(self.assets)).div(UFixed18Lib.from(self.shares)));
+
+        // vault did not previously have a mark (migration)
+        if (mark.isZero()) return (newMark, UFixed6Lib.ZERO);
+
+        // calculate new profit assets
+        UFixed6 profitAssets = parameter.profitShare
+            .mul(UFixed6Lib.from(newMark.sub(mark).mul(UFixed18Lib.from(self.shares))));
+
+        // no assets in vault
+        if (UFixed6Lib.unsafeFrom(self.assets).sub(profitAssets).isZero()) return (newMark, UFixed6Lib.ZERO);
+
+        // calculate new profit shares
+        profitShares = profitAssets.mul(self.shares).div(UFixed6Lib.unsafeFrom(self.assets).sub(profitAssets));
     }
 
     /// @notice Converts a given amount of assets to shares at checkpoint in the global context

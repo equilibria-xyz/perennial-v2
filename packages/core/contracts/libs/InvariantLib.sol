@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
+import { UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { IMargin } from "../interfaces/IMargin.sol";
 import { IMarket } from "../interfaces/IMarket.sol";
@@ -32,8 +33,10 @@ library InvariantLib {
             updateContext.guaranteeReferrer
         );
 
-        if (context.pendingLocal.neg().gt(context.latestPositionLocal.magnitude())) // total pending close is greater than latest position
-            revert IMarket.MarketOverCloseError();
+        if (
+            context.pendingLocal.invalidation != 0 &&                              // pending orders are partially invalidatable
+            context.pendingLocal.neg().gt(context.latestPositionLocal.magnitude()) // total pending close is greater than latest position
+        ) revert IMarket.MarketOverCloseError();
 
         if (context.marketParameter.closed && newOrder.increasesPosition())
             revert IMarket.MarketClosedError();
@@ -43,12 +46,15 @@ library InvariantLib {
             newOrder.increasesMaker()
         ) revert IMarket.MarketMakerOverLimitError();
 
+        if (!updateContext.currentPositionLocal.singleSided()) revert IMarket.MarketNotSingleSidedError();
+
         if (
-            !updateContext.currentPositionLocal.singleSided() || (                                              // current position is not single-sided with order applied
-                context.latestPositionLocal.direction() != updateContext.currentPositionLocal.direction() &&    // latest and current positions are not in the same direction
-                (!context.latestPositionLocal.empty() && !updateContext.currentPositionLocal.empty())           // both latest and current positions are non-empty
-            )
+            (!context.latestPositionLocal.maker.isZero() && !updateContext.currentPositionLocal.skew().isZero()) ||
+            (!context.latestPositionLocal.skew().isZero() && !updateContext.currentPositionLocal.maker.isZero())
         ) revert IMarket.MarketNotSingleSidedError();
+
+        if (context.pendingLocal.invalidation != 0 && context.pendingLocal.crossesZero())
+            revert IMarket.MarketNotSingleSidedError();
 
         if (newGuarantee.priceDeviation(context.latestOracleVersion.price).gt(context.marketParameter.maxPriceDeviation))
             revert IMarket.MarketIntentPriceDeviationError();
@@ -82,5 +88,22 @@ library InvariantLib {
             updateContext.currentPositionGlobal.socialized() &&
             newOrder.decreasesLiquidity(updateContext.currentPositionGlobal)
         ) revert IMarket.MarketInsufficientLiquidityError();
+    }
+
+    function validateProtection(IMarket.Context memory context, bool maintained, Order memory newOrder) external pure returns (bool) {
+        if (context.pendingLocal.crossesZero()) {
+            if (!newOrder.isEmpty()) return false; // pending zero-cross, liquidate (lock) with no-op order
+        } else {
+            if (!context.pendingLocal.neg().eq(context.latestPositionLocal.magnitude())) return false; // no pending zero-cross, liquidate with full close
+        }
+
+        if (maintained) return false; // latest position is properly maintained
+
+        // TODO: can eliminate because close method doesn't allow increase in position and does not touch collateral
+        if (!newOrder.collateral.eq(Fixed6Lib.ZERO) || // the order is modifying collateral
+            !newOrder.pos().eq(UFixed6Lib.ZERO)        // the order is increasing position
+        ) return false;
+
+        return true;
     }
 }

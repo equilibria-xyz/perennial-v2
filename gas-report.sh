@@ -6,7 +6,7 @@ filtered_output=$(yarn workspace @perennial/v2-core run gasReport | grep -E '^\s
 # Function to extract the gas report
 extract_gas_report() {
     echo "$filtered_output" | awk '
-    /·--/ { 
+    /·--/ {
         table_count++           # Increment table count at each boundary
         if (table_count == 4) {  # Start capturing when reaching the third table
             capturing = 1

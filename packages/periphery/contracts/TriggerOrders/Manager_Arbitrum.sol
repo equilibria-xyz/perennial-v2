@@ -5,6 +5,7 @@ import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmpty
 import { Kept, Kept_Arbitrum, Token18, UFixed18 } from "@equilibria/root/attribute/Kept/Kept_Arbitrum.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { IMarketFactory } from "@perennial/v2-core/contracts/interfaces/IMarketFactory.sol";
+import { IMargin } from "@perennial/v2-core/contracts/interfaces/IMargin.sol";
 
 import { IOrderVerifier, Manager } from "./Manager.sol";
 
@@ -15,8 +16,9 @@ contract Manager_Arbitrum is Manager, Kept_Arbitrum {
         Token18 dsu,
         IEmptySetReserve reserve,
         IMarketFactory marketFactory,
-        IOrderVerifier verifier
-    ) Manager(usdc, dsu, reserve, marketFactory, verifier) {}
+        IOrderVerifier verifier,
+        IMargin margin
+    ) Manager(usdc, dsu, reserve, marketFactory, verifier, margin) {}
 
     /// @dev Use the Kept_Arbitrum implementation for calculating the dynamic fee
     function _calldataFee(

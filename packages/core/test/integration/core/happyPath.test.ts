@@ -24,8 +24,16 @@ import {
 } from '../../../../common/testutil/types'
 import { Market__factory } from '../../../types/generated'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { IntentStruct, RiskParameterStruct } from '../../../types/generated/contracts/Market'
-import { signAccessUpdateBatch, signIntent, signOperatorUpdate, signSignerUpdate } from '../../helpers/erc712'
+import { IntentStruct, TakeStruct, RiskParameterStruct, FillStruct } from '../../../types/generated/contracts/Market'
+import { currentBlockTimestamp } from '../../../../common/testutil/time'
+import {
+  signAccessUpdateBatch,
+  signFill,
+  signIntent,
+  signTake,
+  signOperatorUpdate,
+  signSignerUpdate,
+} from '../../helpers/erc712'
 
 export const TIMESTAMP_0 = 1631112429
 export const TIMESTAMP_1 = 1631112904
@@ -39,7 +47,15 @@ export const UNDERLYING_PRICE = utils.parseEther('3374.655169')
 export const PRICE_0 = parse6decimal('113.882975')
 export const PRICE_1 = parse6decimal('113.796498')
 export const PRICE_2 = parse6decimal('115.046259')
+export const PRICE_3 = parse6decimal('116.284753')
 export const PRICE_4 = parse6decimal('117.462552')
+
+const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
+const INTENT_PROTOTYPE = `(int256,int256,uint256,address,address,uint256,${COMMON_PROTOTYPE})`
+const MARKET_UPDATE_FILL_PROTOTYPE = `update((${INTENT_PROTOTYPE},${COMMON_PROTOTYPE}),bytes,bytes)`
+const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,${COMMON_PROTOTYPE}),bytes)`
+const MARKET_UPDATE_TAKER_DELTA_PROTOTYPE = 'update(address,int256,int256,address)'
+const MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE = 'update(address,int256,int256,int256,address)'
 
 describe('Happy Path', () => {
   let instanceVars: InstanceVars
@@ -151,6 +167,7 @@ describe('Happy Path', () => {
           orders: 1,
           collateral: COLLATERAL,
           makerPos: POSITION,
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
@@ -331,6 +348,86 @@ describe('Happy Path', () => {
     })
   })
 
+  it('changes isolated balances', async () => {
+    const POSITION = parse6decimal('10')
+    const { user, dsu, margin, chainlink } = instanceVars
+
+    // user deposits and isolates most of their balance
+    const market = await createMarket(instanceVars)
+    await dsu.connect(user).approve(margin.address, utils.parseEther('1000'))
+    await margin.connect(user).deposit(user.address, parse6decimal('1000'))
+    await margin.connect(user).isolate(user.address, market.address, parse6decimal('900'))
+    expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('100'))
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('900'))
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_0), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: parse6decimal('900'),
+    })
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_0,
+    })
+
+    // user opens a maker position and settles
+    await expect(
+      market
+        .connect(user)
+        ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, 0, constants.AddressZero),
+    )
+    await chainlink.next()
+    await settle(market, user)
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: parse6decimal('900'),
+    })
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_1,
+      maker: POSITION,
+    })
+
+    // user increases their isolated balance after settling
+    await margin.connect(user).isolate(user.address, market.address, parse6decimal('50'))
+    expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('50'))
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('950'))
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: parse6decimal('950'),
+    })
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      maker: POSITION,
+      timestamp: TIMESTAMP_1,
+    })
+
+    // user reduces their position and then decreases their isolated balance
+    await expect(
+      market
+        .connect(user)
+        ['update(address,int256,int256,int256,address)'](
+          user.address,
+          parse6decimal('-2'),
+          0,
+          0,
+          constants.AddressZero,
+        ),
+    )
+    await margin.connect(user).isolate(user.address, market.address, parse6decimal('-150'), { gasLimit: 3_000_000 })
+    expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('200'))
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('800'))
+    await chainlink.next()
+    await settle(market, user)
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_2), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: parse6decimal('800'),
+    })
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      maker: parse6decimal('8'),
+      timestamp: TIMESTAMP_2,
+    })
+  })
+
   it('opens multiple make positions', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
@@ -357,7 +454,7 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         user.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, makerPos: POSITION.div(2) },
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, makerPos: POSITION.div(2), invalidation: 1 },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
         constants.AddressZero,
@@ -485,6 +582,7 @@ describe('Happy Path', () => {
           timestamp: TIMESTAMP_2,
           orders: 1,
           makerNeg: POSITION,
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
@@ -577,7 +675,7 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         user.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION.div(2) },
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION.div(2), invalidation: 1 },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
         constants.AddressZero,
@@ -667,6 +765,7 @@ describe('Happy Path', () => {
           orders: 1,
           collateral: COLLATERAL,
           longPos: POSITION_B,
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
@@ -830,7 +929,7 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         userB.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, longPos: POSITION_B.div(2) },
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, longPos: POSITION_B.div(2), invalidation: 1 },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
         constants.AddressZero,
@@ -975,6 +1074,7 @@ describe('Happy Path', () => {
           timestamp: TIMESTAMP_2,
           orders: 1,
           longNeg: POSITION_B,
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
@@ -1070,7 +1170,7 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         userB.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, longNeg: POSITION_B.div(2) },
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, longNeg: POSITION_B.div(2), invalidation: 1 },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
         constants.AddressZero,
@@ -1160,6 +1260,7 @@ describe('Happy Path', () => {
           timestamp: TIMESTAMP_2,
           orders: 1,
           longNeg: POSITION_B,
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
@@ -1358,7 +1459,14 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         userB.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, longPos: POSITION_B, collateral: COLLATERAL },
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_1,
+          orders: 1,
+          longPos: POSITION_B,
+          collateral: COLLATERAL,
+          invalidation: 1,
+        },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
         constants.AddressZero,
@@ -1409,7 +1517,14 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         userB.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_1, orders: 1, shortPos: POSITION_B, collateral: COLLATERAL },
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_1,
+          orders: 1,
+          shortPos: POSITION_B,
+          collateral: COLLATERAL,
+          invalidation: 1,
+        },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
         constants.AddressZero,
@@ -1522,7 +1637,14 @@ describe('Happy Path', () => {
       .to.emit(market, 'OrderCreated')
       .withArgs(
         user.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_5, orders: 1, makerPos: POSITION.div(2), collateral: -1 },
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_5,
+          orders: 1,
+          makerPos: POSITION.div(2),
+          collateral: -1,
+          invalidation: 1,
+        },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
         constants.AddressZero,
@@ -1675,17 +1797,19 @@ describe('Happy Path', () => {
 
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
       ...DEFAULT_GUARANTEE,
-      orders: 1,
+      orders: 2,
       longPos: POSITION.div(2),
       shortPos: POSITION.div(2),
       takerFee: POSITION.div(2),
+      orderReferral: parse6decimal('1.0'),
     })
     expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
       notional: parse6decimal('625'),
       longPos: POSITION.div(2),
-      referral: parse6decimal('0.5'),
+      orderReferral: parse6decimal('1.0'),
+      solverReferral: parse6decimal('0.5'),
     })
     expectOrderEq(await market.pending(), {
       ...DEFAULT_ORDER,
@@ -1810,17 +1934,19 @@ describe('Happy Path', () => {
 
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
       ...DEFAULT_GUARANTEE,
-      orders: 1,
+      orders: 2,
       longPos: POSITION.div(2),
       shortPos: POSITION.div(2),
       takerFee: POSITION.div(2),
+      orderReferral: parse6decimal('1.0'),
     })
     expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
       notional: parse6decimal('625'),
       longPos: POSITION.div(2),
-      referral: parse6decimal('0.5'),
+      orderReferral: parse6decimal('1.0'),
+      solverReferral: parse6decimal('0.5'),
     })
     expectOrderEq(await market.pending(), {
       ...DEFAULT_ORDER,
@@ -1919,17 +2045,19 @@ describe('Happy Path', () => {
 
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
       ...DEFAULT_GUARANTEE,
-      orders: 1,
+      orders: 2,
       longPos: POSITION.div(2),
       shortPos: POSITION.div(2),
       takerFee: POSITION.div(2),
+      orderReferral: parse6decimal('1.0'),
     })
     expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
       notional: parse6decimal('625'),
       longPos: POSITION.div(2),
-      referral: parse6decimal('0.5'),
+      orderReferral: parse6decimal('1.0'),
+      solverReferral: parse6decimal('0.5'),
     })
     expectOrderEq(await market.pending(), {
       ...DEFAULT_ORDER,
@@ -1946,6 +2074,203 @@ describe('Happy Path', () => {
       collateral: COLLATERAL,
       longPos: POSITION.div(2),
       takerReferral: parse6decimal('1'),
+    })
+  })
+
+  it('fills a delegate-signed short intent with signature', async () => {
+    const POSITION = parse6decimal('10')
+    const COLLATERAL = parse6decimal('1000')
+    const { user, userB, userC, userD, dsu, margin, chainlink, marketFactory, verifier } = instanceVars
+
+    const market = await createMarket(instanceVars)
+    const NOW = await currentBlockTimestamp()
+
+    // user and userB deposit collateral
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await market.connect(user)[MARKET_UPDATE_TAKER_DELTA_PROTOTYPE](user.address, 0, COLLATERAL, constants.AddressZero)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
+    await market
+      .connect(userB)
+      [MARKET_UPDATE_TAKER_DELTA_PROTOTYPE](userB.address, 0, COLLATERAL, constants.AddressZero)
+
+    // userC opens a maker position adding liquidity to the market
+    await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userC).deposit(userC.address, COLLATERAL)
+    await market
+      .connect(userC)
+      [MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE](userC.address, POSITION, 0, COLLATERAL, constants.AddressZero)
+
+    // userD, a delegated signer for user, signs an intent to open a short position for user
+    await marketFactory.connect(user).updateSigner(userD.address, true)
+    const intent: IntentStruct = {
+      amount: -POSITION.div(4),
+      price: parse6decimal('125'),
+      fee: parse6decimal('0.5'),
+      originator: constants.AddressZero,
+      solver: constants.AddressZero,
+      collateralization: parse6decimal('0.03'),
+      common: {
+        account: user.address,
+        signer: userD.address,
+        domain: market.address,
+        nonce: 0,
+        group: 0,
+        expiry: NOW + 60,
+      },
+    }
+    const traderSignature = await signIntent(userD, verifier, intent)
+
+    // userB signs a message to fill user's intent order
+    const fill: FillStruct = {
+      intent: intent,
+      common: {
+        account: userB.address,
+        signer: userB.address,
+        domain: market.address,
+        nonce: 0,
+        group: 0,
+        expiry: intent.common.expiry,
+      },
+    }
+    const fillSignature = await signFill(userB, verifier, fill)
+
+    // userC executes the fill
+    await expect(market.connect(userC)[MARKET_UPDATE_FILL_PROTOTYPE](fill, traderSignature, fillSignature))
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        user.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_1,
+          orders: 1,
+          shortPos: POSITION.div(4),
+        },
+        {
+          ...DEFAULT_GUARANTEE,
+          orders: 1,
+          shortPos: POSITION.div(4),
+          notional: -POSITION.div(4).mul(125),
+        },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_1,
+          orders: 1,
+          longPos: POSITION.div(4),
+        },
+        {
+          ...DEFAULT_GUARANTEE,
+          orders: 1,
+          longPos: POSITION.div(4),
+          notional: POSITION.div(4).mul(125),
+          takerFee: POSITION.div(4),
+        },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
+
+    // check user order and guarantee
+    expectOrderEq(await market.pendingOrders(user.address, 1), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_1,
+      orders: 1,
+      shortPos: POSITION.div(4),
+      collateral: COLLATERAL,
+    })
+    expectGuaranteeEq(await market.guarantees(user.address, 1), {
+      ...DEFAULT_GUARANTEE,
+      orders: 1,
+      shortPos: POSITION.div(4),
+      notional: -POSITION.div(4).mul(125),
+    })
+
+    // check userB order and guarantee
+    expectOrderEq(await market.pendingOrders(userB.address, 1), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_1,
+      orders: 1,
+      longPos: POSITION.div(4),
+      collateral: COLLATERAL,
+    })
+    expectGuaranteeEq(await market.guarantees(userB.address, 1), {
+      ...DEFAULT_GUARANTEE,
+      orders: 1,
+      longPos: POSITION.div(4),
+      notional: POSITION.div(4).mul(125),
+      takerFee: POSITION.div(4),
+    })
+
+    // check market prior to settlement
+    expectOrderEq(await market.pendingOrder(1), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_1,
+      orders: 3,
+      makerPos: POSITION,
+      shortPos: POSITION.div(4),
+      longPos: POSITION.div(4),
+      collateral: COLLATERAL.mul(3),
+    })
+
+    // settle and check the market
+    await chainlink.next()
+    await settle(market, user)
+    await settle(market, userB)
+    await settle(market, userC)
+    expectPositionEq(await market.position(), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_1,
+      maker: POSITION,
+      long: POSITION.div(4),
+      short: POSITION.div(4),
+    })
+
+    // check user state
+    // priceOverride = (taker * oraclePrice) - (taker * intentPrice) = (-2.5 * 113.796498) - (-2.5 * 125) = 28.008755
+    const priceOverride = parse6decimal('28.008755')
+    let expectedCollateral = COLLATERAL.add(priceOverride)
+    expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 1,
+      latestId: 1,
+    })
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(expectedCollateral)
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
+      ...DEFAULT_CHECKPOINT,
+      transfer: COLLATERAL,
+      collateral: priceOverride,
+    })
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_1,
+      short: POSITION.div(4),
+    })
+
+    // check userB state
+    expectedCollateral = COLLATERAL.sub(priceOverride)
+    expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 1,
+      latestId: 1,
+    })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(expectedCollateral)
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_1), {
+      ...DEFAULT_CHECKPOINT,
+      transfer: COLLATERAL,
+      collateral: priceOverride.mul(-1),
+    })
+    expectPositionEq(await market.positions(userB.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_1,
+      long: POSITION.div(4),
     })
   })
 
@@ -2017,6 +2342,7 @@ describe('Happy Path', () => {
           orders: 1,
           collateral: COLLATERAL,
           longPos: POSITION_B,
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
@@ -2137,6 +2463,7 @@ describe('Happy Path', () => {
           orders: 1,
           collateral: COLLATERAL,
           longPos: POSITION_B,
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
@@ -2211,6 +2538,257 @@ describe('Happy Path', () => {
     })
   })
 
+  it('opens, reduces, and closes a long position w/ signed message', async () => {
+    const POSITION = parse6decimal('10')
+    const COLLATERAL = parse6decimal('1000')
+    const { owner, user, userB, userC, dsu, margin, marketFactory, verifier, chainlink } = instanceVars
+    const market = await createMarket(instanceVars)
+
+    // establish a referral fee
+    await expect(marketFactory.connect(owner).updateReferralFee(owner.address, parse6decimal('0.0125')))
+      .to.emit(marketFactory, 'ReferralFeeUpdated')
+      .withArgs(owner.address, parse6decimal('0.0125'))
+
+    // user opens a maker position adding liquidity to the market
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12).mul(2))
+    await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
+    await market
+      .connect(user)
+      [MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
+
+    // userB deposits some collateral
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12).mul(2))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL.mul(2))
+    await market
+      .connect(userB)
+      [MARKET_UPDATE_TAKER_DELTA_PROTOTYPE](userB.address, 0, COLLATERAL, constants.AddressZero)
+
+    // settle user's maker position
+    await chainlink.next()
+    await settle(market, user)
+
+    // userB signs message to open a long position
+    const initialPosition = POSITION.mul(2).div(3) // 6.666666
+    let message: TakeStruct = {
+      amount: initialPosition,
+      referrer: owner.address,
+      common: {
+        account: userB.address,
+        signer: userB.address,
+        domain: market.address,
+        nonce: 2,
+        group: 0,
+        expiry: constants.MaxUint256,
+      },
+    }
+    let signature = await signTake(userB, verifier, message)
+
+    // userC executes the update
+    let expectedTakerReferral = parse6decimal('0.083333') // referralFee * takerAmount = 0.0125 * |initialPosition|
+    await expect(market.connect(userC)[MARKET_UPDATE_TAKE_PROTOTYPE](message, signature))
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_2,
+          orders: 1,
+          longPos: initialPosition,
+          takerReferral: expectedTakerReferral,
+          invalidation: 1,
+        },
+        DEFAULT_GUARANTEE,
+        constants.AddressZero,
+        owner.address, // referrer
+        constants.AddressZero,
+      )
+
+    // confirm the pending order
+    expectOrderEq(await market.pendingOrder(2), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_2,
+      orders: 1,
+      collateral: 0,
+      makerPos: 0,
+      longPos: initialPosition,
+      takerReferral: expectedTakerReferral,
+    })
+
+    // settle userB's long position
+    await chainlink.next()
+    await settle(market, userB)
+
+    // check userB state
+    expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 2,
+      latestId: 2,
+    })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(COLLATERAL)
+    expectOrderEq(await market.pendingOrders(userB.address, 3), DEFAULT_ORDER)
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_2), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: COLLATERAL,
+    })
+    expectPositionEq(await market.positions(userB.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_2,
+      long: initialPosition,
+    })
+
+    // userB signs message to reduce their long position
+    const positionDelta = POSITION.div(-3) // -3.333333
+    message = { ...message, amount: positionDelta, common: { ...message.common, nonce: 3 } }
+    signature = await signTake(userB, verifier, message)
+
+    // userC again executes the update
+    expectedTakerReferral = parse6decimal('0.041666') // referralFee * takerAmount = 0.0125 * |positionDelta|
+    await expect(market.connect(userC)[MARKET_UPDATE_TAKE_PROTOTYPE](message, signature))
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_3,
+          orders: 1,
+          longNeg: positionDelta.mul(-1),
+          takerReferral: expectedTakerReferral,
+          invalidation: 1,
+        },
+        DEFAULT_GUARANTEE,
+        constants.AddressZero,
+        owner.address, // referrer
+        constants.AddressZero,
+      )
+
+    // settle userB's reduced position and check state
+    await chainlink.next()
+    await settle(market, userB)
+    // pnl = priceDelta * longSocialized = (116.284753-115.046259) * 6.666666 = 8.256626
+    // interestLong = -0.003015
+    // collateralChange = pnl + interestLong = 8.256626 - 0.003015 = 8.253611
+    let collateralChange = parse6decimal('8.253611').sub(12) // loss of precision
+    const collateral3 = COLLATERAL.add(collateralChange)
+    expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 3,
+      latestId: 3,
+    })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(collateral3)
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_3), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: collateral3,
+    })
+    expectPositionEq(await market.positions(userB.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_3,
+      long: POSITION.div(3),
+    })
+
+    // userB signs message to close their position, this time with no referrer
+    const currentPosition = (await market.positions(userB.address)).long // 3.333333
+    message = {
+      ...message,
+      amount: currentPosition.mul(-1),
+      referrer: constants.AddressZero,
+      common: { ...message.common, nonce: 4 },
+    }
+    signature = await signTake(userB, verifier, message)
+
+    // userC executes the request to close
+    await expect(market.connect(userC)[MARKET_UPDATE_TAKE_PROTOTYPE](message, signature))
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_4,
+          orders: 1,
+          longNeg: currentPosition,
+          invalidation: 1,
+        },
+        DEFAULT_GUARANTEE,
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
+
+    // settle userB's closed position and check state
+    await chainlink.next()
+    await settle(market, userB)
+    // pnl = priceDelta * longSocialized = (117.462552-116.284753) * 3.333333 = 3.925996
+    // interestLong = -0.005596
+    // collateralChange = pnl + interestLong = 3.925996 - 0.005596 = 3.9204
+    collateralChange = parse6decimal('3.9204').sub(4) // loss of precision
+    const collateral4 = collateral3.add(collateralChange)
+    expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 4,
+      latestId: 4,
+    })
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(collateral4)
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_4), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: collateral4,
+    })
+    expectPositionEq(await market.positions(userB.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_4,
+    })
+  })
+
+  it('disables fills with mismatching markets', async () => {
+    const POSITION = parse6decimal('10')
+    const { user, userB, userC, verifier } = instanceVars
+
+    const market = await createMarket(instanceVars)
+    const badMarketAddress = verifier.address
+
+    // trader (user) signs an intent to open a long position
+    const intent: IntentStruct = {
+      amount: POSITION.div(2),
+      price: parse6decimal('125'),
+      fee: parse6decimal('0.5'),
+      originator: constants.AddressZero,
+      solver: constants.AddressZero,
+      collateralization: parse6decimal('0.01'),
+      common: {
+        account: user.address,
+        signer: user.address,
+        domain: market.address,
+        nonce: 0,
+        group: 0,
+        expiry: constants.MaxUint256,
+      },
+    }
+    const traderSignature = await signIntent(user, verifier, intent)
+
+    const fill: FillStruct = {
+      intent: intent,
+      common: {
+        account: userB.address,
+        signer: userB.address,
+        domain: badMarketAddress,
+        nonce: 0,
+        group: 0,
+        expiry: constants.MaxUint256,
+      },
+    }
+    const solverSignature = await signFill(userB, verifier, fill)
+
+    // market of the fill (outer) does not match
+    await expect(
+      market.connect(userC)[MARKET_UPDATE_FILL_PROTOTYPE](fill, traderSignature, solverSignature),
+    ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidDomainError')
+
+    // market of the intent (inner) does not match
+    fill.common.domain = market.address
+    fill.intent.common.domain = badMarketAddress
+    await expect(
+      market.connect(userC)[MARKET_UPDATE_FILL_PROTOTYPE](fill, traderSignature, solverSignature),
+    ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidDomainError')
+  })
+
   it('updates account access and opens intent order', async () => {
     const { owner, user, userB, userC, marketFactory, verifier, dsu, margin } = instanceVars
 
@@ -2276,17 +2854,19 @@ describe('Happy Path', () => {
 
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
       ...DEFAULT_GUARANTEE,
-      orders: 1,
+      orders: 2,
       longPos: POSITION.div(2),
       shortPos: POSITION.div(2),
       takerFee: POSITION.div(2),
+      orderReferral: parse6decimal('1.0'),
     })
     expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
       notional: parse6decimal('625'),
       longPos: POSITION.div(2),
-      referral: parse6decimal('0.5'),
+      orderReferral: parse6decimal('1.0'),
+      solverReferral: parse6decimal('0.5'),
     })
     expectOrderEq(await market.pending(), {
       ...DEFAULT_ORDER,
@@ -2392,17 +2972,19 @@ describe('Happy Path', () => {
 
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
       ...DEFAULT_GUARANTEE,
-      orders: 1,
+      orders: 2,
       longPos: POSITION.div(2),
       shortPos: POSITION.div(2),
       takerFee: POSITION.div(2),
+      orderReferral: parse6decimal('1.0'),
     })
     expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
       ...DEFAULT_GUARANTEE,
       orders: 1,
       notional: parse6decimal('625'),
       longPos: POSITION.div(2),
-      referral: parse6decimal('0.5'),
+      orderReferral: parse6decimal('1.0'),
+      solverReferral: parse6decimal('0.5'),
     })
     expectOrderEq(await market.pending(), {
       ...DEFAULT_ORDER,
@@ -2459,6 +3041,7 @@ describe('Happy Path', () => {
           orders: 1,
           collateral: COLLATERAL,
           longPos: POSITION_B,
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
@@ -2693,6 +3276,7 @@ describe('Happy Path', () => {
           orders: 1,
           makerPos: 1,
           collateral: -1,
+          invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
         constants.AddressZero,
