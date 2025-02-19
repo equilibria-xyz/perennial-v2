@@ -30,7 +30,6 @@ import {
   IVerifier,
   Margin__factory,
   Margin,
-  ERC20,
 } from '../../../types/generated'
 import {
   DEFAULT_POSITION,
@@ -448,7 +447,6 @@ async function getOrderProcessingEvents(
 }
 
 describe('Market', () => {
-  let protocolTreasury: SignerWithAddress
   let owner: SignerWithAddress
   let beneficiary: SignerWithAddress
   let user: SignerWithAddress
@@ -476,25 +474,11 @@ describe('Market', () => {
     dsu.transferFrom.whenCalledWith(account.address, margin.address, amount.mul(1e12)).returns(true)
     await margin.connect(account).deposit(account.address, amount)
     await margin.connect(account).isolate(account.address, market.address, amount)
-    /*return await market
-      .connect(account)
-      ['update(address,int256,int256,address)'](account.address, 0, amount, constants.AddressZero)*/
   }
 
   const fixture = async () => {
-    ;[
-      protocolTreasury,
-      owner,
-      beneficiary,
-      user,
-      userB,
-      userC,
-      userD,
-      liquidator,
-      operator,
-      coordinator,
-      oracleFactorySigner,
-    ] = await ethers.getSigners()
+    ;[owner, beneficiary, user, userB, userC, userD, liquidator, operator, coordinator, oracleFactorySigner] =
+      await ethers.getSigners()
     oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     oracleSigner = await impersonate.impersonateWithBalance(oracle.address, utils.parseEther('10'))
 
@@ -26356,7 +26340,6 @@ describe('Market', () => {
     describe('#close', async () => {
       beforeEach(async () => {
         await market.connect(owner).updateCoordinator(coordinator.address)
-        await market.connect(owner).updateBeneficiary(beneficiary.address)
         await market.connect(owner).updateParameter(marketParameter)
 
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])

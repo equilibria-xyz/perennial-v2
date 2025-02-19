@@ -2121,6 +2121,7 @@ describe('MakerVault', () => {
           maxDeposit: maxCollateral,
           minDeposit: 0,
           profitShare: parse6decimal('0.2'),
+          leverageBuffer: parse6decimal('10'),
         })
       await vault.updateCoordinator(coordinator.address)
 
