@@ -13,6 +13,7 @@ import { Guarantee } from "../types/Guarantee.sol";
 import { Version } from "../types/Version.sol";
 import { OracleVersion } from "../types/OracleVersion.sol";
 import { OracleReceipt } from "../types/OracleReceipt.sol";
+import { MatchingLib, MatchingResult, MatchingPosition, MatchingOrder } from "../libs/MatchingLib.sol";
 
 /// @dev The response of the version accumulation
 ///      Contains only select fee information needed for the downstream market contract
@@ -23,9 +24,6 @@ struct VersionAccumulationResponse {
 
     /// @dev The settlement fee charged
     UFixed6 settlementFee;
-
-    /// @dev The market's adiabatic exposure
-    Fixed6 marketExposure;
 }
 
 /// @dev The result of the version accumulation
@@ -38,23 +36,32 @@ struct VersionAccumulationResult {
     /// @dev The subtractive fee charged
     UFixed6 subtractiveFee;
 
-    /// @dev The total price impact of the trade (including linear, proportional, and adiabatic)
-    Fixed6 tradeOffset;
+    /// @dev The total notional spread paid by positive exposure orders
+    Fixed6 spreadPos;
 
-    /// @dev The portion of the trade offset that the makers receive
-    Fixed6 tradeOffsetMaker;
+    /// @dev The total notional spread paid by negative exposure orders
+    Fixed6 spreadNeg;
 
-    /// @dev The portion of the trade offset that the market receives (if there are no makers)
-    UFixed6 tradeOffsetMarket;
+    /// @dev The total notional spread received by the makers (all phases)
+    Fixed6 spreadMaker;
 
-    /// @dev The adiabatic exposure accrued
-    Fixed6 adiabaticExposure;
+    /// @dev The total notional spread received by the longs prior to applying the order
+    Fixed6 spreadPreLong;
 
-    /// @dev The adiabatic exposure accrued by makers
-    Fixed6 adiabaticExposureMaker;
+    /// @dev The total notional spread received by the shorts prior to applying the order
+    Fixed6 spreadPreShort;
 
-    /// @dev The adiabatic exposure accrued by the market
-    Fixed6 adiabaticExposureMarket;
+    /// @dev The total notional spread received by the longs after applying the negative component of the order
+    Fixed6 spreadCloseLong;
+
+    /// @dev The total notional spread received by the shorts after applying the negative component of the order
+    Fixed6 spreadCloseShort;
+
+    /// @dev The total notional spread received by the longs after applying the the order
+    Fixed6 spreadPostLong;
+
+    /// @dev The total notional spread received by the shorts after applying the the order
+    Fixed6 spreadPostShort;
 
     /// @dev Funding accrued by makers
     Fixed6 fundingMaker;
@@ -168,17 +175,8 @@ library VersionLib {
         // accumulate fee
         _accumulateFee(next, context, result);
 
-        // accumulate linear fee
-        _accumulateLinearFee(next, context, result);
-
-        // accumulate proportional fee
-        _accumulateProportionalFee(next, context, result);
-
-        // accumulate adiabatic exposure
-        _accumulateAdiabaticExposure(next, context, result);
-
-        // accumulate adiabatic fee
-        _accumulateAdiabaticFee(next, context, result);
+        // accumulate spread
+        _accumulateSpread(next, context, result);
 
         // if closed, don't accrue anything else
         if (context.marketParameter.closed) return _return(context, result, next);
@@ -193,7 +191,6 @@ library VersionLib {
 
         // accumulate P&L
         (result.pnlMaker, result.pnlLong, result.pnlShort) = _accumulatePNL(next, context);
-
         return _return(context, result, next);
     }
 
@@ -214,19 +211,22 @@ library VersionLib {
         VersionAccumulationResult memory result
     ) private pure returns (VersionAccumulationResponse memory response) {
         response.marketFee = result.tradeFee
-            .add(result.tradeOffsetMarket)
             .add(result.fundingFee)
             .add(result.interestFee);
         response.settlementFee = result.settlementFee;
-        response.marketExposure = result.adiabaticExposureMarket;
     }
 
     /// @notice Copies over the version-over-version accumulators to prepare the next version
     /// @param self The Version object to update
     function _next(Version memory self, Version memory next) internal pure {
-        next.makerValue._value = self.makerValue._value;
-        next.longValue._value = self.longValue._value;
-        next.shortValue._value = self.shortValue._value;
+        next.makerPreValue._value = self.makerPreValue._value;
+        next.longPreValue._value = self.longPreValue._value;
+        next.shortPreValue._value = self.shortPreValue._value;
+        next.makerCloseValue._value = self.makerCloseValue._value;
+        next.longCloseValue._value = self.longCloseValue._value;
+        next.shortCloseValue._value = self.shortCloseValue._value;
+        next.longPostValue._value = self.longPostValue._value;
+        next.shortPostValue._value = self.shortPostValue._value;
     }
 
     /// @notice Globally accumulates settlement fees since last oracle update
@@ -283,130 +283,72 @@ library VersionLib {
     /// @notice Globally accumulates linear fees since last oracle update
     /// @param next The Version object to update
     /// @param context The accumulation context
-    function _accumulateLinearFee(
+    function _accumulateSpread(
         Version memory next,
         VersionAccumulationContext memory context,
         VersionAccumulationResult memory result
     ) private pure {
-        UFixed6 makerLinearFee = context.riskParameter.makerFee.linear(
-            Fixed6Lib.from(context.order.makerTotal()),
-            context.toOracleVersion.price.abs()
+        // calculate position after closes
+        Position memory closedPosition = context.fromPosition.clone();
+        closedPosition.updateClose(context.order);
+
+        // calculate position after order
+        Position memory toPosition = context.fromPosition.clone();
+        toPosition.update(context.order);
+
+        MatchingResult memory matchingResult = MatchingLib.execute(
+            MatchingPosition({
+                long: context.fromPosition.long,
+                short: context.fromPosition.short,
+                maker: context.fromPosition.maker
+            }),
+            MatchingOrder({
+                makerPos: context.order.makerPos,
+                makerNeg: context.order.makerNeg,
+                longPos: context.order.longPos.sub(context.guarantee.longPos),
+                longNeg: context.order.longNeg.sub(context.guarantee.longNeg),
+                shortPos: context.order.shortPos.sub(context.guarantee.shortPos),
+                shortNeg: context.order.shortNeg.sub(context.guarantee.shortNeg)
+            }),
+            context.riskParameter.synBook,
+            context.toOracleVersion.price
         );
-        next.makerOffset.decrement(Fixed6Lib.from(makerLinearFee), context.order.makerTotal());
 
-        UFixed6 takerPosTotal = context.order.takerPos().sub(context.guarantee.takerPos());
-        UFixed6 takerPosLinearFee = context.riskParameter.takerFee.linear(
-            Fixed6Lib.from(takerPosTotal),
-            context.toOracleVersion.price.abs()
-        );
-        next.takerPosOffset.decrement(Fixed6Lib.from(takerPosLinearFee), takerPosTotal);
+        // accumulate spread for taker orders
+        next.spreadPos.decrement(matchingResult.spreadPos, matchingResult.exposurePos);
+        result.spreadPos = matchingResult.spreadPos;
+        next.spreadNeg.decrement(matchingResult.spreadNeg, matchingResult.exposureNeg);
+        result.spreadNeg = matchingResult.spreadNeg;
 
-        UFixed6 takerNegTotal = context.order.takerNeg().sub(context.guarantee.takerNeg());
-        UFixed6 takerNegLinearFee = context.riskParameter.takerFee.linear(
-            Fixed6Lib.from(takerNegTotal),
-            context.toOracleVersion.price.abs()
-        );
-        next.takerNegOffset.decrement(Fixed6Lib.from(takerNegLinearFee), takerNegTotal);
+        // accumulate spread for maker orders (makers)
+        next.makerCloseValue.increment(matchingResult.spreadMaker, closedPosition.maker);
+        result.spreadMaker = matchingResult.spreadMaker;
 
-        UFixed6 linearFee = makerLinearFee.add(takerPosLinearFee).add(takerNegLinearFee);
-        UFixed6 marketFee = context.fromPosition.maker.isZero() ? linearFee : UFixed6Lib.ZERO;
-        UFixed6 makerFee = linearFee.sub(marketFee);
-        next.makerValue.increment(Fixed6Lib.from(makerFee), context.fromPosition.maker);
+        // accumulate spread for maker orders (long / short pre)
+        next.longPreValue.increment(matchingResult.spreadCloseLong, context.fromPosition.long);
+        result.spreadPreLong = matchingResult.spreadCloseLong;
+        next.shortPreValue.increment(matchingResult.spreadCloseShort, context.fromPosition.short);
+        result.spreadPreShort = matchingResult.spreadCloseShort;
 
-        result.tradeOffset = result.tradeOffset.add(Fixed6Lib.from(linearFee));
-        result.tradeOffsetMaker = result.tradeOffsetMaker.add(Fixed6Lib.from(makerFee));
-        result.tradeOffsetMarket = result.tradeOffsetMarket.add(marketFee);
-    }
+        // accumulate spread for maker orders (long / short close)
+        next.longCloseValue.increment(matchingResult.spreadCloseLong, closedPosition.long);
+        result.spreadCloseLong = matchingResult.spreadCloseLong;
+        next.shortCloseValue.increment(matchingResult.spreadCloseShort, closedPosition.short);
+        result.spreadCloseShort = matchingResult.spreadCloseShort;
 
-    /// @notice Globally accumulates proportional fees since last oracle update
-    /// @param next The Version object to update
-    /// @param context The accumulation context
-    function _accumulateProportionalFee(
-        Version memory next,
-        VersionAccumulationContext memory context,
-        VersionAccumulationResult memory result
-    ) private pure {
-        UFixed6 makerProportionalFee = context.riskParameter.makerFee.proportional(
-            Fixed6Lib.from(context.order.makerTotal()),
-            context.toOracleVersion.price.abs()
-        );
-        next.makerOffset.decrement(Fixed6Lib.from(makerProportionalFee), context.order.makerTotal());
+        // accumulate spread for maker orders (long / short post)
+        next.longPostValue.increment(matchingResult.spreadPostLong, toPosition.long);
+        result.spreadPostLong = matchingResult.spreadPostLong;
+        next.shortPostValue.increment(matchingResult.spreadPostShort, toPosition.short);
+        result.spreadPostShort = matchingResult.spreadPostShort;
 
-        UFixed6 takerPos = context.order.takerPos().sub(context.guarantee.takerPos());
-        UFixed6 takerPosProportionalFee = context.riskParameter.takerFee.proportional(
-            Fixed6Lib.from(takerPos),
-            context.toOracleVersion.price.abs()
-        );
-        next.takerPosOffset.decrement(Fixed6Lib.from(takerPosProportionalFee), takerPos);
-
-        UFixed6 takerNeg = context.order.takerNeg().sub(context.guarantee.takerNeg());
-        UFixed6 takerNegProportionalFee = context.riskParameter.takerFee.proportional(
-            Fixed6Lib.from(takerNeg),
-            context.toOracleVersion.price.abs()
-        );
-        next.takerNegOffset.decrement(Fixed6Lib.from(takerNegProportionalFee), takerNeg);
-
-        UFixed6 proportionalFee = makerProportionalFee.add(takerPosProportionalFee).add(takerNegProportionalFee);
-        UFixed6 marketFee = context.fromPosition.maker.isZero() ? proportionalFee : UFixed6Lib.ZERO;
-        UFixed6 makerFee = proportionalFee.sub(marketFee);
-        next.makerValue.increment(Fixed6Lib.from(makerFee), context.fromPosition.maker);
-
-        result.tradeOffset = result.tradeOffset.add(Fixed6Lib.from(proportionalFee));
-        result.tradeOffsetMaker = result.tradeOffsetMaker.add(Fixed6Lib.from(makerFee));
-        result.tradeOffsetMarket = result.tradeOffsetMarket.add(marketFee);
-    }
-
-    /// @notice Globally accumulates adiabatic fees since last oracle update
-    /// @param next The Version object to update
-    /// @param context The accumulation context
-    function _accumulateAdiabaticFee(
-        Version memory next,
-        VersionAccumulationContext memory context,
-        VersionAccumulationResult memory result
-    ) private pure {
-        Fixed6 adiabaticFee;
-
-        // position fee from positive skew taker orders
-        UFixed6 takerPos = context.order.takerPos().sub(context.guarantee.takerPos());
-        adiabaticFee = context.riskParameter.takerFee.adiabatic(
-            context.fromPosition.skew(),
-            Fixed6Lib.from(takerPos),
-            context.toOracleVersion.price.abs()
-        );
-        next.takerPosOffset.decrement(adiabaticFee, takerPos);
-        result.tradeOffset = result.tradeOffset.add(adiabaticFee);
-
-        // position fee from negative skew taker orders
-        UFixed6 takerNeg = context.order.takerNeg().sub(context.guarantee.takerNeg());
-        adiabaticFee = context.riskParameter.takerFee.adiabatic(
-            context.fromPosition.skew().add(Fixed6Lib.from(takerPos)),
-            Fixed6Lib.from(-1, takerNeg),
-            context.toOracleVersion.price.abs()
-        );
-        next.takerNegOffset.decrement(adiabaticFee, takerNeg);
-        result.tradeOffset = result.tradeOffset.add(adiabaticFee);
-    }
-
-    /// @notice Globally accumulates single component of the position fees exposure since last oracle update
-    /// @param next The Version object to update
-    /// @param context The accumulation context
-    /// @param result The accumulation result
-    function _accumulateAdiabaticExposure(
-        Version memory next,
-        VersionAccumulationContext memory context,
-        VersionAccumulationResult memory result
-    ) private pure {
-        Fixed6 exposure = context.riskParameter.takerFee.exposure(context.fromPosition.skew());
-
-        Fixed6 adiabaticExposure = context.toOracleVersion.price.sub(context.fromOracleVersion.price).mul(exposure);
-        Fixed6 adiabaticExposureMaker = adiabaticExposure.mul(Fixed6Lib.NEG_ONE);
-        Fixed6 adiabaticExposureMarket = context.fromPosition.maker.isZero() ? adiabaticExposureMaker : Fixed6Lib.ZERO;
-        adiabaticExposureMaker = adiabaticExposureMaker.sub(adiabaticExposureMarket);
-        next.makerValue.increment(adiabaticExposureMaker, context.fromPosition.maker);
-
-        result.adiabaticExposure = adiabaticExposure;
-        result.adiabaticExposureMarket = adiabaticExposureMarket;
-        result.adiabaticExposureMaker = adiabaticExposureMaker;
+        // accumulate exposure
+        next.makerPosExposure = matchingResult.exposureMakerPos;
+        next.makerNegExposure = matchingResult.exposureMakerNeg;
+        next.longPosExposure = matchingResult.exposureLongPos;
+        next.longNegExposure = matchingResult.exposureLongNeg;
+        next.shortPosExposure = matchingResult.exposureShortPos;
+        next.shortNegExposure = matchingResult.exposureShortNeg;
     }
 
     /// @notice Globally accumulates all long-short funding since last oracle update
@@ -429,7 +371,7 @@ library VersionLib {
         // Compute long-short funding rate
         Fixed6 funding = context.global.pAccumulator.accumulate(
             context.riskParameter.pController,
-            toSkew.unsafeDiv(Fixed6Lib.from(context.riskParameter.takerFee.scale)).min(Fixed6Lib.ONE).max(Fixed6Lib.NEG_ONE),
+            toSkew.unsafeDiv(Fixed6Lib.from(context.riskParameter.synBook.scale)).min(Fixed6Lib.ONE).max(Fixed6Lib.NEG_ONE),
             context.fromOracleVersion.timestamp,
             context.toOracleVersion.timestamp,
             context.fromPosition.takerSocialized().mul(context.fromOracleVersion.price.abs())
@@ -462,9 +404,9 @@ library VersionLib {
             fundingLong = fundingLong.sub(fundingMaker);
         }
 
-        next.makerValue.increment(fundingMaker, context.fromPosition.maker);
-        next.longValue.increment(fundingLong, context.fromPosition.long);
-        next.shortValue.increment(fundingShort, context.fromPosition.short);
+        next.makerPreValue.increment(fundingMaker, context.fromPosition.maker);
+        next.longPreValue.increment(fundingLong, context.fromPosition.long);
+        next.shortPreValue.increment(fundingShort, context.fromPosition.short);
     }
 
     /// @notice Globally accumulates all maker interest since last oracle update
@@ -502,9 +444,9 @@ library VersionLib {
 
         interestLong = interestLong.mul(Fixed6Lib.NEG_ONE);
         interestShort = interestShort.mul(Fixed6Lib.NEG_ONE);
-        next.makerValue.increment(interestMaker, context.fromPosition.maker);
-        next.longValue.increment(interestLong, context.fromPosition.long);
-        next.shortValue.increment(interestShort, context.fromPosition.short);
+        next.makerPreValue.increment(interestMaker, context.fromPosition.maker);
+        next.longPreValue.increment(interestLong, context.fromPosition.long);
+        next.shortPreValue.increment(interestShort, context.fromPosition.short);
     }
 
     /// @notice Globally accumulates position profit & loss since last oracle update
@@ -523,8 +465,8 @@ library VersionLib {
             .mul(Fixed6Lib.from(context.fromPosition.shortSocialized()));
         pnlMaker = pnlLong.add(pnlShort).mul(Fixed6Lib.NEG_ONE);
 
-        next.longValue.increment(pnlLong, context.fromPosition.long);
-        next.shortValue.increment(pnlShort, context.fromPosition.short);
-        next.makerValue.increment(pnlMaker, context.fromPosition.maker);
+        next.longPreValue.increment(pnlLong, context.fromPosition.long);
+        next.shortPreValue.increment(pnlShort, context.fromPosition.short);
+        next.makerPreValue.increment(pnlMaker, context.fromPosition.maker);
     }
 }

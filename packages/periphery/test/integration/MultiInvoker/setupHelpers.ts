@@ -245,15 +245,11 @@ export async function createVault(
     oracle: ethOracle.address,
     makerLimit: parse6decimal('1000'),
     minMaintenance: parse6decimal('50'),
-    takerFee: {
-      linearFee: 0,
-      proportionalFee: 0,
-      adiabaticFee: 0,
-      scale: parse6decimal('100'),
-    },
-    makerFee: {
-      linearFee: 0,
-      proportionalFee: 0,
+    synBook: {
+      d0: 0,
+      d1: 0,
+      d2: 0,
+      d3: 0,
       scale: parse6decimal('100'),
     },
   })
@@ -263,15 +259,11 @@ export async function createVault(
     oracle: btcOracle.address,
     makerLimit: parse6decimal('100'),
     minMaintenance: parse6decimal('50'),
-    takerFee: {
-      linearFee: 0,
-      proportionalFee: 0,
-      adiabaticFee: 0,
-      scale: parse6decimal('10'),
-    },
-    makerFee: {
-      linearFee: 0,
-      proportionalFee: 0,
+    synBook: {
+      d0: 0,
+      d1: 0,
+      d2: 0,
+      d3: 0,
       scale: parse6decimal('10'),
     },
   })
