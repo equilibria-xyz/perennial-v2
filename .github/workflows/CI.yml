@@ -40,7 +40,6 @@ jobs:
 
   # [CORE]
   core-unit-test:
-    if: false
     name: '[Core] Unit Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -78,7 +77,6 @@ jobs:
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
   core-integration-test:
-    if: false
     name: '[Core] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -150,7 +148,6 @@ jobs:
 
   # [ORACLE]
   oracle-unit-test:
-    if: false
     name: '[Oracle] Unit Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -180,7 +177,6 @@ jobs:
           name: oracle_unit_test_coverage
           path: ./packages/oracle/coverage/lcov.info
   oracle-integration-test:
-    if: false
     name: '[Oracle] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -211,7 +207,6 @@ jobs:
           name: oracle_integration_test_coverage
           path: ./packages/oracle/coverage/lcov.info
   oracle-integrationSepolia-test:
-    if: false
     name: '[Oracle] Sepolia Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -244,7 +239,6 @@ jobs:
 
   # [VAULT]
   vault-unit-test:
-    if: false
     name: '[Vault] Unit Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -274,7 +268,6 @@ jobs:
           name: vault_unit_test_coverage
           path: ./packages/vault/coverage/lcov.info
   vault-integration-test:
-    if: false
     name: '[Vault] Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
