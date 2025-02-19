@@ -636,8 +636,7 @@ describe('Happy Path', () => {
     })
   })
 
-  // FIXME: naming misleading; a single maker position is opened and reduced; nothing is closed
-  it('closes multiple make positions', async () => {
+  it('closes cross-margin maker position', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
     const { user, dsu, margin, chainlink } = instanceVars
@@ -648,7 +647,7 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, 0, constants.AddressZero)
 
     await chainlink.next()
 
@@ -688,7 +687,7 @@ describe('Happy Path', () => {
       currentId: 2,
       latestId: 1,
     })
-    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
+    expect(await margin.crossMarginBalances(user.address)).to.equal(COLLATERAL)
     expectOrderEq(await market.pendingOrders(user.address, 2), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_2,
@@ -1604,16 +1603,10 @@ describe('Happy Path', () => {
 
     await market
       .connect(user)
-      ['update(address,int256,int256,int256,address)'](
-        user.address,
-        POSITION.div(4),
-        0,
-        COLLATERAL,
-        constants.AddressZero,
-      )
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION.div(4), 0, 0, constants.AddressZero)
     await market
       .connect(userB)
-      ['update(address,int256,int256,address)'](userB.address, POSITION.div(4), COLLATERAL, constants.AddressZero) // 0 -> 1
+      ['update(address,int256,int256,address)'](userB.address, POSITION.div(4), 0, constants.AddressZero) // 0 -> 1
 
     await chainlink.next()
     await chainlink.next()
@@ -1632,7 +1625,7 @@ describe('Happy Path', () => {
     await expect(
       market
         .connect(user)
-        ['update(address,int256,int256,int256,address)'](user.address, POSITION.div(2), 0, -1, constants.AddressZero),
+        ['update(address,int256,int256,int256,address)'](user.address, POSITION.div(2), 0, 0, constants.AddressZero),
     ) // 4 -> 5
       .to.emit(market, 'OrderCreated')
       .withArgs(
@@ -1642,7 +1635,6 @@ describe('Happy Path', () => {
           timestamp: TIMESTAMP_5,
           orders: 1,
           makerPos: POSITION.div(2),
-          collateral: -1,
           invalidation: 1,
         },
         { ...DEFAULT_GUARANTEE },
@@ -1657,12 +1649,11 @@ describe('Happy Path', () => {
       currentId: 3,
       latestId: 2,
     })
-    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(parse6decimal('873.007697'))
+    expect(await margin.crossMarginBalances(user.address)).to.equal(COLLATERAL.add(parse6decimal('873.007698')))
     expectOrderEq(await market.pendingOrders(user.address, 3), {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_5,
       orders: 1,
-      collateral: -1,
       makerPos: POSITION.div(2),
     })
     expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_5), {
@@ -1686,7 +1677,6 @@ describe('Happy Path', () => {
       ...DEFAULT_ORDER,
       timestamp: TIMESTAMP_5,
       orders: 1,
-      collateral: -1,
       makerPos: POSITION.div(2),
     })
     expectPositionEq(await market.position(), {

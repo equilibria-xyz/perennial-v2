@@ -618,13 +618,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address guaranteeReferrer
     ) private {
         // update collateral in margin contract
-        if (!newOrder.collateral.isZero()) {
-            if (
-                !updateContext.signer && // sender is relaying the account's signed intention
-                !updateContext.operator  // sender is operator approved for account
-            ) revert IMarket.MarketOperatorNotAllowedError();
-            margin.handleMarketUpdate(context.account, newOrder.collateral);
-        }
+        if (!newOrder.collateral.isZero() && // sender is modifying isolated collateral
+            !updateContext.signer &&     // sender is not relaying the account's signed intention
+            !updateContext.operator      // sender is not operator approved for account
+        ) revert IMarket.MarketOperatorNotAllowedError();
+        if (!newOrder.protected()) margin.handleMarketUpdate(context.account, newOrder.collateral);
 
         // process update
         _update(context, updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);

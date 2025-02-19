@@ -54,7 +54,7 @@ interface IMargin is IInstance {
     event MarketIsolated(address indexed account, IMarket indexed market);
 
     // sig: 0x21d30123
-    /// custom:error Market is cross-margained, but user called update with a collateral amount
+    /// custom:error Market is cross-margined, but user called update with a collateral amount
     error MarginCannotUpdateCrossedMarket();
 
     // sig: 0xac13066a
@@ -86,6 +86,13 @@ interface IMargin is IInstance {
     /// custom:error User is not authorized for the requested action
     error MarginOperatorNotAllowedError();
 
+    // sig: 0x9d4155b6
+    // custom:error Too many cross-margined markets
+    error MarginTooManyCrossedMarkets();
+
+    /// @dev Limits iteration through cross-margined markets
+    function MAX_CROSS_MARGIN_MARKETS() external view returns (uint256);
+
     /// @notice Retrieves the DSU token used as collateral for all markets
     function DSU() external view returns (Token18);
 
@@ -104,7 +111,7 @@ interface IMargin is IInstance {
 
     /// @notice Adjust specified amount of collateral isolated to a specific market,
     /// positive for isolation, negative for deisolation.
-    /// If isolated collateral balance becomes zero, market implicitly becomes cross-margined.
+    /// If isolated collateral balance becomes zero, market is no longer isolated.
     /// @param account User whose isolated balance will be adjusted
     /// @param amount Quantity of collateral to designate as isolated
     /// @param market Identifies where isolated balance should be adjusted
@@ -159,6 +166,12 @@ interface IMargin is IInstance {
 
     /// @notice Retrieves the isolated balance for a user and market
     function isolatedBalances(address, IMarket) external view returns (Fixed6);
+
+    /// @notice True if a market update occured for a non-isolated market for the user
+    function isCrossed(address, IMarket) external view returns (bool);
+
+    /// @notice True if market has a non-zero isolated balance for the user
+    function isIsolated(address, IMarket) external view returns (bool);
 
     /// @notice Returns information about an account's collateral for a specific version
     /// @param account User for whom the checkpoint is desired
