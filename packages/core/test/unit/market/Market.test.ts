@@ -11483,7 +11483,6 @@ describe('Market', () => {
               oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_6.timestamp])
               oracle.request.returns()
 
-              // FIXME: reverts with MarketStalePriceError
               await deposit(COLLATERAL, user)
               await deposit(COLLATERAL, userB)
 
@@ -14522,7 +14521,6 @@ describe('Market', () => {
           expect(await market.hasPosition(user.address)).to.be.false
         })
 
-        // FIXME: needs updating
         it('calculates maintenance', async () => {
           // no position
           await margin.connect(user).isolate(user.address, market.address, COLLATERAL)
@@ -14535,13 +14533,14 @@ describe('Market', () => {
               .connect(user)
               ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, 0, constants.AddressZero),
           ).to.not.be.reverted
-          expect(await market.maintenanceRequired(user.address)).to.equal(0)
+          // maintenance percentage * position * price = 0.3 * 10 * 123 = 369
+          expect(await market.maintenanceRequired(user.address)).to.equal(parse6decimal('369'))
 
           // settled with position
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           await settle(market, user)
-          // maintenance percentage * position * price = 0.3 * 10 * 123 = 369
+          // maintenance remains unchanged
           expect(await market.maintenanceRequired(user.address)).to.equal(parse6decimal('369'))
         })
 
