@@ -887,6 +887,13 @@ describe('Margin', () => {
       )
     })
 
-    // TODO: test coverage for Margin.claim
+    it('double claim', async () => {
+      await mockToken.setFunctionToCall(3)
+
+      await expect(margin.connect(user).claim(user.address, user.address)).to.be.revertedWithCustomError(
+        margin,
+        'ReentrancyGuardReentrantCallError',
+      )
+    })
   })
 })
