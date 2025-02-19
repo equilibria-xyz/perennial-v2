@@ -2,7 +2,7 @@ name: Automated Tests and Linting
 
 on:
   push:
-    branches: [main]
+    branches: [main, ed/pe-2101]
   pull_request:
     branches:
       - main
