@@ -9,6 +9,8 @@ import {
   VaultFactory__factory,
   ProxyAdmin,
   ProxyAdmin__factory,
+  Controller_Optimism,
+  Controller_Optimism__factory,
 } from '../../../../types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
@@ -59,5 +61,13 @@ describe('Verify Owner', () => {
       signer,
     )
     expect(await solverVaultFactory.callStatic.owner()).to.equal(owner)
+  })
+
+  it('Controller', async () => {
+    const controller: Controller_Optimism = Controller_Optimism__factory.connect(
+      (await HRE.deployments.get('Controller')).address,
+      signer,
+    )
+    expect(await controller.callStatic.owner()).to.equal(owner)
   })
 })
