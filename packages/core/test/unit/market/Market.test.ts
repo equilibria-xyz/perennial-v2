@@ -15742,7 +15742,6 @@ describe('Market', () => {
               },
             }
 
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
               ['update(address,int256,int256,int256,address)'](
@@ -15752,17 +15751,15 @@ describe('Market', () => {
                 COLLATERAL,
                 constants.AddressZero,
               )
-            dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('320')).returns(true)
             await market
               .connect(user)
               ['update(address,int256,int256,int256,address)'](
                 user.address,
                 0,
-                POSITION.div(2),
+                0,
                 parse6decimal('320'),
                 constants.AddressZero,
               )
-            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userC)
               ['update(address,int256,int256,int256,address)'](userC.address, 0, 0, COLLATERAL, constants.AddressZero)
@@ -15866,7 +15863,6 @@ describe('Market', () => {
               },
             }
 
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
               ['update(address,int256,int256,int256,address)'](
@@ -15876,7 +15872,6 @@ describe('Market', () => {
                 COLLATERAL,
                 constants.AddressZero,
               )
-            dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('320')).returns(true)
             await market
               .connect(user)
               ['update(address,int256,int256,int256,address)'](
@@ -15886,7 +15881,6 @@ describe('Market', () => {
                 parse6decimal('320'),
                 constants.AddressZero,
               )
-            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userC)
               ['update(address,int256,int256,int256,address)'](userC.address, 0, 0, COLLATERAL, constants.AddressZero)
@@ -15957,6 +15951,7 @@ describe('Market', () => {
             ).to.be.not.reverted
           })
 
+          // FIXME: MarketInsufficientCollateralError doesn't exist anymore; figure out expected behavior
           it('cant withdraw w/ pending intent fees', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
             riskParameter.margin = parse6decimal('0.012')
@@ -16098,6 +16093,7 @@ describe('Market', () => {
           })
         })
 
+        // FIXME: beforeEach hook reverts unexpectedly
         context('in liquidation', async () => {
           const EXPECTED_LIQUIDATION_FEE = parse6decimal('225')
 

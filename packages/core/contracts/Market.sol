@@ -430,12 +430,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (OracleVersion memory latestOracleVersion, ) = oracle.status();
         (Fixed6 collateralAdjustment, UFixed6 maxPendingMagnitude) = _calculateAdjustments(account, latestOracleVersion);
 
-        // TODO: floor this at zero to prevent revert if requirement goes negative
-        requirement = UFixed6Lib.from(Fixed6Lib.from(PositionLib.maintenance(
-            _worstCasePendingLocal(_positions[account].read(), _pendings[account].read(), maxPendingMagnitude),
-            latestOracleVersion,
-            _riskParameter.read()
-        )).sub(collateralAdjustment));
+        UFixed6 worstCasePending = _worstCasePendingLocal(_positions[account].read(), _pendings[account].read(), maxPendingMagnitude);
+        requirement = PositionLib.maintenance(worstCasePending, latestOracleVersion, _riskParameter.read());
+        requirement = UFixed6Lib.unsafeFrom(Fixed6Lib.from(requirement).sub(collateralAdjustment));
     }
 
     /// @inheritdoc IMarket
@@ -446,13 +443,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (OracleVersion memory latestOracleVersion, ) = oracle.status();
         (Fixed6 collateralAdjustment, UFixed6 maxPendingMagnitude) = _calculateAdjustments(account, latestOracleVersion);
 
-        // TODO: floor this at zero to prevent revert if requirement goes negative
-        requirement = UFixed6Lib.from(Fixed6Lib.from(PositionLib.margin(
-            _worstCasePendingLocal(_positions[account].read(), _pendings[account].read(), maxPendingMagnitude),
-            latestOracleVersion,
-            _riskParameter.read(),
-            minCollateralization
-        )).sub(collateralAdjustment));
+        UFixed6 worstCasePending = _worstCasePendingLocal(_positions[account].read(), _pendings[account].read(), maxPendingMagnitude);
+        requirement = PositionLib.margin(worstCasePending, latestOracleVersion, _riskParameter.read(), minCollateralization);
+        requirement = UFixed6Lib.unsafeFrom(Fixed6Lib.from(requirement).sub(collateralAdjustment));
     }
 
     // TODO: move down alongside private views
@@ -466,18 +459,38 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Position memory pendingPosition = _positions[account].read().clone();
         MarketParameter memory marketParameter = _parameter.read();
 
-        maxPendingMagnitude = _positions[account].read().magnitude().add(_pendings[account].read().pos());
+        maxPendingMagnitude = pendingPosition.magnitude();
         for (uint256 id = local.latestId + 1; id <= local.currentId; id++) {
             // iterate through guarantees to calculate price adjustments and intent fees
             Guarantee memory guarantee_ = _guarantees[account][id].read();
             collateralAdjustment = collateralAdjustment.add(guarantee_.priceAdjustment(latestOracleVersion.price));
             Fixed6 pendingIntentFee = Fixed6Lib.from(aggregatePendingOrder.takerFee(guarantee_, latestOracleVersion, marketParameter));
-            collateralAdjustment = collateralAdjustment.add(pendingIntentFee);
+            collateralAdjustment = collateralAdjustment.sub(pendingIntentFee);
             // iterate through orders to calculate maximum pending position magnitude
             pendingPosition.update(_pendingOrders[account][id].read());
             maxPendingMagnitude = maxPendingMagnitude.max(pendingPosition.magnitude());
         }
     }
+
+    /// @notice Returns the worst case pending position magnitude
+    /// @dev For AMM pending orders, this is calculated by assuming all closing orders will be invalidated
+    ///      For intent pending orders, this is the maximum position magnitude at any pending version
+    /// @param latest local position
+    /// @param pending_ unsettled updates
+    /// @param maxPendingMagnitude calculated by interating through intents
+    /// @return The worst case pending position magnitude
+    function _worstCasePendingLocal(
+        Position memory latest,
+        Order memory pending_,
+        UFixed6 maxPendingMagnitude
+    ) private pure returns (UFixed6) {
+        Position memory current = latest.clone();
+        current.update(pending_);
+        return pending_.invalidation != 0
+            ? latest.magnitude().add(pending_.pos())        // contains an amm order, use worst case w/ invalidation
+            : current.magnitude().max(maxPendingMagnitude); // does not contain an amm order, use max pending magnitude
+    }
+
 
     /// @inheritdoc IMarket
     function stale() external view returns (bool isStale) {
@@ -987,25 +1000,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev Returns true if the oracle price is stale, which should prevent position change and deisolation of collateral
     function _stale(OracleVersion memory latest, uint256 currentTimestamp, uint256 staleAfter) private pure returns (bool) {
         return !latest.valid || currentTimestamp - latest.timestamp >= staleAfter;
-    }
-
-    /// @notice Returns the worst case pending position magnitude
-    /// @dev For AMM pending orders, this is calculated by assuming all closing orders will be invalidated
-    ///      For intent pending orders, this is the maximum position magnitude at any pending version
-    /// @param latest local position
-    /// @param pending_ unsettled updates
-    /// @param maxPendingMagnitude calculated by interating through intents
-    /// @return The worst case pending position magnitude
-    function _worstCasePendingLocal(
-        Position memory latest,
-        Order memory pending_,
-        UFixed6 maxPendingMagnitude
-    ) private pure returns (UFixed6) {
-        Position memory current = latest.clone();
-        current.update(pending_);
-        return pending_.invalidation != 0
-            ? latest.magnitude().add(pending_.pos())         // contains an amm order, use worst case w/ invalidation
-            : current.magnitude().max(maxPendingMagnitude); // does not contain an amm order, use max pending magnitude
     }
 
     /// @notice Only the coordinator or the owner can call
