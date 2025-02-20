@@ -15951,7 +15951,6 @@ describe('Market', () => {
             ).to.be.not.reverted
           })
 
-          // FIXME: MarketInsufficientCollateralError doesn't exist anymore; figure out expected behavior
           it('cant withdraw w/ pending intent fees', async () => {
             const riskParameter = { ...(await market.riskParameter()) }
             riskParameter.margin = parse6decimal('0.012')
@@ -16014,10 +16013,6 @@ describe('Market', () => {
 
             const LOWER_COLLATERAL = parse6decimal('500')
 
-            dsu.transferFrom.whenCalledWith(user.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
-            dsu.transferFrom.whenCalledWith(userC.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
-
             await market
               .connect(userB)
               ['update(address,int256,int256,int256,address)'](
@@ -16077,8 +16072,6 @@ describe('Market', () => {
 
             const WITHDRAW_COLLATERAL = parse6decimal('500')
 
-            dsu.transfer.whenCalledWith(user.address, WITHDRAW_COLLATERAL.mul(1e12)).returns(true)
-
             await expect(
               market
                 .connect(user)
@@ -16089,16 +16082,14 @@ describe('Market', () => {
                   -WITHDRAW_COLLATERAL,
                   constants.AddressZero,
                 ),
-            ).to.be.revertedWithCustomError(market, 'MarketInsufficientCollateralError')
+            ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
           })
         })
 
-        // FIXME: beforeEach hook reverts unexpectedly
         context('in liquidation', async () => {
           const EXPECTED_LIQUIDATION_FEE = parse6decimal('225')
 
           beforeEach(async () => {
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, utils.parseEther('450')).returns(true)
             await market
               .connect(userB)
               ['update(address,int256,int256,int256,address)'](
@@ -16108,7 +16099,6 @@ describe('Market', () => {
                 parse6decimal('450'),
                 constants.AddressZero,
               )
-            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
 
             await market
               .connect(user)
@@ -16132,14 +16122,13 @@ describe('Market', () => {
               .returns([oracleVersionHigherPrice, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([oracleVersionHigherPrice, oracleVersionHigherPrice.timestamp + 3600])
             oracle.request.whenCalledWith(user.address).returns()
-
-            dsu.transfer.whenCalledWith(liquidator.address, EXPECTED_LIQUIDATION_FEE.mul(1e12)).returns(true)
-            dsu.balanceOf.whenCalledWith(market.address).returns(COLLATERAL.mul(1e12))
           })
 
           it('it reverts if already liquidated', async () => {
             await market.connect(liquidator).close(userB.address, true, constants.AddressZero)
 
+            dsu.transferFrom.whenCalledWith(userB.address, margin.address, COLLATERAL.mul(1e12)).returns(true)
+            await margin.connect(userB).deposit(userB.address, COLLATERAL)
             await expect(
               market
                 .connect(userB)
