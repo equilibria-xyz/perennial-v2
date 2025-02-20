@@ -9,8 +9,8 @@ import {
   VaultFactory__factory,
   StorkFactory,
   StorkFactory__factory,
-  Controller_Arbitrum,
-  Controller_Arbitrum__factory,
+  Controller_Optimism,
+  Controller_Optimism__factory,
 } from '../../../../types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
@@ -62,7 +62,7 @@ describe('Verify Implementation', () => {
   })
 
   it('Controller', async () => {
-    const controller: Controller_Arbitrum = Controller_Arbitrum__factory.connect(
+    const controller: Controller_Optimism = Controller_Optimism__factory.connect(
       (await HRE.deployments.get('Controller')).address,
       signer,
     )

@@ -11,21 +11,12 @@ import {
   StorkFactory__factory,
   Verifier,
   Verifier__factory,
-  AccountVerifier,
-  AccountVerifier__factory,
   MultiInvoker,
   MultiInvoker__factory,
-  Controller_Arbitrum__factory,
-  Controller_Arbitrum,
+  Controller_Optimism__factory,
+  Controller_Optimism,
   Manager,
   Manager__factory,
-  PythFactory,
-  PythFactory__factory,
-  MetaQuantsFactory__factory,
-  MetaQuantsFactory,
-  KeeperOracle,
-  KeeperOracle__factory,
-  IERC20__factory,
 } from '../../../../types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { constants } from 'ethers'
@@ -66,11 +57,15 @@ describe('Verify Initialization', () => {
     expect((await marketFactory.callStatic.parameter()).maxStaleAfter).to.equal(
       DEFAULT_PROTOCOL_PARAMETER.maxStaleAfter,
     )
+
+    await expect(marketFactory.initialize()).to.be.reverted
   })
 
   it('Verifier', async () => {
     const verifier: Verifier = Verifier__factory.connect((await HRE.deployments.get('Verifier')).address, signer)
     expect(await verifier.callStatic.marketFactory()).to.equal((await HRE.deployments.get('MarketFactory')).address)
+
+    await expect(verifier.initialize(constants.AddressZero)).to.be.reverted
   })
 
   it('OracleFactory', async () => {
@@ -79,6 +74,8 @@ describe('Verify Initialization', () => {
       signer,
     )
     expect(await oracleFactory.callStatic.owner()).to.not.equal(constants.AddressZero)
+
+    await expect(oracleFactory.initialize()).to.be.reverted
   })
 
   it('MakerVaultFactory', async () => {
@@ -90,6 +87,8 @@ describe('Verify Initialization', () => {
     expect(await makerVaultFactory.callStatic.marketFactory()).to.equal(
       (await HRE.deployments.get('MarketFactory')).address,
     )
+
+    await expect(makerVaultFactory.initialize()).to.be.reverted
   })
 
   it('SolverVaultFactory', async () => {
@@ -101,6 +100,8 @@ describe('Verify Initialization', () => {
     expect(await solverVaultFactory.callStatic.marketFactory()).to.equal(
       (await HRE.deployments.get('MarketFactory')).address,
     )
+
+    await expect(solverVaultFactory.initialize()).to.be.reverted
   })
 
   it('MultiInvoker', async () => {
@@ -136,10 +137,12 @@ describe('Verify Initialization', () => {
     )
 
     expect(await marketFactory.callStatic.extensions(multiInvoker.address)).to.equal(true)
+
+    await expect(multiInvoker.initialize(constants.AddressZero)).to.be.reverted
   })
 
   it('Controller', async () => {
-    const controller: Controller_Arbitrum = Controller_Arbitrum__factory.connect(
+    const controller: Controller_Optimism = Controller_Optimism__factory.connect(
       (await HRE.deployments.get('Controller')).address,
       signer,
     )
@@ -168,6 +171,33 @@ describe('Verify Initialization', () => {
     expect(keepConfigWithdrawal.bufferBase).to.equal(300_000n)
     expect(keepConfigWithdrawal.multiplierCalldata).to.equal(ethers.utils.parseEther('1.05'))
     expect(keepConfigWithdrawal.bufferCalldata).to.equal(0n)
+
+    await expect(
+      controller[
+        'initialize(address,address,(uint256,uint256,uint256,uint256),(uint256,uint256,uint256,uint256),(uint256,uint256,uint256,uint256))'
+      ](
+        constants.AddressZero,
+        constants.AddressZero,
+        {
+          multiplierBase: 0,
+          bufferBase: 0,
+          multiplierCalldata: 0,
+          bufferCalldata: 0,
+        },
+        {
+          multiplierBase: 0,
+          bufferBase: 0,
+          multiplierCalldata: 0,
+          bufferCalldata: 0,
+        },
+        {
+          multiplierBase: 0,
+          bufferBase: 0,
+          multiplierCalldata: 0,
+          bufferCalldata: 0,
+        },
+      ),
+    ).to.be.reverted
   })
 
   it('Manager', async () => {
@@ -193,6 +223,24 @@ describe('Verify Initialization', () => {
     expect(keepConfigBuffered.bufferBase).to.equal(788_000n)
     expect(keepConfigBuffered.multiplierCalldata).to.equal(ethers.utils.parseEther('1.05'))
     expect(keepConfigBuffered.bufferCalldata).to.equal(35_200n)
+
+    await expect(
+      manager.initialize(
+        constants.AddressZero,
+        {
+          multiplierBase: 0,
+          bufferBase: 0,
+          multiplierCalldata: 0,
+          bufferCalldata: 0,
+        },
+        {
+          multiplierBase: 0,
+          bufferBase: 0,
+          multiplierCalldata: 0,
+          bufferCalldata: 0,
+        },
+      ),
+    ).to.be.reverted
   })
 
   it('StorkFactory', async () => {
@@ -218,5 +266,7 @@ describe('Verify Initialization', () => {
     expect(storkFactoryParameter.oracleFee).to.equal(KeeperFactoryParameter.oracleFee)
     expect(storkFactoryParameter.validFrom).to.equal(KeeperFactoryParameter.validFrom)
     expect(storkFactoryParameter.validTo).to.equal(KeeperFactoryParameter.validTo)
+
+    await expect(storkFactory.initialize(constants.AddressZero)).to.be.reverted
   })
 })
