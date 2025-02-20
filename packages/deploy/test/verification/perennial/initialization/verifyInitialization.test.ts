@@ -41,6 +41,7 @@ describe('Verify Initialization', () => {
     expect(await marketFactory.callStatic.verifier()).to.equal((await HRE.deployments.get('Verifier')).address)
 
     // check parameter
+    expect((await marketFactory.callStatic.parameter()).minScale).to.equal(DEFAULT_PROTOCOL_PARAMETER.minScale)
     expect((await marketFactory.callStatic.parameter()).maxFee).to.equal(DEFAULT_PROTOCOL_PARAMETER.maxFee)
     expect((await marketFactory.callStatic.parameter()).maxLiquidationFee).to.equal(
       DEFAULT_PROTOCOL_PARAMETER.maxLiquidationFee,
@@ -263,6 +264,7 @@ describe('Verify Initialization', () => {
     const storkFactoryParameter = await storkFactory.callStatic.parameter()
     expect(storkFactoryParameter.latestGranularity).to.equal(1)
     expect(storkFactoryParameter.currentGranularity).to.equal(KeeperFactoryParameter.granularity)
+    expect(storkFactoryParameter.effectiveAfter).to.equal(1739397577)
     expect(storkFactoryParameter.oracleFee).to.equal(KeeperFactoryParameter.oracleFee)
     expect(storkFactoryParameter.validFrom).to.equal(KeeperFactoryParameter.validFrom)
     expect(storkFactoryParameter.validTo).to.equal(KeeperFactoryParameter.validTo)
