@@ -1139,7 +1139,6 @@ describe('Market', () => {
 
     describe('#update', async () => {
       beforeEach(async () => {
-        await market.connect(owner).updateCoordinator(coordinator.address)
         await market.connect(owner).updateParameter(marketParameter)
 
         oracle.at.whenCalledWith(ORACLE_VERSION_0.timestamp).returns([ORACLE_VERSION_0, INITIALIZED_ORACLE_RECEIPT])
@@ -15967,6 +15966,7 @@ describe('Market', () => {
               referralFee: parse6decimal('0.20'),
               minScale: parse6decimal('0.001'),
               maxStaleAfter: 14400,
+              minMinMaintenance: 0,
             })
 
             const intent = {
@@ -19959,6 +19959,7 @@ describe('Market', () => {
             referralFee: parse6decimal('0.20'),
             minScale: parse6decimal('0.001'),
             maxStaleAfter: 14400,
+            minMinMaintenance: 0,
           })
 
           const marketParameter = { ...(await market.parameter()) }
@@ -20097,6 +20098,7 @@ describe('Market', () => {
             referralFee: parse6decimal('0.20'),
             minScale: parse6decimal('0.001'),
             maxStaleAfter: 14400,
+            minMinMaintenance: 0,
           })
 
           const marketParameter = { ...(await market.parameter()) }
@@ -20196,6 +20198,7 @@ describe('Market', () => {
             referralFee: parse6decimal('0.20'),
             minScale: parse6decimal('0.001'),
             maxStaleAfter: 14400,
+            minMinMaintenance: 0,
           })
 
           const marketParameter = { ...(await market.parameter()) }
@@ -20311,6 +20314,7 @@ describe('Market', () => {
             referralFee: parse6decimal('0.20'),
             minScale: parse6decimal('0.001'),
             maxStaleAfter: 14400,
+            minMinMaintenance: 0,
           })
 
           const marketParameter = { ...(await market.parameter()) }
