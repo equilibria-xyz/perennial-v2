@@ -15418,7 +15418,6 @@ describe('Market', () => {
           oracle.status.returns([oracleVersion, TIMESTAMP + 7300])
           oracle.request.returns()
 
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, collateral.mul(1e12)).returns(true)
           await market
             .connect(userB)
             ['update(address,int256,int256,int256,address)'](
@@ -15428,7 +15427,6 @@ describe('Market', () => {
               collateral,
               constants.AddressZero,
             )
-          dsu.transferFrom.whenCalledWith(user.address, market.address, collateral2.mul(1e12)).returns(true)
           await market
             .connect(user)
             ['update(address,int256,int256,int256,address)'](
@@ -15512,7 +15510,6 @@ describe('Market', () => {
             oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_2.timestamp])
             oracle.request.returns()
 
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
               ['update(address,int256,int256,int256,address)'](
@@ -15523,8 +15520,6 @@ describe('Market', () => {
                 constants.AddressZero,
               )
 
-            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(user)
               ['update(address,int256,int256,int256,address)'](user.address, 0, 0, COLLATERAL, constants.AddressZero)
@@ -15615,7 +15610,6 @@ describe('Market', () => {
               },
             }
 
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userB)
               ['update(address,int256,int256,int256,address)'](
@@ -15625,7 +15619,6 @@ describe('Market', () => {
                 COLLATERAL,
                 constants.AddressZero,
               )
-            dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
             await market
               .connect(user)
               ['update(address,int256,int256,int256,address)'](
@@ -15635,7 +15628,6 @@ describe('Market', () => {
                 parse6decimal('216'),
                 constants.AddressZero,
               )
-            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
             await market
               .connect(userC)
               ['update(address,int256,int256,int256,address)'](userC.address, 0, 0, COLLATERAL, constants.AddressZero)
@@ -16199,12 +16191,6 @@ describe('Market', () => {
         })
 
         context('always close mode', async () => {
-          beforeEach(async () => {
-            dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-            dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          })
-
           context('closing long', async () => {
             beforeEach(async () => {
               await market
@@ -18300,7 +18286,6 @@ describe('Market', () => {
             },
           }
 
-          dsu.transferFrom.whenCalledWith(userD.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userD)
             ['update(address,int256,int256,int256,address)'](
@@ -18311,7 +18296,6 @@ describe('Market', () => {
               constants.AddressZero,
             )
 
-          dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(user)
             ['update(address,int256,int256,int256,address)'](user.address, 0, 0, COLLATERAL, constants.AddressZero)
@@ -20030,7 +20014,6 @@ describe('Market', () => {
             },
           }
 
-          dsu.transferFrom.whenCalledWith(userD.address, market.address, COLLATERAL.mul(1e12)).returns(true)
           await market
             .connect(userB)
             ['update(address,int256,int256,int256,address)'](
@@ -20168,10 +20151,9 @@ describe('Market', () => {
           await market
             .connect(user)
             ['update(address,int256,int256,int256,address)'](user.address, 0, 0, COLLATERAL, constants.AddressZero),
-            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market
-            .connect(userC)
-            ['update(address,int256,int256,int256,address)'](userC.address, 0, 0, COLLATERAL, constants.AddressZero)
+            await market
+              .connect(userC)
+              ['update(address,int256,int256,int256,address)'](userC.address, 0, 0, COLLATERAL, constants.AddressZero)
 
           // solver
           factory.authorization
@@ -20249,7 +20231,6 @@ describe('Market', () => {
             },
           }
 
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.div(20).mul(1e12)).returns(true)
           await market
             .connect(user)
             ['update(address,int256,int256,int256,address)'](
@@ -20259,10 +20240,9 @@ describe('Market', () => {
               COLLATERAL.div(20),
               constants.AddressZero,
             ),
-            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market
-            .connect(userC)
-            ['update(address,int256,int256,int256,address)'](userC.address, 0, 0, COLLATERAL, constants.AddressZero)
+            await market
+              .connect(userC)
+              ['update(address,int256,int256,int256,address)'](userC.address, 0, 0, COLLATERAL, constants.AddressZero)
 
           // solver
           factory.authorization
@@ -20400,14 +20380,12 @@ describe('Market', () => {
             },
           }
 
-          dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.div(20).mul(1e12)).returns(true)
           await market
             .connect(user)
             ['update(address,int256,int256,int256,address)'](user.address, 0, 0, COLLATERAL.div(20), false),
-            dsu.transferFrom.whenCalledWith(userC.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-          await market
-            .connect(userC)
-            ['update(address,int256,int256,int256,address)'](userC.address, 0, 0, COLLATERAL, constants.AddressZero)
+            await market
+              .connect(userC)
+              ['update(address,int256,int256,int256,address)'](userC.address, 0, 0, COLLATERAL, constants.AddressZero)
 
           // solver
           factory.authorization
@@ -25346,10 +25324,6 @@ describe('Market', () => {
 
           const LOWER_COLLATERAL = parse6decimal('500')
 
-          dsu.transferFrom.whenCalledWith(user.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userB.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
-          dsu.transferFrom.whenCalledWith(userC.address, market.address, LOWER_COLLATERAL.mul(1e12)).returns(true)
-
           await market
             .connect(userB)
             ['update(address,int256,int256,int256,address)'](
@@ -26335,7 +26309,6 @@ describe('Market', () => {
       })
 
       it('closes a maker position', async () => {
-        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market
           .connect(user)
           ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
@@ -26401,7 +26374,6 @@ describe('Market', () => {
       })
 
       it('closes a long position', async () => {
-        dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market
           .connect(userB)
           ['update(address,int256,int256,int256,address)'](
@@ -26483,8 +26455,6 @@ describe('Market', () => {
       })
 
       it('closes a short position', async () => {
-        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
-        dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market
           .connect(userB)
           ['update(address,int256,int256,int256,address)'](
@@ -26572,7 +26542,6 @@ describe('Market', () => {
       })
 
       it('liquidates a user', async () => {
-        dsu.transferFrom.whenCalledWith(userB.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market
           .connect(userB)
           ['update(address,int256,int256,int256,address)'](
@@ -26582,7 +26551,6 @@ describe('Market', () => {
             COLLATERAL,
             constants.AddressZero,
           )
-        dsu.transferFrom.whenCalledWith(user.address, market.address, utils.parseEther('216')).returns(true)
         await market
           .connect(user)
           ['update(address,int256,int256,address)'](
@@ -26750,7 +26718,6 @@ describe('Market', () => {
             COLLATERAL,
             constants.AddressZero,
           )
-        dsu.transferFrom.whenCalledWith(user.address, market.address, COLLATERAL.mul(1e12)).returns(true)
         await market
           .connect(user)
           ['update(address,int256,int256,address)'](user.address, POSITION.div(2), COLLATERAL, constants.AddressZero)
