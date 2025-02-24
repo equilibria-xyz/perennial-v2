@@ -6,10 +6,9 @@ import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.so
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
-import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
+import { IMarket, IMargin } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 import { Checkpoint as PerennialCheckpoint } from  "@perennial/v2-core/contracts/types/Checkpoint.sol";
 import { OracleVersion } from  "@perennial/v2-core/contracts/types/OracleVersion.sol";
-import { Local } from  "@perennial/v2-core/contracts/types/Local.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IVault } from "./interfaces/IVault.sol";
 import { IVaultFactory } from "./interfaces/IVaultFactory.sol";
@@ -50,10 +49,13 @@ abstract contract Vault is IVault, Instance {
     /// @dev Per-id accounting state variables
     mapping(uint256 => CheckpointStorage) private _checkpoints;
 
-    /// @dev DEPRECATED SLOT -- previously the mappings
-    bytes32 private __unused0__;
+    /// @dev Margin contract used to manage collateral isolated to registered markets
+    IMargin public margin;
 
-    /// @dev The vault's coordinator address (privileged role that can operate the vault's strategy)
+    /// @dev Mapping to track allowed accounts
+    mapping(address => bool) public allowed;
+
+    /// @dev Risk coordinator of the vault
     address public coordinator;
 
     /// @dev High-water mark for the vault's assets vs shares ratio
@@ -71,14 +73,19 @@ abstract contract Vault is IVault, Instance {
         Token18 asset_,
         IMarket initialMarket,
         UFixed6 initialDeposit,
+        UFixed6 leverageBuffer,
         string calldata name_
     ) external initializer(1) {
         __Instance__initialize();
 
         asset = asset_;
         _name = name_;
+        margin = initialMarket.margin();
         _register(initialMarket);
-        _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO, UFixed6Lib.ZERO));
+        _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO, UFixed6Lib.ZERO, leverageBuffer));
+
+        // permits the vault factory to make the initial deposit to prevent inflation attacks
+        allowed[msg.sender] = true;
     }
 
     /// @notice Returns the vault parameter set
@@ -180,9 +187,12 @@ abstract contract Vault is IVault, Instance {
     /// @param market The market to register
     function _register(IMarket market) private {
         if (!IVaultFactory(address(factory())).marketFactory().instances(market)) revert VaultNotMarketError();
-        if (!market.token().eq(asset)) revert VaultIncorrectAssetError();
+        // TODO: Since MarketFactory is the same, is the second check superfluous?
+        // This vault could have been created with an old Market implementation which uses the same token but
+        // a different Margin contract.  Maybe create a new error (and test) for this case.
+        if (!market.margin().DSU().eq(asset) || market.margin() != margin) revert VaultIncorrectAssetError();
 
-        asset.approve(address(market));
+        asset.approve(address(margin));
 
         uint256 newMarketId = _registerMarket(market);
         _updateMarket(newMarketId, newMarketId == 0 ? UFixed6Lib.ONE : UFixed6Lib.ZERO, UFixed6Lib.ZERO);
@@ -212,7 +222,7 @@ abstract contract Vault is IVault, Instance {
     /// @notice Settles, then updates the registration parameters for a given market
     /// @param marketId The market id
     /// @param newLeverage The new leverage
-    function updateLeverage(uint256 marketId, UFixed6 newLeverage) external onlyOwner {
+    function updateLeverage(uint256 marketId, UFixed6 newLeverage) external onlyCoordinator {
         rebalance(address(0));
 
         if (marketId >= totalMarkets) revert VaultMarketDoesNotExistError();
@@ -222,7 +232,7 @@ abstract contract Vault is IVault, Instance {
 
     /// @notice Updates the set of market weights for the vault
     /// @param newWeights The new set of market weights
-    function updateWeights(UFixed6[] calldata newWeights) external onlyOwner {
+    function updateWeights(UFixed6[] calldata newWeights) external onlyCoordinator {
         rebalance(address(0));
 
         if (newWeights.length != totalMarkets) revert VaultMarketDoesNotExistError();
@@ -282,7 +292,7 @@ abstract contract Vault is IVault, Instance {
         UFixed6 depositAssets,
         UFixed6 redeemShares,
         UFixed6 claimAssets
-    ) external whenNotPaused {
+    ) external whenNotPaused onlyAllowed {
         _settleUnderlying();
         Context memory context = _loadContext(account);
 
@@ -290,6 +300,12 @@ abstract contract Vault is IVault, Instance {
         _checkpoint(context);
         _update(context, account, depositAssets, redeemShares, claimAssets);
         _saveContext(context, account);
+    }
+
+    /// @inheritdoc IVault
+    function updateAllowed(address account, bool newAllowed) public onlyOwner {
+        allowed[account] = newAllowed;
+        emit AllowedUpdated(account, newAllowed);
     }
 
     /// @notice Loads or initializes the current checkpoint
@@ -322,7 +338,7 @@ abstract contract Vault is IVault, Instance {
         if (redeemShares.eq(UFixed6Lib.MAX)) redeemShares = context.local.shares;
 
         // invariant
-        if (msg.sender != account && !IVaultFactory(address(factory())).operators(account, msg.sender))
+        if (msg.sender != account && !IVaultFactory(address(factory())).marketFactory().operators(account, msg.sender))
             revert VaultNotOperatorError();
         if (!depositAssets.add(redeemShares).add(claimAssets).eq(depositAssets.max(redeemShares).max(claimAssets)))
             revert VaultNotSingleSidedError();
@@ -343,8 +359,12 @@ abstract contract Vault is IVault, Instance {
         context.currentCheckpoint.update(depositAssets, redeemShares);
 
         // manage assets
+        // since margin.deposit sees this vault as msg.sender, need to pull funds from user
         asset.pull(msg.sender, UFixed18Lib.from(depositAssets));
+        margin.deposit(address(this), depositAssets);
         _manage(context, depositAssets, claimAmount, !depositAssets.isZero() || !redeemShares.isZero());
+        margin.withdraw(address(this), claimAmount);
+        // since margin.deposit sees this vault as msg.sender, need to push funds to user after withdrawal
         asset.push(msg.sender, UFixed18Lib.from(claimAmount));
 
         emit Updated(msg.sender, account, context.currentId, depositAssets, redeemShares, claimAssets);
@@ -434,7 +454,12 @@ abstract contract Vault is IVault, Instance {
     function _manage(Context memory context, UFixed6 deposit, UFixed6 withdrawal, bool shouldRebalance) private {
         if (context.totalCollateral.lt(Fixed6Lib.ZERO)) return;
 
-        Target[] memory targets = _strategy(context, deposit, withdrawal, _ineligible(context, deposit, withdrawal));
+        Target[] memory targets = _strategy(
+            context,
+            deposit,
+            withdrawal,
+            _ineligible(context, deposit, withdrawal)
+        );
 
         for (uint256 marketId; marketId < context.registrations.length; marketId++)
             if (targets[marketId].collateral.lt(Fixed6Lib.ZERO))
@@ -513,9 +538,9 @@ abstract contract Vault is IVault, Instance {
             else if (currentTimestamp != context.currentTimestamp) revert VaultCurrentOutOfSyncError();
 
             // local
-            Local memory local = registration.market.locals(address(this));
-            context.collaterals[marketId] = local.collateral;
-            context.totalCollateral = context.totalCollateral.add(local.collateral);
+            Fixed6 collateral = margin.isolatedBalances(address(this), registration.market);
+            context.collaterals[marketId] = collateral;
+            context.totalCollateral = context.totalCollateral.add(collateral);
         }
 
         if (account != address(0)) context.local = _accounts[account].read();
@@ -561,5 +586,19 @@ abstract contract Vault is IVault, Instance {
                 checkpoint.settlementFee.add(marketCheckpoint.settlementFee)
             );
         }
+    }
+
+    /// @notice Modifier to check if the caller is allowed to interact with the vault.
+    /// @dev `address(0)` is used for permissionless vaults, enabling all accounts to interact with the vault.
+    ///      This allows the same VaultFactory to support both permissioned and permissionless Vaults.
+    modifier onlyAllowed() {
+        if (!allowed[address(0)] && !allowed[msg.sender]) revert VaultNotAllowedError();
+        _;
+    }
+
+    /// @notice Only the coordinator or factory owner can call
+    modifier onlyCoordinator virtual {
+        if (msg.sender != coordinator && msg.sender != factory().owner()) revert VaultNotCoordinatorError();
+        _;
     }
 }

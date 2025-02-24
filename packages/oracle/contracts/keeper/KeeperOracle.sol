@@ -3,11 +3,11 @@ pragma solidity 0.8.24;
 
 // import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import { UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
+import { UFixed6Lib, UFixed6 } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
 import { IGasOracle } from "@equilibria/root/gas/GasOracle.sol";
-import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
+import { IMarket, IMargin } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 import { OracleVersion } from "@perennial/v2-core/contracts/types/OracleVersion.sol";
 import { OracleReceipt } from "@perennial/v2-core/contracts/types/OracleReceipt.sol";
 import { IKeeperFactory } from "../interfaces/IKeeperFactory.sol";
@@ -151,7 +151,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
         market.settle(address(0));
         oracle.claimFee(priceResponse.toOracleReceipt(_localCallbacks[version.timestamp].length()).settlementFee);
-        market.token().push(receiver, UFixed18Lib.from(priceResponse.syncFee));
+        market.margin().DSU().push(receiver, UFixed18Lib.from(priceResponse.syncFee));
     }
 
     /// @notice Performs an asynchronous local settlement callback
@@ -176,7 +176,7 @@ contract KeeperOracle is IKeeperOracle, Instance {
 
             // full settlement fee already cleamed in commit
             PriceResponse memory priceResponse = _responses[version].read();
-            market.token().push(receiver, UFixed18Lib.from(priceResponse.asyncFee));
+            market.margin().DSU().push(receiver, UFixed18Lib.from(priceResponse.asyncFee));
         }
     }
 
@@ -203,13 +203,13 @@ contract KeeperOracle is IKeeperOracle, Instance {
             priceResponse.valid = false;
         }
 
-        priceResponse.syncFee = UFixed6Lib.from(factory.commitmentGasOracle().cost(value), true);
-        priceResponse.asyncFee = UFixed6Lib.from(factory.settlementGasOracle().cost(0), true);
+        // Apply maximum fee limits
+        priceResponse.syncFee = UFixed6Lib.from(factory.commitmentGasOracle().cost(value), true)
+            .min(oracleParameter.maxSyncFee);
+        priceResponse.asyncFee = UFixed6Lib.from(factory.settlementGasOracle().cost(0), true)
+            .min(oracleParameter.maxAsyncFee);
+
         priceResponse.oracleFee = keeperOracleParameter.oracleFee;
-        priceResponse.applyFeeMaximum(
-            oracleParameter.maxSettlementFee,
-            _localCallbacks[oracleVersion.timestamp].length()
-        );
 
         _responses[oracleVersion.timestamp].store(priceResponse);
         _global.latestIndex++;

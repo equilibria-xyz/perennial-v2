@@ -32,7 +32,13 @@ import { impersonate } from '../../../../common/testutil'
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { Verifier, Verifier__factory } from '@perennial/v2-core/types/generated'
-import { AccountVerifier, AccountVerifier__factory, IController, IMarketFactory } from '../../../types/generated'
+import {
+  AccountVerifier,
+  AccountVerifier__factory,
+  IController,
+  IMarket,
+  IMarketFactory,
+} from '../../../types/generated'
 import {
   RelayedTakeStruct,
   TakeStruct,
@@ -298,7 +304,7 @@ describe('Verifier', () => {
           domain: userA.address,
           nonce: nextNonce(),
           group: 0,
-          expiry: currentTime.add(60),
+          expiry: currentTime.add(30),
         },
       }
     }
@@ -306,6 +312,7 @@ describe('Verifier', () => {
     beforeEach(async () => {
       downstreamVerifier = await new Verifier__factory(owner).deploy()
       await downstreamVerifier.initialize(marketFactory.address)
+      currentTime = BigNumber.from(await currentBlockTimestamp())
     })
 
     it('verifies relayedTake messages', async () => {

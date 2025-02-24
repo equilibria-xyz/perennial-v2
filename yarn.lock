@@ -164,10 +164,10 @@
   dependencies:
     "@openzeppelin/contracts" "4.6.0"
 
-"@equilibria/root@2.3.0-rc8":
-  version "2.3.0-rc8"
-  resolved "https://registry.yarnpkg.com/@equilibria/root/-/root-2.3.0-rc8.tgz#cc7955a3dc3d645b5e2404181ea6d1fda6237c5c"
-  integrity sha512-2gANOVU+ZirvxD8pS3KkvxtacjQGLu8YtY2WOHLcQQRF2jmkuiODZGDNj2UD/1IUTTTzETUSAfcydAlAK3vXoQ==
+"@equilibria/root@2.4.0-rc0":
+  version "2.4.0-rc0"
+  resolved "https://registry.yarnpkg.com/@equilibria/root/-/root-2.4.0-rc0.tgz#7136c45a3a28beaf1e348045f65bd3bf94f80a36"
+  integrity sha512-4shsvInLGs/C7miABf+glv0lDzuzODqxNUjfoTpxLGn7BF8T41qDkpdjpzvlIjxa80kO8QQp8qRFRviB0KRNlA==
   dependencies:
     "@openzeppelin/contracts" "4.6.0"
 
@@ -8873,6 +8873,11 @@ solhint@^3.4.1:
   optionalDependencies:
     prettier "^2.8.3"
 
+solidity-ast@^0.4.38:
+  version "0.4.59"
+  resolved "https://registry.yarnpkg.com/solidity-ast/-/solidity-ast-0.4.59.tgz#290a2815aef70a61092591ab3e991da080ae5931"
+  integrity sha512-I+CX0wrYUN9jDfYtcgWSe+OAowaXy8/1YQy7NS4ni5IBDmIYBq7ZzaP/7QqouLjzZapmQtvGLqCaYgoUWqBo5g==
+
 solidity-comments-extractor@^0.0.7:
   version "0.0.7"
   resolved "https://registry.npmjs.org/solidity-comments-extractor/-/solidity-comments-extractor-0.0.7.tgz"
@@ -8903,6 +8908,14 @@ solidity-coverage@0.8.3:
     semver "^7.3.4"
     shelljs "^0.8.3"
     web3-utils "^1.3.6"
+
+solidity-docgen@^0.6.0-beta.36:
+  version "0.6.0-beta.36"
+  resolved "https://registry.yarnpkg.com/solidity-docgen/-/solidity-docgen-0.6.0-beta.36.tgz#9c76eda58580fb52e2db318c22fe3154e0c09dd1"
+  integrity sha512-f/I5G2iJgU1h0XrrjRD0hHMr7C10u276vYvm//rw1TzFcYQ4xTOyAoi9oNAHRU0JU4mY9eTuxdVc2zahdMuhaQ==
+  dependencies:
+    handlebars "^4.7.7"
+    solidity-ast "^0.4.38"
 
 sort-keys@^2.0.0:
   version "2.0.0"

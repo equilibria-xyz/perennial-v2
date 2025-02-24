@@ -23,6 +23,12 @@ contract MakerVault is IMakerVault, Vault {
         UFixed6 withdrawal,
         UFixed6 ineligible
     ) internal override view returns (Target[] memory targets) {
-        return MakerStrategyLib.allocate(context.registrations, deposit, withdrawal, ineligible);
+        return MakerStrategyLib.allocate(
+            context.registrations,
+            deposit,
+            withdrawal,
+            ineligible,
+            context.parameter.leverageBuffer
+        );
     }
 }

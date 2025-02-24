@@ -5,16 +5,10 @@ import { BigNumber, CallOverrides, constants, utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { advanceBlock, currentBlockTimestamp } from '../../../../../common/testutil/time'
-import { getEventArguments } from '../../../../../common/testutil/transaction'
+import { advanceBlock, currentBlockTimestamp } from '../../../../common/testutil/time'
+import { getEventArguments } from '../../../../common/testutil/transaction'
 
-import {
-  DEFAULT_GUARANTEE,
-  DEFAULT_ORDER,
-  expectOrderEq,
-  parse6decimal,
-  Take,
-} from '../../../../../common/testutil/types'
+import { DEFAULT_GUARANTEE, DEFAULT_ORDER, expectOrderEq, parse6decimal, Take } from '../../../../common/testutil/types'
 import {
   Account,
   Account__factory,
@@ -22,9 +16,10 @@ import {
   IAccount,
   IAccountVerifier,
   IERC20Metadata,
+  IMargin,
   IMarket,
   IMarketFactory,
-} from '../../../../types/generated'
+} from '../../../types/generated'
 
 import {
   signDeployAccount,
@@ -37,7 +32,7 @@ import {
   signRelayedSignerUpdate,
   signRelayedTake,
   signWithdrawal,
-} from '../../../helpers/CollateralAccounts/eip712'
+} from '../../helpers/CollateralAccounts/eip712'
 import {
   signAccessUpdateBatch,
   signGroupCancellation,
@@ -49,14 +44,14 @@ import {
 import { Verifier, Verifier__factory } from '@perennial/v2-core/types/generated'
 import { AggregatorV3Interface } from '@perennial/v2-oracle/types/generated'
 import { DeploymentVars } from './setupTypes'
-import { advanceToPrice } from '../../../helpers/oracleHelpers'
+import { advanceToPrice } from '../../helpers/oracleHelpers'
 import { RelayedTakeStruct } from '../../../../types/generated/contracts/CollateralAccounts/AccountVerifier'
 
 const { ethers } = HRE
 
 const DEFAULT_MAX_FEE = parse6decimal('0.5')
 
-const MARKET_UPDATE_ABSOLUTE_PROTOTYPE = 'update(address,uint256,uint256,uint256,int256,bool)'
+const MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE = 'update(address,int256,int256,int256,address)'
 const MARKET_UPDATE_DELTA_PROTOTYPE = 'update(address,int256,int256,address)'
 
 // hack around issues estimating gas for instrumented contracts when running tests under coverage
@@ -85,6 +80,7 @@ export function RunIncentivizedTests(
     let usdc: IERC20Metadata
     let controller: Controller_Incentivized
     let accountVerifier: IAccountVerifier
+    let margin: IMargin
     let marketFactory: IMarketFactory
     let ethMarket: IMarket
     let btcMarket: IMarket
@@ -153,8 +149,18 @@ export function RunIncentivizedTests(
       keeperEthSpentOnGas = keeperEthSpentOnGas.add(utils.parseEther('0.0000644306').mul(priceCommitments))
 
       // cost of transaction
-      const keeperGasCostInUSD = keeperEthSpentOnGas.mul(3413)
+      // TODO: Support different ETH price on different chains (currently 2620 on Base fork)
+      const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2603)
       // keeper should be compensated between 100-125% of actual gas cost
+      // please retain below for debugging purposes
+      /*console.log(
+        'keeperFeesPaid',
+        keeperFeesPaid.div(1e9).toNumber() / 1e9,
+        'keeperGasCostInUSD',
+        keeperGasCostInUSD.div(1e9).toNumber() / 1e9,
+        'keeperGasUpperLimit',
+        keeperGasCostInUSD.mul(125).div(100e9).toNumber() / 1e9,
+      )*/
       expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(125).div(100))
     }
 
@@ -179,7 +185,7 @@ export function RunIncentivizedTests(
         controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
       )
         .to.emit(dsu, 'Transfer')
-        .withArgs(account.address, ethMarket.address, anyValue) // scale to token precision
+        .withArgs(account.address, margin.address, anyValue) // scale to token precision
         .to.emit(ethMarket, 'OrderCreated')
         .withArgs(
           userA.address,
@@ -193,12 +199,18 @@ export function RunIncentivizedTests(
         .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
     }
 
+    // ensures user has expected amount of collateral in a market
+    async function expectMarketIsolatedBalance(user: SignerWithAddress, market: IMarket, amount: BigNumber) {
+      expect(await margin.isolatedBalances(user.address, market.address)).to.equal(amount)
+    }
+
     const fixture = async () => {
       // deploy the protocol
       ;[owner, userA, userB, userC, keeper, receiver] = await ethers.getSigners()
       deployment = await deployProtocol(owner, true, true, TX_OVERRIDES)
       dsu = deployment.dsu
       usdc = deployment.usdc
+      margin = deployment.margin
       marketFactory = deployment.marketFactory
       let ethMarketDeployment
       if (deployment.ethMarket) {
@@ -238,7 +250,7 @@ export function RunIncentivizedTests(
       )
 
       // fund userA
-      await dsu.connect(userA).approve(ethMarket.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
+      await dsu.connect(userA).approve(deployment.margin.address, constants.MaxUint256, { maxFeePerGas: 100000000 })
       await deployment.fundWalletDSU(userA, utils.parseEther('5000'), TX_OVERRIDES)
       await deployment.fundWalletUSDC(userA, parse6decimal('50000'), { maxFeePerGas: 100000000 })
     }
@@ -339,6 +351,36 @@ export function RunIncentivizedTests(
             .deployAccountWithSignature(deployAccountMessage, signature, { maxFeePerGas: 100000000 }),
         ).to.be.reverted
       })
+
+      it('wraps only what is necessary to compensate keeper', async () => {
+        // pre-fund the address with sufficient USDC for transaction fee and a tiny amount of DSU
+        await usdc.connect(userA).transfer(accountAddressA, parse6decimal('1'), TX_OVERRIDES)
+        expect(await usdc.balanceOf(accountAddressA)).to.equal(parse6decimal('1'))
+        const dsuDustAmount = utils.parseEther('0.0002')
+        await deployment.fundWalletDSU(userA, dsuDustAmount, TX_OVERRIDES)
+        await dsu.connect(userA).transfer(accountAddressA, dsuDustAmount, TX_OVERRIDES)
+        expect(await dsu.balanceOf(accountAddressA)).to.equal(dsuDustAmount)
+
+        // sign a message to deploy the account
+        const deployAccountMessage = {
+          ...createAction(userA.address, userA.address),
+        }
+        const signature = await signDeployAccount(userA, accountVerifier, deployAccountMessage)
+
+        // keeper executes deployment of the account and is compensated
+        await expect(
+          controller.connect(keeper).deployAccountWithSignature(deployAccountMessage, signature, TX_OVERRIDES),
+        )
+          .to.emit(controller, 'AccountDeployed')
+          .withArgs(userA.address, accountAddressA)
+        const keeperFeePaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
+
+        // ensure only the required amount was wrapped, less rounding error
+        expect(await dsu.balanceOf(accountAddressA)).to.equal(0)
+        expect(await usdc.balanceOf(accountAddressA)).to.equal(
+          parse6decimal('1').sub(keeperFeePaid.div(1e12)).add(dsuDustAmount.div(1e12)).sub(1),
+        )
+      })
     })
 
     describe('#transfer', async () => {
@@ -365,7 +407,7 @@ export function RunIncentivizedTests(
           controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
         )
           .to.emit(dsu, 'Transfer')
-          .withArgs(accountA.address, ethMarket.address, transferAmount.mul(1e12)) // scale to token precision
+          .withArgs(accountA.address, margin.address, transferAmount.mul(1e12)) // scale to token precision
           .to.emit(ethMarket, 'OrderCreated')
           .withArgs(
             userA.address,
@@ -377,7 +419,7 @@ export function RunIncentivizedTests(
           )
           .to.emit(controller, 'KeeperCall')
           .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
-        expect((await ethMarket.locals(userA.address)).collateral).to.equal(transferAmount)
+        await expectMarketIsolatedBalance(userA, ethMarket, transferAmount)
 
         await checkCompensation(1)
       })
@@ -385,7 +427,7 @@ export function RunIncentivizedTests(
       it('collects fee for withdrawing some funds from market', async () => {
         // user deposits collateral to the market
         await deposit(parse6decimal('12000'), accountA)
-        expect((await ethMarket.locals(userA.address)).collateral).to.equal(parse6decimal('12000'))
+        await expectMarketIsolatedBalance(userA, ethMarket, parse6decimal('12000'))
 
         // sign a message to make a partial withdrawal
         const withdrawal = parse6decimal('-2000')
@@ -401,7 +443,7 @@ export function RunIncentivizedTests(
           controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
         )
           .to.emit(dsu, 'Transfer')
-          .withArgs(ethMarket.address, accountA.address, withdrawal.mul(-1e12)) // scale to token precision
+          .withArgs(margin.address, accountA.address, withdrawal.mul(-1e12)) // scale to token precision
           .to.emit(ethMarket, 'OrderCreated')
           .withArgs(
             userA.address,
@@ -413,32 +455,24 @@ export function RunIncentivizedTests(
           )
           .to.emit(controller, 'KeeperCall')
           .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
-        expect((await ethMarket.locals(userA.address)).collateral).to.equal(parse6decimal('10000')) // 12k-2k
+        await expectMarketIsolatedBalance(userA, ethMarket, parse6decimal('10000')) // 12k-2k
 
         await checkCompensation(2)
       })
 
+      // TODO: Add Margin support for full withdrawals
       it('collects fee for withdrawing native deposit from market', async () => {
-        // user directly deposits collateral to the market
+        // user directly isolates collateral to the market
         const depositAmount = parse6decimal('13000')
         await deployment.fundWalletDSU(userA, depositAmount.mul(1e12), TX_OVERRIDES)
-        await ethMarket
-          .connect(userA)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
-            userA.address,
-            constants.MaxUint256,
-            constants.MaxUint256,
-            constants.MaxUint256,
-            depositAmount,
-            false,
-            { maxFeePerGas: 150000000 },
-          )
-        expect((await ethMarket.locals(userA.address)).collateral).to.equal(depositAmount)
+        await margin.connect(userA).deposit(userA.address, depositAmount, TX_OVERRIDES)
+        await margin.connect(userA).isolate(userA.address, ethMarket.address, depositAmount, TX_OVERRIDES)
+        await expectMarketIsolatedBalance(userA, ethMarket, depositAmount)
 
         // sign a message to withdraw everything from the market back into the collateral account
         const marketTransferMessage = {
           market: ethMarket.address,
-          amount: constants.MinInt256,
+          amount: (await margin.isolatedBalances(userA.address, ethMarket.address)).mul(-1),
           ...createAction(userA.address, userA.address),
         }
         const signature = await signMarketTransfer(userA, accountVerifier, marketTransferMessage)
@@ -448,7 +482,7 @@ export function RunIncentivizedTests(
           controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
         )
           .to.emit(dsu, 'Transfer')
-          .withArgs(ethMarket.address, accountA.address, depositAmount.mul(1e12)) // scale to token precision
+          .withArgs(margin.address, accountA.address, depositAmount.mul(1e12)) // scale to token precision
           .to.emit(ethMarket, 'OrderCreated')
           .withArgs(
             userA.address,
@@ -460,7 +494,7 @@ export function RunIncentivizedTests(
           )
           .to.emit(controller, 'KeeperCall')
           .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
-        expect((await ethMarket.locals(userA.address)).collateral).to.equal(0)
+        await expectMarketIsolatedBalance(userA, ethMarket, constants.Zero)
 
         await checkCompensation(1)
       })
@@ -486,7 +520,7 @@ export function RunIncentivizedTests(
           controller.connect(keeper).marketTransferWithSignature(marketTransferMessage, signature, TX_OVERRIDES),
         )
           .to.emit(dsu, 'Transfer')
-          .withArgs(ethMarket.address, accountA.address, anyValue)
+          .withArgs(margin.address, accountA.address, anyValue)
           .to.emit(ethMarket, 'OrderCreated')
           .withArgs(
             userA.address,
@@ -498,7 +532,7 @@ export function RunIncentivizedTests(
           )
           .to.emit(controller, 'KeeperCall')
           .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
-        expect((await ethMarket.locals(userA.address)).collateral).to.be.within(
+        expect(await margin.isolatedBalances(userA.address, ethMarket.address)).to.be.within(
           parse6decimal('9999'),
           parse6decimal('10000'),
         ) // 12k-2k
@@ -554,22 +588,23 @@ export function RunIncentivizedTests(
 
         // transfer all collateral to ethMarket
         await deposit(parse6decimal('10000'), accountA)
-        expect((await ethMarket.locals(userA.address)).collateral).to.equal(parse6decimal('10000'))
-        expect((await btcMarket.locals(userA.address)).collateral).to.equal(0)
+        await expectMarketIsolatedBalance(userA, ethMarket, parse6decimal('10000'))
+        await expectMarketIsolatedBalance(userA, btcMarket, constants.Zero)
 
         // rebalance the group
         await expect(controller.connect(keeper).rebalanceGroup(userA.address, 4, TX_OVERRIDES))
-          .to.emit(dsu, 'Transfer')
-          .withArgs(ethMarket.address, accountA.address, utils.parseEther('5000'))
-          .to.emit(dsu, 'Transfer')
-          .withArgs(accountA.address, btcMarket.address, utils.parseEther('5000'))
           .to.emit(controller, 'GroupRebalanced')
           .withArgs(userA.address, 4)
           .to.emit(controller, 'KeeperCall')
           .withArgs(keeper.address, anyValue, 0, anyValue, anyValue, anyValue)
 
+        // check the group
+        const [groupCollateral, canRebalance] = await controller.callStatic.checkGroup(userA.address, 4)
+        expect(groupCollateral).to.equal(parse6decimal('10000'))
+        expect(canRebalance).to.be.false
+
         // confirm keeper earned their fee
-        await checkCompensation(2)
+        await checkCompensation(3)
       })
 
       it('honors max rebalance fee when rebalancing a group', async () => {
@@ -595,9 +630,9 @@ export function RunIncentivizedTests(
         // rebalance the group
         await expect(controller.connect(keeper).rebalanceGroup(userA.address, 4, TX_OVERRIDES))
           .to.emit(dsu, 'Transfer')
-          .withArgs(ethMarket.address, accountA.address, utils.parseEther('1250'))
+          .withArgs(margin.address, accountA.address, utils.parseEther('1250'))
           .to.emit(dsu, 'Transfer')
-          .withArgs(accountA.address, btcMarket.address, utils.parseEther('1250'))
+          .withArgs(accountA.address, margin.address, utils.parseEther('1250'))
           .to.emit(controller, 'GroupRebalanced')
           .withArgs(userA.address, 4)
           .to.emit(controller, 'KeeperCall')
@@ -608,7 +643,9 @@ export function RunIncentivizedTests(
         expect(keeperFeePaid).to.equal(utils.parseEther('0.00923'))
       })
 
-      it('cannot award more keeper fees than collateral rebalanced', async () => {
+      // TODO: See if this test can be resurrected once cross-margin is implemented.
+      // Cannot work with isolated collateral because non-operators may not isolate on behalf of others.
+      it.skip('cannot award more keeper fees than collateral rebalanced', async () => {
         // create a new group with two markets
         const message = {
           group: 4,
@@ -625,21 +662,16 @@ export function RunIncentivizedTests(
           .not.be.reverted
 
         let dustAmount = parse6decimal('0.000001')
-        await dsu.connect(keeper).approve(ethMarket.address, dustAmount.mul(1e12), TX_OVERRIDES)
+        await dsu.connect(keeper).approve(margin.address, dustAmount.mul(1e12), TX_OVERRIDES)
+        await margin.connect(keeper).deposit(accountA.address, dustAmount, TX_OVERRIDES)
 
         // keeper dusts one of the markets
         await ethMarket
           .connect(keeper)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
-            userA.address,
-            constants.MaxUint256,
-            constants.MaxUint256,
-            constants.MaxUint256,
-            dustAmount,
-            false,
-            { maxFeePerGas: 150000000 },
-          )
-        expect((await ethMarket.locals(userA.address)).collateral).to.equal(dustAmount)
+          ['update(address,int256,int256,address)'](userA.address, 0, dustAmount, constants.AddressZero, {
+            maxFeePerGas: 150000000,
+          })
+        await expectMarketIsolatedBalance(userA, ethMarket, dustAmount)
 
         // keeper cannot rebalance because dust did not exceed maxFee
         await expect(
@@ -651,16 +683,10 @@ export function RunIncentivizedTests(
         await dsu.connect(keeper).approve(btcMarket.address, dustAmount.mul(1e12), TX_OVERRIDES)
         await btcMarket
           .connect(keeper)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
-            userA.address,
-            constants.MaxUint256,
-            constants.MaxUint256,
-            constants.MaxUint256,
-            dustAmount,
-            false,
-            { maxFeePerGas: 150000000 },
-          )
-        expect((await btcMarket.locals(userA.address)).collateral).to.equal(dustAmount)
+          ['update(address,int256,int256,address)'](userA.address, 0, dustAmount, constants.AddressZero, {
+            maxFeePerGas: 150000000,
+          })
+        await expectMarketIsolatedBalance(userA, btcMarket, dustAmount)
 
         // keeper still cannot rebalance because dust did not exceed maxFee
         await expect(
@@ -767,17 +793,26 @@ export function RunIncentivizedTests(
       it('relays take messages', async () => {
         // user deposits into the market
         const COLLATERAL_A = parse6decimal('5000')
+        await margin.connect(userA).deposit(userA.address, COLLATERAL_A, TX_OVERRIDES)
         await ethMarket
           .connect(userA)
           [MARKET_UPDATE_DELTA_PROTOTYPE](userA.address, 0, COLLATERAL_A, constants.AddressZero, TX_OVERRIDES)
         // userB deposits and opens maker position, adding liquidity to market
         const COLLATERAL_B = parse6decimal('10000')
         const POSITION_B = parse6decimal('2')
-        await dsu.connect(userB).approve(ethMarket.address, constants.MaxUint256, TX_OVERRIDES)
+        await dsu.connect(userB).approve(margin.address, constants.MaxUint256, TX_OVERRIDES)
         await deployment.fundWalletDSU(userB, utils.parseEther('10000'), TX_OVERRIDES)
+        await margin.connect(userB).deposit(userB.address, COLLATERAL_B, TX_OVERRIDES)
         await ethMarket
           .connect(userB)
-          [MARKET_UPDATE_ABSOLUTE_PROTOTYPE](userB.address, POSITION_B, 0, 0, COLLATERAL_B, false, TX_OVERRIDES)
+          [MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE](
+            userB.address,
+            POSITION_B,
+            0,
+            COLLATERAL_B,
+            constants.AddressZero,
+            TX_OVERRIDES,
+          )
         expectOrderEq(await ethMarket.pending(), {
           ...DEFAULT_ORDER,
           orders: 1,

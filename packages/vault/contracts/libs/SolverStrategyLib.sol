@@ -63,7 +63,8 @@ library SolverStrategyLib {
         Registration[] memory registrations,
         UFixed6 deposit,
         UFixed6 withdrawal,
-        UFixed6 ineligible
+        UFixed6 ineligible,
+        UFixed6 leverageBuffer
     ) internal view returns (Target[] memory targets) {
         SolverStrategyContext memory context = _load(registrations);
 
@@ -79,7 +80,8 @@ library SolverStrategyLib {
                 context.markets.length,
                 context.totalCollateral,
                 newCollateral,
-                newAssets
+                newAssets,
+                leverageBuffer
             );
             allocatedCollateral = allocatedCollateral.add(newMarketCollateral);
         }
@@ -101,7 +103,8 @@ library SolverStrategyLib {
         uint256 markets,
         UFixed6 latestCollateral,
         UFixed6 newCollateral,
-        UFixed6 newAssets
+        UFixed6 newAssets,
+        UFixed6 leverageBuffer
     ) private pure returns (Target memory target, UFixed6 newMarketCollateral) {
         newMarketCollateral = _allocateValue(marketContext, markets, latestCollateral, newCollateral);
         UFixed6 newMarketAssets = _allocateValue(marketContext, markets, latestCollateral, newAssets);
@@ -112,7 +115,8 @@ library SolverStrategyLib {
             newMarketAssets = UFixed6Lib.ZERO;
 
         UFixed6 maxMagnitude = newMarketAssets
-            .muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs());
+            .muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs())
+            .min(newMarketAssets.mul(leverageBuffer));
 
         if (marketContext.minMagnitude.gt(maxMagnitude)) revert SolverStrategyPendingTradeError();
 
@@ -159,7 +163,9 @@ library SolverStrategyLib {
         marketContext.latestPrice = registration.market.oracle().latest().price;
 
         // local
-        marketContext.collateral = UFixed6Lib.unsafeFrom(registration.market.locals(address(this)).collateral);
+        marketContext.collateral = UFixed6Lib.unsafeFrom(
+            registration.market.margin().isolatedBalances(address(this), registration.market)
+        );
         Position memory currentAccountPosition = registration.market.positions(address(this));
         Order memory pendingLocal = registration.market.pendings(address(this));
         currentAccountPosition.update(pendingLocal);

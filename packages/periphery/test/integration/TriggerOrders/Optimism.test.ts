@@ -1,48 +1,28 @@
-import { expect } from 'chai'
-import { BigNumber, CallOverrides, utils } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
-import { smock } from '@defi-wonderland/smock'
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
 
 import {
-  ArbGasInfo,
   IEmptySetReserve__factory,
   IERC20Metadata__factory,
-  Manager_Arbitrum__factory,
+  Manager_Optimism__factory,
+  OptGasInfo,
   OrderVerifier__factory,
-} from '../../../../types/generated'
-import { impersonate } from '../../../../../common/testutil'
-import {
-  createMarketETH,
-  deployController,
-  deployProtocol,
-  deployPythOracleFactory,
-} from '../../../helpers/setupHelpers'
+} from '../../../types/generated'
+import { createMarketETH, deployController, deployProtocol } from '../../helpers/setupHelpers'
 import { RunManagerTests } from './Manager.test'
 import { FixtureVars } from './setupTypes'
 import {
   CHAINLINK_ETH_USD_FEED,
   DSU_ADDRESS,
-  DSU_HOLDER,
   DSU_RESERVE,
+  fundWalletDSU,
   PYTH_ADDRESS,
   USDC_ADDRESS,
-} from '../../../helpers/arbitrumHelpers'
+} from '../../helpers/baseHelpers'
+import { smock } from '@defi-wonderland/smock'
+import { deployPythOracleFactory } from '../../helpers/oracleHelpers'
 
 const { ethers } = HRE
-
-export async function fundWalletDSU(
-  wallet: SignerWithAddress,
-  amount: BigNumber,
-  overrides?: CallOverrides,
-): Promise<undefined> {
-  const dsuOwner = await impersonate.impersonateWithBalance(DSU_HOLDER, utils.parseEther('10'))
-  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, dsuOwner)
-
-  expect(await dsu.balanceOf(DSU_HOLDER)).to.be.greaterThan(amount)
-  await dsu.transfer(wallet.address, amount, overrides ?? {})
-}
 
 const fixture = async (): Promise<FixtureVars> => {
   // deploy the protocol and create a market
@@ -51,32 +31,32 @@ const fixture = async (): Promise<FixtureVars> => {
   const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, owner)
   const reserve = IEmptySetReserve__factory.connect(DSU_RESERVE, owner)
   const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED)
-  const marketWithOracle = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu)
+  const marketWithOracle = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory)
   const market = marketWithOracle.market
 
   // deploy the order manager
   const verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
   const controller = await deployController(owner, usdc.address, dsu.address, reserve.address, marketFactory.address)
-  const manager = await new Manager_Arbitrum__factory(owner).deploy(
+  const manager = await new Manager_Optimism__factory(owner).deploy(
     USDC_ADDRESS,
     dsu.address,
     DSU_RESERVE,
     marketFactory.address,
     verifier.address,
-    controller.address,
+    await market.margin(),
   )
 
   const keepConfig = {
-    multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 250_000, // buffer for withdrawing keeper fee from market
-    multiplierCalldata: 0,
+    multiplierBase: ethers.utils.parseEther('0.01'),
+    bufferBase: 50_000, // buffer for withdrawing keeper fee from margin contract
+    multiplierCalldata: ethers.utils.parseEther('0.01'),
     bufferCalldata: 0,
   }
   const keepConfigBuffered = {
-    multiplierBase: ethers.utils.parseEther('1.05'),
-    bufferBase: 1_275_000, // for price commitment
-    multiplierCalldata: ethers.utils.parseEther('1.05'),
-    bufferCalldata: 35_200,
+    multiplierBase: ethers.utils.parseEther('0.05'),
+    bufferBase: 1_500_000, // for price commitment
+    multiplierCalldata: ethers.utils.parseEther('0.05'),
+    bufferCalldata: 0,
   }
   await manager.initialize(CHAINLINK_ETH_USD_FEED, keepConfig, keepConfigBuffered)
 
@@ -109,11 +89,13 @@ async function getFixture(): Promise<FixtureVars> {
 }
 
 async function mockGasInfo() {
-  // Hardhat fork does not support Arbitrum built-ins; Kept produces "invalid opcode" error without this
-  const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
-    address: '0x000000000000000000000000000000000000006C',
+  const gasInfo = await smock.fake<OptGasInfo>('OptGasInfo', {
+    address: '0x420000000000000000000000000000000000000F',
   })
-  gasInfo.getL1BaseFeeEstimate.returns(1)
+  gasInfo.getL1GasUsed.returns(1600)
+  gasInfo.l1BaseFee.returns(96617457705)
+  gasInfo.baseFeeScalar.returns(13841697)
+  gasInfo.decimals.returns(6)
 }
 
-if (process.env.FORK_NETWORK === 'arbitrum') RunManagerTests('Manager_Arbitrum', getFixture, fundWalletDSU)
+if (process.env.FORK_NETWORK === 'base') RunManagerTests('Manager_Optimism', getFixture, fundWalletDSU)

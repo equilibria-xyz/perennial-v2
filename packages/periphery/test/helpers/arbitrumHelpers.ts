@@ -7,6 +7,7 @@ import {
   Account__factory,
   AccountVerifier__factory,
   AggregatorV3Interface,
+  ArbGasInfo,
   Controller,
   Controller_Arbitrum,
   Controller_Arbitrum__factory,
@@ -17,6 +18,7 @@ import {
   IMarketFactory,
 } from '../../types/generated'
 import { impersonate } from '../../../common/testutil'
+import { smock } from '@defi-wonderland/smock'
 
 export const PYTH_ADDRESS = '0xff1a0f4744e8582DF1aE09D5611b887B6a12925C'
 export const CHAINLINK_ETH_USD_FEED = '0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612'
@@ -32,7 +34,7 @@ export const USDC_HOLDER = '0x2df1c51e09aecf9cacb7bc98cb1742757f163df7' // Hyper
 export async function createFactoriesForChain(
   owner: SignerWithAddress,
 ): Promise<[IOracleFactory, IMarketFactory, PythFactory, AggregatorV3Interface]> {
-  return createFactories(owner, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED)
+  return createFactories(owner, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED, DSU_ADDRESS)
 }
 
 // connects to Arbitrum stablecoins and deploys a non-incentivized controller configured for them
@@ -110,4 +112,12 @@ export async function getStablecoins(owner: SignerWithAddress): Promise<[IERC20M
   const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
   const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, owner)
   return [dsu, usdc]
+}
+
+export async function mockGasInfo() {
+  // Hardhat fork does not support Arbitrum built-ins; Kept produces "invalid opcode" error without this
+  const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
+    address: '0x000000000000000000000000000000000000006C',
+  })
+  gasInfo.getL1BaseFeeEstimate.returns(1)
 }

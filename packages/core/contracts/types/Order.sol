@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { OracleVersion } from "./OracleVersion.sol";
+import { Version } from "./Version.sol";
 import { Position } from "./Position.sol";
 import { Guarantee } from "./Guarantee.sol";
 import { MarketParameter } from "./MarketParameter.sol";
@@ -91,12 +92,13 @@ library OrderLib {
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO, guarantee.longPos, guarantee.longNeg, guarantee.shortPos, guarantee.shortNeg);
     }
 
-    /// @notice Creates a new order from an intent order request or market update message
+    /// @notice Creates a new order from an intent or delta order request
     /// @param timestamp The current timestamp
     /// @param position The current position
     /// @param makerAmount The magnitude and direction of maker position
     /// @param takerAmount The magnitude and direction of taker position
     /// @param collateral The change in the collateral
+    /// @param protect True when liquidating the position
     /// @param referralFee The referral fee
     /// @return newOrder The resulting order
     function from(
@@ -125,6 +127,7 @@ library OrderLib {
         );
     }
 
+    // TODO: Do we still need this, or can we consolidate this implementation into the method above?
     /// @notice Creates a new order from the current position and an update request
     /// @param timestamp The current timestamp
     /// @param position The current position
@@ -245,6 +248,39 @@ library OrderLib {
         //  - taker is empty (not a taker order)
         //  - taker is increasing (position going more long or short)
             ((long(self).isZero() && short(self).isZero()) || increasesTaker(self));
+    }
+
+    /// @notice Returns the aggregate exposure for each component of the order
+    /// @dev Order is split into the takerPos and takerNeg components
+    /// @param self The order object to check
+    /// @param guarantee The guarantee object
+    /// @param version The version where exposure is recorded
+    /// @return exposurePos The aggragate exposure of the positive component of the order
+    /// @return exposureNeg The aggragate exposure of the negative component of the order
+    function exposure(
+        Order memory self,
+        Guarantee memory guarantee,
+        Version memory version
+    ) internal pure returns (UFixed6 exposurePos, UFixed6 exposureNeg) {
+        // taker
+        (exposurePos, exposureNeg) = (
+            version.longPosExposure.abs().mul(self.longPos.sub(guarantee.longPos))
+                .add(version.shortNegExposure.abs().mul(self.shortNeg.sub(guarantee.shortNeg))),
+             version.longNegExposure.abs().mul(self.longNeg.sub(guarantee.longNeg))
+                .add(version.shortPosExposure.abs().mul(self.shortPos.sub(guarantee.shortPos)))
+        );
+
+        // maker close
+        if (version.makerNegExposure.gt(Fixed6Lib.ZERO))
+            exposureNeg = exposureNeg.add(self.makerNeg.mul(version.makerNegExposure.abs()));
+        else
+            exposurePos = exposurePos.add(self.makerNeg.mul(version.makerNegExposure.abs()));
+
+        // maker open
+        if (version.makerPosExposure.gt(Fixed6Lib.ZERO))
+            exposurePos = exposurePos.add(self.makerPos.mul(version.makerPosExposure.abs()));
+        else
+            exposureNeg = exposureNeg.add(self.makerPos.mul(version.makerPosExposure.abs()));
     }
 
     /// @notice Returns whether the order is protected

@@ -25,21 +25,11 @@ const multiInvokerOverrides = {
 export const solidityOverrides = {
   'contracts/Controller_Arbitrum.sol': controllerOverrides,
   'contracts/MultiInvoker.sol': multiInvokerOverrides,
-  'contracts/MultiInvoker_Arbitrum.sol': multiInvokerOverrides,
-  'contracts/MultiInvoker_Optimism.sol': {
-    ...multiInvokerOverrides,
-    settings: {
-      ...multiInvokerOverrides.settings,
-      optimizer: {
-        ...multiInvokerOverrides.settings.optimizer,
-        runs: 3250,
-      },
-    },
-  },
 }
 const config = defaultConfig({
   solidityOverrides,
   dependencyPaths: [
+    '@openzeppelin/contracts/token/ERC20/ERC20.sol',
     '@perennial/v2-core/contracts/MarketFactory.sol',
     '@perennial/v2-core/contracts/Market.sol',
     '@perennial/v2-vault/contracts/MakerVault.sol',

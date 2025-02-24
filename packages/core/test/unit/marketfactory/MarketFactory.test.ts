@@ -15,7 +15,6 @@ import {
   CheckpointLib__factory,
   InvariantLib__factory,
   VersionLib__factory,
-  CheckpointStorageLib__factory,
   MarketParameterStorageLib__factory,
   GlobalStorageLib__factory,
   PositionStorageGlobalLib__factory,
@@ -27,6 +26,7 @@ import {
   OrderStorageGlobalLib__factory,
   VersionStorageLib__factory,
   IVerifier,
+  IMargin,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { constants } from 'ethers'
@@ -58,14 +58,12 @@ describe('MarketFactory', () => {
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     verifier = await smock.fake<IVerifier>('IVerifier')
+    const margin = await smock.fake<IMargin>('IMargin')
     marketImpl = await new Market__factory(
       {
         'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
         'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
         'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
-        'contracts/types/Checkpoint.sol:CheckpointStorageLib': (
-          await new CheckpointStorageLib__factory(owner).deploy()
-        ).address,
         'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
         'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
           await new MarketParameterStorageLib__factory(owner).deploy()
@@ -94,7 +92,7 @@ describe('MarketFactory', () => {
         ).address,
       },
       owner,
-    ).deploy(verifier.address)
+    ).deploy(verifier.address, margin.address)
     factory = await new MarketFactory__factory(owner).deploy(
       oracleFactory.address,
       verifier.address,
@@ -136,19 +134,14 @@ describe('MarketFactory', () => {
 
   describe('#create', async () => {
     it('creates the market', async () => {
-      const marketDefinition = {
-        token: dsu.address,
-        oracle: oracle.address,
-      }
-
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
 
-      const marketAddress = await factory.callStatic.create(marketDefinition)
-      await expect(factory.connect(owner).create(marketDefinition))
+      const marketAddress = await factory.callStatic.create(oracle.address)
+      await expect(factory.connect(owner).create(oracle.address))
         .to.emit(factory, 'InstanceRegistered')
         .withArgs(marketAddress)
         .to.emit(factory, 'MarketCreated')
-        .withArgs(marketAddress, marketDefinition)
+        .withArgs(marketAddress, oracle.address)
 
       const market = Market__factory.connect(marketAddress, owner)
       expect(await market.factory()).to.equal(factory.address)
@@ -156,63 +149,43 @@ describe('MarketFactory', () => {
     })
 
     it('creates the market w/ zero payoff', async () => {
-      const marketDefinition = {
-        token: dsu.address,
-        oracle: oracle.address,
-      }
-
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
 
-      const marketAddress = await factory.callStatic.create(marketDefinition)
-      await expect(factory.connect(owner).create(marketDefinition))
+      const marketAddress = await factory.callStatic.create(oracle.address)
+      await expect(factory.connect(owner).create(oracle.address))
         .to.emit(factory, 'InstanceRegistered')
         .withArgs(marketAddress)
         .to.emit(factory, 'MarketCreated')
-        .withArgs(marketAddress, marketDefinition)
+        .withArgs(marketAddress, oracle.address)
 
       const market = Market__factory.connect(marketAddress, owner)
       expect(await market.factory()).to.equal(factory.address)
     })
 
     it('reverts when invalid oracle', async () => {
-      const marketDefinition = {
-        token: dsu.address,
-        oracle: oracle.address,
-      }
-
       oracleFactory.instances.whenCalledWith(oracle.address).returns(false)
 
-      await expect(factory.connect(owner).create(marketDefinition)).to.revertedWithCustomError(
+      await expect(factory.connect(owner).create(oracle.address)).to.revertedWithCustomError(
         factory,
         'FactoryInvalidOracleError',
       )
     })
 
     it('reverts when already registered', async () => {
-      const marketDefinition = {
-        token: dsu.address,
-        oracle: oracle.address,
-      }
-
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
 
-      await factory.connect(owner).create(marketDefinition)
+      await factory.connect(owner).create(oracle.address)
 
-      await expect(factory.connect(owner).create(marketDefinition)).to.revertedWithCustomError(
+      await expect(factory.connect(owner).create(oracle.address)).to.revertedWithCustomError(
         factory,
         'FactoryAlreadyRegisteredError',
       )
     })
 
     it('reverts when not owner', async () => {
-      const marketDefinition = {
-        token: dsu.address,
-        oracle: oracle.address,
-      }
-
       oracleFactory.instances.whenCalledWith(oracle.address).returns(true)
 
-      await expect(factory.connect(user).create(marketDefinition)).to.revertedWithCustomError(
+      await expect(factory.connect(user).create(oracle.address)).to.revertedWithCustomError(
         factory,
         'OwnableNotOwnerError',
       )
@@ -350,6 +323,7 @@ describe('MarketFactory', () => {
       referralFee: parse6decimal('0.2'),
       minScale: parse6decimal('0.001'),
       maxStaleAfter: 3600,
+      minMinMaintenance: 0,
     }
 
     it('updates the parameters', async () => {
@@ -365,6 +339,7 @@ describe('MarketFactory', () => {
       expect(parameter.referralFee).to.equal(newParameter.referralFee)
       expect(parameter.minScale).to.equal(newParameter.minScale)
       expect(parameter.maxStaleAfter).to.equal(newParameter.maxStaleAfter)
+      expect(parameter.minMinMaintenance).to.equal(newParameter.minMinMaintenance)
     })
 
     it('reverts if not owner', async () => {

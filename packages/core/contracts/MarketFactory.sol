@@ -23,8 +23,8 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @dev The verifier contract
     IVerifier public immutable verifier;
 
-    /// @dev The global protocol parameters
-    ProtocolParameterStorage private _parameter;
+    /// @dev DEPRECATED SLOT -- previously the protocol parameter storage
+    bytes32 private __unused0__;
 
     /// @dev Mapping of allowed operators per account
     ///      Note: Operators are allowed to update an account's position and collateral
@@ -44,6 +44,9 @@ contract MarketFactory is IMarketFactory, Factory {
     /// @dev Mapping of allowed protocol-wide operators
     ///      Note: Extensions have operator privileges on all accounts in the protocol
     mapping(address => bool) public extensions;
+
+    /// @dev The global protocol parameters
+    ProtocolParameterStorage private _parameter;
 
     /// @notice Constructs the contract
     /// @param oracleFactory_ The oracle factory
@@ -211,20 +214,20 @@ contract MarketFactory is IMarketFactory, Factory {
     }
 
     /// @notice Creates a new market market with the given definition
-    /// @param definition The market definition
+    /// @param oracle The source of prices for the market
     /// @return newMarket New market contract address
-    function create(IMarket.MarketDefinition calldata definition) external onlyOwner returns (IMarket newMarket) {
+    function create(IOracleProvider oracle) external onlyOwner returns (IMarket newMarket) {
         // verify oracle
-        if (!oracleFactory.instances(IInstance(address(definition.oracle)))) revert FactoryInvalidOracleError();
+        if (!oracleFactory.instances(IInstance(address(oracle)))) revert FactoryInvalidOracleError();
 
         // verify invariants
-        if (_markets[definition.oracle][address(0)] != IMarket(address(0)))
+        if (_markets[oracle][address(0)] != IMarket(address(0)))
             revert FactoryAlreadyRegisteredError();
 
         // create and register market
-        newMarket = IMarket(address(_create(abi.encodeCall(IMarket.initialize, (definition)))));
-        _markets[definition.oracle][address(0)] = newMarket;
+        newMarket = IMarket(address(_create(abi.encodeCall(IMarket.initialize, (oracle)))));
+        _markets[oracle][address(0)] = newMarket;
 
-        emit MarketCreated(newMarket, definition);
+        emit MarketCreated(newMarket, oracle);
     }
 }

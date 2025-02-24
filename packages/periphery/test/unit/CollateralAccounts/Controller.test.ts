@@ -3,7 +3,13 @@ import HRE from 'hardhat'
 import { Address } from 'hardhat-deploy/dist/types'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { FakeContract, smock } from '@defi-wonderland/smock'
 import { BigNumber, constants, utils } from 'ethers'
+
+import { currentBlockTimestamp } from '../../../../common/testutil/time'
+import { getEventArguments } from '../../../../common/testutil/transaction'
+import { parse6decimal } from '../../../../common/testutil/types'
+
 import {
   Account__factory,
   Controller,
@@ -14,25 +20,21 @@ import {
   IEmptySetReserve,
   IAccountVerifier,
   AccountVerifier__factory,
+  IMarketFactory,
+  IMarket,
 } from '../../../types/generated'
-
+import {
+  RebalanceConfigChangeStruct,
+  RebalanceConfigStruct,
+} from '../../../types/generated/contracts/CollateralAccounts/Controller'
 import {
   signDeployAccount,
   signMarketTransfer,
   signRebalanceConfigChange,
   signWithdrawal,
 } from '../../helpers/CollateralAccounts/eip712'
-import { currentBlockTimestamp } from '../../../../common/testutil/time'
-import { getEventArguments } from '../../../../common/testutil/transaction'
-import { FakeContract, smock } from '@defi-wonderland/smock'
-import { deployController, mockMarket } from '../../helpers/setupHelpers'
-import { parse6decimal } from '../../../../common/testutil/types'
-import { IMarket } from '@perennial/v2-oracle/types/generated'
-import { IMarketFactory } from '@perennial/v2-core/types/generated'
-import {
-  RebalanceConfigChangeStruct,
-  RebalanceConfigStruct,
-} from '../../../types/generated/contracts/CollateralAccounts/AccountVerifier'
+import { mockMarket } from '../../helpers/marketHelpers'
+import { deployController } from '../../helpers/setupHelpers'
 
 const { ethers } = HRE
 
@@ -697,10 +699,9 @@ describe('Controller', () => {
   })
 
   describe('#transfer', () => {
-    it('reverts attempting to transfer to a non-DSU market', async () => {
-      // create a market with a non-DSU collateral token
-      const weth = await smock.fake<IERC20Metadata>('IERC20Metadata')
-      const market = await mockMarket(weth.address)
+    it('reverts attempting to transfer to a market from a different factory', async () => {
+      // create a market from a different factory
+      const market = await mockMarket()
 
       // create a collateral account
       await createCollateralAccount(userA)
@@ -745,7 +746,7 @@ describe('Controller', () => {
       usdc.balanceOf.whenCalledWith(accountA.address).returns(FEE.mul(2).div(3)) // 2/3 of the fee
       dsu.balanceOf.whenCalledWith(accountA.address).returns(FEE.mul(1e12).div(2)) // half of the fee
       await controller.connect(userB).chargeFee(userA.address, FEE)
-      expect(reserve.mint).to.have.been.calledWith(FEE.mul(1e12) /*.div(2)*/) // TODO: div(2) when merging to v2.4 branch
+      expect(reserve.mint).to.have.been.calledWith(FEE.mul(1e12).div(2))
       expect(dsu.transferFrom).to.have.been.calledWith(accountA.address, userB.address, FEE.mul(1e12))
     })
   })

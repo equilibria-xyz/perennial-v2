@@ -6,7 +6,8 @@ on:
   pull_request:
     branches:
       - main
-      - v2.4-mini
+      - v2.4
+      - v2.5
   workflow_dispatch:
 
 env:
@@ -348,7 +349,6 @@ jobs:
       - name: Run tests
         env:
           MOCHA_REPORTER: dot
-          MOCHA_RETRY_COUNT: 2
           MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
         run: |
           yarn workspace @perennial/v2-periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integration' || 'test:integration' }}
@@ -378,7 +378,6 @@ jobs:
       - name: Run tests with coverage on Arbitrum
         env:
           MOCHA_REPORTER: dot
-          MOCHA_RETRY_COUNT: 2
           ARBITRUM_NODE_URL: ${{ secrets.ARBITRUM_NODE_URL }}
         run: |
           yarn workspace @perennial/v2-periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationArbitrum' || 'test:integrationArbitrum' }}
@@ -390,7 +389,6 @@ jobs:
       - name: Run tests on Base
         env:
           MOCHA_REPORTER: dot
-          MOCHA_RETRY_COUNT: 2
           BASE_NODE_URL: ${{ secrets.BASE_NODE_URL }}
         run: |
           yarn workspace @perennial/v2-periphery run test:integrationBase

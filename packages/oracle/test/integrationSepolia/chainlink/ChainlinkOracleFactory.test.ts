@@ -11,7 +11,6 @@ import {
   IERC20Metadata__factory,
   Market__factory,
   MarketFactory,
-  MarketFactory__factory,
   Oracle,
   Oracle__factory,
   OracleFactory,
@@ -23,25 +22,14 @@ import {
   ChainlinkFactory,
   PowerTwo__factory,
   PowerTwo,
-  CheckpointLib__factory,
-  CheckpointStorageLib__factory,
-  GlobalStorageLib__factory,
-  InvariantLib__factory,
-  MarketParameterStorageLib__factory,
-  PositionStorageGlobalLib__factory,
-  PositionStorageLocalLib__factory,
-  RiskParameterStorageLib__factory,
-  GuaranteeStorageLocalLib__factory,
-  GuaranteeStorageGlobalLib__factory,
-  OrderStorageLocalLib__factory,
-  OrderStorageGlobalLib__factory,
-  VersionLib__factory,
-  VersionStorageLib__factory,
   GasOracle,
   GasOracle__factory,
+  IMargin,
+  IMargin__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
+import { deployMarketFactory } from '../../setupHelpers'
 
 const { ethers } = HRE
 
@@ -179,6 +167,7 @@ testOracles.forEach(testOracle => {
     let chainlinkOracleFactory: ChainlinkFactory
     let oracleFactory: OracleFactory
     let marketFactory: MarketFactory
+    let margin: IMargin
     let market: IMarket
     let marketBtc: IMarket
     let dsu: IERC20Metadata
@@ -198,7 +187,8 @@ testOracles.forEach(testOracle => {
       await oracleFactory.initialize()
       await oracleFactory.connect(owner).updateParameter({
         maxGranularity: 10000,
-        maxSettlementFee: parse6decimal('1000'),
+        maxSyncFee: parse6decimal('500'),
+        maxAsyncFee: parse6decimal('500'),
         maxOracleFee: parse6decimal('0.5'),
       })
 
@@ -270,60 +260,7 @@ testOracles.forEach(testOracle => {
       )
       await oracleFactory.create(CHAINLINK_BTC_USD_PRICE_FEED, chainlinkOracleFactory.address, 'BTC-USD')
 
-      const verifierImpl = await new VersionStorageLib__factory(owner).deploy()
-
-      const marketImpl = await new Market__factory(
-        {
-          '@perennial/v2-core/contracts/libs/CheckpointLib.sol:CheckpointLib': (
-            await new CheckpointLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/libs/InvariantLib.sol:InvariantLib': (
-            await new InvariantLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/libs/VersionLib.sol:VersionLib': (
-            await new VersionLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Checkpoint.sol:CheckpointStorageLib': (
-            await new CheckpointStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Global.sol:GlobalStorageLib': (
-            await new GlobalStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-            await new MarketParameterStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Position.sol:PositionStorageGlobalLib': (
-            await new PositionStorageGlobalLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Position.sol:PositionStorageLocalLib': (
-            await new PositionStorageLocalLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-            await new RiskParameterStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Version.sol:VersionStorageLib': (
-            await new VersionStorageLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': (
-            await new GuaranteeStorageLocalLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Guarantee.sol:GuaranteeStorageGlobalLib': (
-            await new GuaranteeStorageGlobalLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Order.sol:OrderStorageLocalLib': (
-            await new OrderStorageLocalLib__factory(owner).deploy()
-          ).address,
-          '@perennial/v2-core/contracts/types/Order.sol:OrderStorageGlobalLib': (
-            await new OrderStorageGlobalLib__factory(owner).deploy()
-          ).address,
-        },
-        owner,
-      ).deploy(verifierImpl.address)
-      marketFactory = await new MarketFactory__factory(owner).deploy(
-        oracleFactory.address,
-        verifierImpl.address,
-        marketImpl.address,
-      )
+      marketFactory = await deployMarketFactory(owner, oracleFactory, dsu)
       await marketFactory.initialize()
       await marketFactory.updateParameter({
         maxFee: parse6decimal('0.01'),
@@ -335,21 +272,17 @@ testOracles.forEach(testOracle => {
         referralFee: 0,
         minScale: parse6decimal('0.001'),
         maxStaleAfter: 7200,
+        minMinMaintenance: 0,
       })
 
       const riskParameter = {
         margin: parse6decimal('0.3'),
         maintenance: parse6decimal('0.3'),
-        takerFee: {
-          linearFee: 0,
-          proportionalFee: 0,
-          adiabaticFee: 0,
-          scale: parse6decimal('1000'),
-        },
-        makerFee: {
-          linearFee: 0,
-          proportionalFee: 0,
-          adiabaticFee: 0,
+        synBook: {
+          d0: 0,
+          d1: 0,
+          d2: 0,
+          d3: 0,
           scale: parse6decimal('1000'),
         },
         makerLimit: parse6decimal('1000'),
@@ -386,30 +319,12 @@ testOracles.forEach(testOracle => {
         closed: false,
         settle: false,
       }
-      market = Market__factory.connect(
-        await marketFactory.callStatic.create({
-          token: dsu.address,
-          oracle: oracle.address,
-        }),
-        owner,
-      )
-      await marketFactory.create({
-        token: dsu.address,
-        oracle: oracle.address,
-      })
+      market = Market__factory.connect(await marketFactory.callStatic.create(oracle.address), owner)
+      await marketFactory.create(oracle.address)
       await market.updateParameter(marketParameter)
       await market.updateRiskParameter(riskParameter)
-      marketBtc = Market__factory.connect(
-        await marketFactory.callStatic.create({
-          token: dsu.address,
-          oracle: oracleBtc.address,
-        }),
-        owner,
-      )
-      await marketFactory.create({
-        token: dsu.address,
-        oracle: oracleBtc.address,
-      })
+      marketBtc = Market__factory.connect(await marketFactory.callStatic.create(oracleBtc.address), owner)
+      await marketFactory.create(oracleBtc.address)
       await marketBtc.updateParameter(marketParameter)
       await marketBtc.updateRiskParameter(riskParameter)
 
@@ -418,13 +333,9 @@ testOracles.forEach(testOracle => {
       await keeperOracleBtc.register(oracleBtc.address)
       await oracleBtc.register(marketBtc.address)
 
-      const dsuMinter = await impersonateWithBalance(RESERVE_ADDRESS, utils.parseEther('10'))
-      const mintAbi = ['function mint(uint256 amount) external']
-      const dsuMinterContract = new ethers.Contract(DSU_ADDRESS, mintAbi, dsuMinter)
-      await dsuMinterContract.mint(utils.parseEther('100000'))
-      await dsu.connect(dsuMinter).transfer(oracleFactory.address, utils.parseEther('100000'))
-
-      await dsu.connect(user).approve(market.address, constants.MaxUint256)
+      margin = IMargin__factory.connect(await market.margin(), owner)
+      await dsu.connect(user).approve(margin.address, constants.MaxUint256)
+      await margin.connect(user).deposit(user.address, parse6decimal('10'))
     }
 
     beforeEach(async () => {
@@ -488,13 +399,12 @@ testOracles.forEach(testOracle => {
           async () =>
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 user.address,
                 1,
                 0,
-                0,
                 parse6decimal('10'),
-                false,
+                constants.AddressZero,
               ),
           STARTING_TIME,
         )
@@ -527,13 +437,12 @@ testOracles.forEach(testOracle => {
           async () =>
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 user.address,
                 1,
                 0,
-                0,
                 parse6decimal('10'),
-                false,
+                constants.AddressZero,
               ),
           STARTING_TIME,
         )
@@ -562,13 +471,12 @@ testOracles.forEach(testOracle => {
           async () =>
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 user.address,
                 1,
                 0,
-                0,
                 parse6decimal('10'),
-                false,
+                constants.AddressZero,
               ),
           BATCH_STARTING_TIME,
         )

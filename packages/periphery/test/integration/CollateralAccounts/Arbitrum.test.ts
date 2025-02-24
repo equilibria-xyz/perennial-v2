@@ -1,9 +1,14 @@
-import { smock } from '@defi-wonderland/smock'
-import { use } from 'chai'
 import { CallOverrides } from 'ethers'
 import HRE from 'hardhat'
 
-import { AccountVerifier__factory, ArbGasInfo, IAccountVerifier } from '../../../../types/generated'
+import {
+  AccountVerifier__factory,
+  IAccountVerifier,
+  IMargin,
+  IMargin__factory,
+  IMarket,
+  IMarket__factory,
+} from '../../../types/generated'
 import {
   createFactoriesForChain,
   deployControllerArbitrum,
@@ -11,19 +16,18 @@ import {
   fundWalletUSDC,
   getDSUReserve,
   getStablecoins,
-} from '../../../helpers/arbitrumHelpers'
-import { createMarketBTC as setupMarketBTC, createMarketETH as setupMarketETH } from '../../../helpers/setupHelpers'
+  mockGasInfo,
+} from '../../helpers/arbitrumHelpers'
+import { createMarketBTC as setupMarketBTC, createMarketETH as setupMarketETH } from '../../helpers/setupHelpers'
 import { RunIncentivizedTests } from './Controller_Incentivized.test'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { Controller_Incentivized, IMarketFactory } from '../../../../types/generated'
+import { Controller_Incentivized, IMarketFactory } from '../../../types/generated'
 import { RunAccountTests } from './Account.test'
 import { AggregatorV3Interface } from '@perennial/v2-oracle/types/generated'
 import { RunControllerBaseTests } from './Controller.test'
 import { DeploymentVars } from './setupTypes'
 
 const { ethers } = HRE
-
-use(smock.matchers)
 
 async function deployProtocol(
   owner: SignerWithAddress,
@@ -33,18 +37,21 @@ async function deployProtocol(
 ): Promise<DeploymentVars> {
   const [oracleFactory, marketFactory, pythOracleFactory, chainlinkKeptFeed] = await createFactoriesForChain(owner)
   const [dsu, usdc] = await getStablecoins(owner)
+  const marketImpl: IMarket = IMarket__factory.connect(await marketFactory.implementation(), owner)
+  const margin: IMargin = IMargin__factory.connect(await marketImpl.margin(), owner)
 
   const deployment: DeploymentVars = {
     dsu,
     usdc,
     oracleFactory,
     pythOracleFactory,
+    margin,
     marketFactory,
     ethMarket: createMarketETH
-      ? await setupMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, dsu, overrides)
+      ? await setupMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory, overrides)
       : undefined,
     btcMarket: createMarketBTC
-      ? await setupMarketBTC(owner, oracleFactory, pythOracleFactory, marketFactory, dsu, overrides)
+      ? await setupMarketBTC(owner, oracleFactory, pythOracleFactory, marketFactory, overrides)
       : undefined,
     chainlinkKeptFeed,
     dsuReserve: getDSUReserve(owner),
@@ -65,19 +72,19 @@ async function deployController(
 
   const keepConfig = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 385_000, // buffer for handling the keeper fee
+    bufferBase: 250_000, // buffer for handling the keeper fee
     multiplierCalldata: ethers.utils.parseEther('1'),
     bufferCalldata: 0,
   }
   const keepConfigBuffered = {
-    multiplierBase: ethers.utils.parseEther('1.08'),
-    bufferBase: 2_000_000, // for price commitment
+    multiplierBase: ethers.utils.parseEther('1.07'),
+    bufferBase: 1_500_000, // for price commitment
     multiplierCalldata: ethers.utils.parseEther('1.08'),
     bufferCalldata: 35_200,
   }
   const keepConfigWithdrawal = {
     multiplierBase: ethers.utils.parseEther('1.05'),
-    bufferBase: 2_000_000,
+    bufferBase: 1_500_000,
     multiplierCalldata: ethers.utils.parseEther('1.05'),
     bufferCalldata: 35_200,
   }
@@ -96,14 +103,6 @@ async function deployController(
   )
 
   return [controller, accountVerifier]
-}
-
-async function mockGasInfo() {
-  // Hardhat fork does not support Arbitrum built-ins; Kept produces "invalid opcode" error without this
-  const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
-    address: '0x000000000000000000000000000000000000006C',
-  })
-  gasInfo.getL1BaseFeeEstimate.returns(1)
 }
 
 if (process.env.FORK_NETWORK === 'arbitrum') {

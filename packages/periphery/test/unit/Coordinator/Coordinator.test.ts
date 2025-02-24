@@ -4,13 +4,14 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
-import { Coordinator, Coordinator__factory, IERC20Metadata, IMarket } from '../../../types/generated'
+import { Coordinator, Coordinator__factory, IERC20Metadata, IMargin, IMarket } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 
 const { ethers } = HRE
 use(smock.matchers)
 
 describe('Coordinator', () => {
+  let margin: FakeContract<IMargin>
   let market: FakeContract<IMarket>
   let token: FakeContract<IERC20Metadata>
   let owner: SignerWithAddress
@@ -20,16 +21,11 @@ describe('Coordinator', () => {
   const riskParameter = {
     margin: parse6decimal('0.3'),
     maintenance: parse6decimal('0.3'),
-    takerFee: {
-      linearFee: 0,
-      proportionalFee: 0,
-      adiabaticFee: 0,
-      scale: parse6decimal('100'),
-    },
-    makerFee: {
-      linearFee: 0,
-      proportionalFee: 0,
-      adiabaticFee: 0,
+    synBook: {
+      d0: 0,
+      d1: 0,
+      d2: 0,
+      d3: 0,
       scale: parse6decimal('100'),
     },
     makerLimit: parse6decimal('1000'),
@@ -54,10 +50,11 @@ describe('Coordinator', () => {
 
   beforeEach(async () => {
     ;[owner, comptroller, coordinator] = await ethers.getSigners()
+    margin = await smock.fake<IMargin>('IMargin')
     market = await smock.fake<IMarket>('IMarket')
+    market.margin.returns(margin.address)
     token = await smock.fake<IERC20Metadata>('IERC20Metadata')
     token.transfer.returns(true)
-    market.token.returns(token.address)
 
     coordinatorContract = await new Coordinator__factory(owner).deploy()
   })
@@ -111,7 +108,7 @@ describe('Coordinator', () => {
       await coordinatorContract.setComptroller(comptroller.address)
       await coordinatorContract.connect(comptroller).claimFee(market.address)
       expect(market.claimFee).to.have.been.calledWith(coordinatorContract.address)
-      expect(token.transfer).to.have.been.calledWith(comptroller.address, 0)
+      expect(margin.withdraw).to.have.been.calledWith(comptroller.address, 0)
     })
   })
 

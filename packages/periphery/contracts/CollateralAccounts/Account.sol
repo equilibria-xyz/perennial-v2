@@ -11,13 +11,11 @@ import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 
 import { IAccount } from "./interfaces/IAccount.sol";
-import { IMarket, Position } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
+import { IMargin, IMarket, Position } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 
 /// @title Account
 /// @notice Collateral Accounts allow users to manage collateral across Perennial markets
 contract Account is IAccount, Instance {
-    UFixed6 private constant UNCHANGED_POSITION = UFixed6Lib.MAX;
-
     /// @dev EOA of the user who owns this collateral account
     address public owner;
 
@@ -60,15 +58,26 @@ contract Account is IAccount, Instance {
 
     /// @inheritdoc IAccount
     function marketTransfer(IMarket market, Fixed6 amount) external ownerOrController {
+        IMargin margin = market.margin();
         // implicitly approve this market to spend our DSU
-        DSU.approve(address(market));
+        DSU.approve(address(market)); // TODO: remove this line
+        DSU.approve(address(margin));
 
         // if account does not have enough DSU for the deposit, wrap everything
          if (amount.gt(Fixed6Lib.ZERO))
             wrapIfNecessary(UFixed18Lib.from(amount.abs()), true);
 
-        // pass magic numbers to avoid changing position; market will pull/push collateral from/to this contract
-        market.update(owner, UNCHANGED_POSITION, UNCHANGED_POSITION, UNCHANGED_POSITION, amount, false);
+        // deposit or withdraw DSU to/from the margin contract prior to isolation
+        if (amount.sign() == 1) margin.deposit(owner, amount.abs());
+
+        // pass 0 to avoid changing position; market will pull/push collateral from/to this contract
+        // TODO: just use Margin.isolate here for gas efficiency
+        market.update(owner, Fixed6Lib.ZERO, amount, address(0));
+
+        // TODO: Add support for full withdrawals, which used to use UInt256.minValue.
+        // Market is dropping support for that (PR#491) and Margin currently does not support it.
+        // Also should consider settlement flow for full withdrawals.
+        if (amount.sign() == -1) margin.withdraw(owner, amount.abs());
     }
 
     /// @inheritdoc IAccount
@@ -94,7 +103,7 @@ contract Account is IAccount, Instance {
         if (DSU.balanceOf().lt(amount)) {
             UFixed6 usdcBalance = USDC.balanceOf();
             if (!usdcBalance.eq(UFixed6Lib.ZERO))
-                wrap(wrapAll ? UFixed18Lib.from(usdcBalance) : amount);
+                wrap(wrapAll ? UFixed18Lib.from(usdcBalance) : amount.sub(DSU.balanceOf()));
         }
     }
 

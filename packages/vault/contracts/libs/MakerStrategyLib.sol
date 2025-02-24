@@ -5,7 +5,6 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { MarketParameter } from "@perennial/v2-core/contracts/types/MarketParameter.sol";
 import { RiskParameter } from "@perennial/v2-core/contracts/types/RiskParameter.sol";
-import { Local } from "@perennial/v2-core/contracts/types/Local.sol";
 import { Global } from "@perennial/v2-core/contracts/types/Global.sol";
 import { Position, PositionLib } from "@perennial/v2-core/contracts/types/Position.sol";
 import { Order } from "@perennial/v2-core/contracts/types/Order.sol";
@@ -35,8 +34,8 @@ struct MarketMakerStrategyContext {
     /// @dev The risk parameter set
     RiskParameter riskParameter;
 
-    /// @dev The local state of the vault
-    Local local;
+    /// @dev The collateral of the market
+    Fixed6 collateral;
 
     /// @dev The vault's current account position
     Position currentAccountPosition;
@@ -69,13 +68,22 @@ struct MarketMakerStrategyContext {
 ///      - Deploys collateral first to satisfy the margin of each market, then deploys the rest by weight.
 ///      - Positions are then targeted based on the amount of collateral that ends up deployed to each market.
 library MakerStrategyLib {
+    /// @dev Encapsulates parameters to _allocateMarket to avoid a "Stack too deep" error
+    struct AllocateMarketParams {
+        /// @dev The total margin requirement of the vault
+        UFixed6 totalMargin;
+        /// @dev The total amount of collateral of the vault
+        UFixed6 collateral;
+        /// @dev The total amount of collateral of the vault
+        UFixed6 assets;
+        /// @dev Ensures a minimum amount of leverage is preserved
+        UFixed6 leverageBuffer;
+    }
+
     // sig: 0xf90641dc
     error MakerStrategyInsufficientCollateralError();
     // sig: 0xb86270e3
     error MakerStrategyInsufficientAssetsError();
-
-    /// @dev The maximum multiplier that is allowed for leverage
-    UFixed6 public constant LEVERAGE_BUFFER = UFixed6.wrap(1.2e6);
 
     /// @notice Compute the target allocation for each market
     /// @param registrations The registrations of the underlying markets
@@ -86,7 +94,8 @@ library MakerStrategyLib {
         Registration[] memory registrations,
         UFixed6 deposit,
         UFixed6 withdrawal,
-        UFixed6 ineligible
+        UFixed6 ineligible,
+        UFixed6 leverageBuffer
     ) internal view returns (Target[] memory targets) {
         MakerStrategyContext memory context = _load(registrations);
 
@@ -100,12 +109,13 @@ library MakerStrategyLib {
         UFixed6 totalMarketCollateral;
         for (uint256 marketId; marketId < context.markets.length; marketId++) {
             UFixed6 marketCollateral;
-            (targets[marketId], marketCollateral) = _allocateMarket(
-                context.markets[marketId],
-                context.totalMargin,
-                collateral,
-                assets
-            );
+            AllocateMarketParams memory params = AllocateMarketParams({
+                totalMargin: context.totalMargin,
+                collateral: collateral,
+                assets: assets,
+                leverageBuffer: leverageBuffer
+            });
+            (targets[marketId], marketCollateral) = _allocateMarket(context.markets[marketId], params);
             totalMarketCollateral = totalMarketCollateral.add(marketCollateral);
         }
 
@@ -115,23 +125,19 @@ library MakerStrategyLib {
 
     /// @notice Compute the target allocation for a market
     /// @param marketContext The context of the market
-    /// @param totalMargin The total margin requirement of the vault
-    /// @param collateral The total amount of collateral of the vault
-    /// @param assets The total amount of collateral available for allocation
+    /// @param params See `AllocateMarketParams`
     function _allocateMarket(
         MarketMakerStrategyContext memory marketContext,
-        UFixed6 totalMargin,
-        UFixed6 collateral,
-        UFixed6 assets
+        AllocateMarketParams memory params
     ) private pure returns (Target memory target, UFixed6 marketCollateral) {
         marketCollateral = marketContext.margin
-            .add(collateral.sub(totalMargin).mul(marketContext.registration.weight));
+            .add(params.collateral.sub(params.totalMargin).mul(marketContext.registration.weight));
 
-        UFixed6 marketAssets = assets
+        UFixed6 marketAssets = params.assets
             .mul(marketContext.registration.weight)
-            .min(marketCollateral.mul(LEVERAGE_BUFFER));
+            .min(marketCollateral.mul(params.leverageBuffer));
 
-        target.collateral = Fixed6Lib.from(marketCollateral).sub(marketContext.local.collateral);
+        target.collateral = Fixed6Lib.from(marketCollateral).sub(marketContext.collateral);
 
         UFixed6 minAssets = marketContext.riskParameter.minMargin
             .unsafeDiv(marketContext.registration.leverage.mul(marketContext.riskParameter.maintenance));
@@ -154,7 +160,7 @@ library MakerStrategyLib {
         for (uint256 marketId; marketId < registrations.length; marketId++) {
             context.markets[marketId] = _loadContext(registrations[marketId]);
             context.totalMargin = context.totalMargin.add(context.markets[marketId].margin);
-            context.totalCollateral = context.totalCollateral.add(context.markets[marketId].local.collateral);
+            context.totalCollateral = context.totalCollateral.add(context.markets[marketId].collateral);
             context.minAssets = context.minAssets.max(
                 (registrations[marketId].leverage.isZero() || registrations[marketId].weight.isZero()) ?
                     UFixed6Lib.ZERO : // skip if no leverage or weight
@@ -174,7 +180,7 @@ library MakerStrategyLib {
         marketContext.registration = registration;
         marketContext.marketParameter = registration.market.parameter();
         marketContext.riskParameter = registration.market.riskParameter();
-        marketContext.local = registration.market.locals(address(this));
+        marketContext.collateral = registration.market.margin().isolatedBalances(address(this), registration.market);
         OracleVersion memory latestVersion = registration.market.oracle().latest();
 
         marketContext.latestAccountPosition = registration.market.positions(address(this));

@@ -4,17 +4,19 @@ import {
   AggregatorV3Interface,
   IEmptySetReserve,
   IERC20Metadata,
+  IMargin,
   IMarketFactory,
   IOracleFactory,
   PythFactory,
-} from '../../../../types/generated'
-import { MarketWithOracle } from '../../../helpers/setupHelpers'
+} from '../../../types/generated'
+import { MarketWithOracle } from '../../helpers/setupHelpers'
 
 export interface DeploymentVars {
   dsu: IERC20Metadata
   usdc: IERC20Metadata
   oracleFactory: IOracleFactory
   pythOracleFactory: PythFactory
+  margin: IMargin
   marketFactory: IMarketFactory
   ethMarket: MarketWithOracle | undefined
   btcMarket: MarketWithOracle | undefined

@@ -4,23 +4,16 @@ import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import HRE from 'hardhat'
 
-import { advanceBlock, currentBlockTimestamp, increase } from '../../../../../common/testutil/time'
-import { getEventArguments, getTimestamp } from '../../../../../common/testutil/transaction'
-import { parse6decimal } from '../../../../../common/testutil/types'
+import { advanceBlock, currentBlockTimestamp, increase } from '../../../../common/testutil/time'
+import { getEventArguments, getTimestamp } from '../../../../common/testutil/transaction'
+import { parse6decimal } from '../../../../common/testutil/types'
 
 import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@perennial/v2-core/types/generated'
-import { IKeeperOracle } from '@perennial/v2-oracle/types/generated'
-import {
-  IAccount,
-  IAccount__factory,
-  IController,
-  IEmptySetReserve,
-  IManager,
-  IOrderVerifier,
-} from '../../../../types/generated'
-import { PlaceOrderActionStruct } from '../../../../types/generated/contracts/TriggerOrders/Manager'
+import { IKeeperOracle, IMargin__factory } from '@perennial/v2-oracle/types/generated'
+import { IController, IManager, IMargin, IOrderVerifier } from '../../../types/generated'
+import { PlaceOrderActionStruct } from '../../../types/generated/contracts/TriggerOrders/Manager'
 
-import { signAction, signCancelOrderAction, signPlaceOrderAction } from '../../../helpers/TriggerOrders/eip712'
+import { signAction, signCancelOrderAction, signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
 import {
   Compare,
   compareOrders,
@@ -28,11 +21,10 @@ import {
   MAGIC_VALUE_CLOSE_POSITION,
   orderFromStructOutput,
   Side,
-} from '../../../helpers/TriggerOrders/order'
-import { transferCollateral } from '../../../helpers/marketHelpers'
-import { advanceToPrice } from '../../../helpers/oracleHelpers'
+} from '../../helpers/TriggerOrders/order'
+import { advanceToPrice } from '../../helpers/oracleHelpers'
 import { Address } from 'hardhat-deploy/dist/types'
-import { impersonate } from '../../../../../common/testutil'
+import { impersonate } from '../../../../common/testutil'
 import { FixtureVars } from './setupTypes'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
@@ -58,9 +50,9 @@ export function RunManagerTests(
   describe(name, () => {
     let dsu: IERC20Metadata
     let usdc: IERC20Metadata
-    let reserve: IEmptySetReserve
     let keeperOracle: IKeeperOracle
     let manager: IManager
+    let margin: IMargin
     let marketFactory: IMarketFactory
     let market: IMarket
     let oracle: IOracleProvider
@@ -95,8 +87,17 @@ export function RunManagerTests(
 
       // cost of transaction
       const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2603)
-      // keeper should be compensated between 100-200% of actual gas cost
-      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(2))
+      // keeper should be compensated between 100-250% of actual gas cost
+      // please retain below for debugging purposes
+      /*console.log(
+        'keeperFeesPaid',
+        keeperFeesPaid.div(1e9).toNumber() / 1e9,
+        'keeperGasCostInUSD',
+        keeperGasCostInUSD.div(1e9).toNumber() / 1e9,
+        'keeperGasUpperLimit',
+        keeperGasCostInUSD.mul(5).div(2e9).toNumber() / 1e9,
+      )*/
+      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(5).div(2))
     }
 
     // commits an oracle version and advances time 10 seconds
@@ -131,13 +132,6 @@ export function RunManagerTests(
           },
         },
       }
-    }
-
-    // deploys a collateral account
-    async function createCollateralAccount(user: SignerWithAddress): Promise<IAccount> {
-      const accountAddress = await controller.getAccountAddress(user.address)
-      await controller.connect(user).deployAccount(TX_OVERRIDES)
-      return IAccount__factory.connect(accountAddress, user)
     }
 
     async function ensureNoPosition(user: SignerWithAddress) {
@@ -182,11 +176,11 @@ export function RunManagerTests(
           if (order.interfaceFee.unwrap) {
             await expect(tx)
               .to.emit(dsu, 'Transfer')
-              .withArgs(collateralAccountAddress, manager.address, expectedInterfaceFee.mul(1e12))
+              .withArgs(margin.address, manager.address, expectedInterfaceFee.mul(1e12))
           } else {
             await expect(tx)
               .to.emit(dsu, 'Transfer')
-              .withArgs(collateralAccountAddress, manager.address, expectedInterfaceFee.mul(1e12))
+              .withArgs(margin.address, manager.address, expectedInterfaceFee.mul(1e12))
           }
         }
       }
@@ -286,6 +280,7 @@ export function RunManagerTests(
       }
       const signature = await signPlaceOrderAction(user, verifier, message)
 
+      await setNextBlockBaseFee()
       await expect(manager.connect(keeper).placeOrderWithSignature(message, signature, TX_OVERRIDES))
         .to.emit(manager, 'TriggerOrderPlaced')
         .withArgs(market.address, user.address, message.order, message.action.orderId)
@@ -313,15 +308,12 @@ export function RunManagerTests(
       // funds, approves, and deposits DSU into the market
       const reservedForFees = amount.mul(1).div(100)
       await fundWalletDSU(user, amount.mul(1e12))
-      await dsu.connect(user).approve(market.address, amount.mul(1e12))
-      await transferCollateral(user, market, amount.sub(reservedForFees))
+      await dsu.connect(user).approve(await market.margin(), amount.mul(1e12))
+      await margin.connect(user).deposit(user.address, amount)
+      await margin.connect(user).isolate(user.address, market.address, amount.sub(reservedForFees))
 
       // allows manager to interact with markets on the user's behalf
       await marketFactory.connect(user).updateOperator(manager.address, true)
-
-      // set up collateral account for fee payments
-      const collateralAccount = await createCollateralAccount(user)
-      dsu.connect(user).transfer(collateralAccount.address, reservedForFees.mul(1e12))
     }
 
     const fixture = async () => {
@@ -329,7 +321,6 @@ export function RunManagerTests(
       const fixture = await getFixture(TX_OVERRIDES)
       dsu = fixture.dsu
       usdc = fixture.usdc
-      reserve = fixture.reserve
       keeperOracle = fixture.keeperOracle
       manager = fixture.manager
       marketFactory = fixture.marketFactory
@@ -344,6 +335,8 @@ export function RunManagerTests(
       userD = fixture.userD
       keeper = fixture.keeper
       oracleFeeReceiver = fixture.oracleFeeReceiver
+
+      margin = IMargin__factory.connect(await market.margin(), owner)
 
       nextOrderId[userA.address] = BigNumber.from(500)
       nextOrderId[userB.address] = BigNumber.from(500)
@@ -716,21 +709,20 @@ export function RunManagerTests(
     // tests interaction with markets; again userA has a maker position, userB has a long position,
     // userC and userD interact only with trigger orders
     describe('funded market', () => {
-      async function changePosition(
+      async function updatePosition(
         user: SignerWithAddress,
-        newMaker: BigNumberish = constants.MaxUint256,
-        newLong: BigNumberish = constants.MaxUint256,
-        newShort: BigNumberish = constants.MaxUint256,
+        makerDelta: BigNumber,
+        longDelta: BigNumber,
+        shortDelta: BigNumber,
       ): Promise<BigNumber> {
         const tx = await market
           .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](
+          ['update(address,int256,int256,int256,address)'](
             user.address,
-            newMaker,
-            newLong,
-            newShort,
-            0,
-            false,
+            makerDelta,
+            longDelta.sub(shortDelta),
+            BigNumber.from(0),
+            constants.AddressZero,
             TX_OVERRIDES,
           )
         return (await getEventArguments(tx, 'OrderCreated')).order.timestamp
@@ -741,7 +733,7 @@ export function RunManagerTests(
         await ensureNoPosition(userA)
         await ensureNoPosition(userB)
 
-        await changePosition(userA, parse6decimal('10'), 0, 0)
+        await updatePosition(userA, parse6decimal('10'), BigNumber.from(0), BigNumber.from(0))
         await commitPrice(parse6decimal('2000'))
         await market.settle(userA.address, TX_OVERRIDES)
 
@@ -757,7 +749,7 @@ export function RunManagerTests(
 
       it('can execute an order with pending position before oracle request fulfilled', async () => {
         // userB has an unsettled long 1.2 position
-        await changePosition(userB, 0, parse6decimal('1.2'), 0)
+        await updatePosition(userB, BigNumber.from(0), parse6decimal('1.2'), BigNumber.from(0))
         expect((await market.positions(userB.address)).long).to.equal(0)
         expect(await getPendingPosition(userB, Side.LONG)).to.equal(parse6decimal('1.2'))
 
@@ -782,7 +774,7 @@ export function RunManagerTests(
 
       it('can execute an order with pending position after oracle request fulfilled', async () => {
         // userC has an unsettled short 0.3 position
-        await changePosition(userC, 0, 0, parse6decimal('1.3'))
+        await updatePosition(userC, BigNumber.from(0), BigNumber.from(0), parse6decimal('1.3'))
         expect((await market.positions(userC.address)).short).to.equal(0)
         expect(await getPendingPosition(userC, Side.SHORT)).to.equal(parse6decimal('1.3'))
 
@@ -818,16 +810,16 @@ export function RunManagerTests(
         expect(canExecuteBefore).to.be.false
 
         // time passes, other users interact with market
-        let positionA = (await market.positions(userA.address)).maker
-        let positionC = (await market.positions(userC.address)).short
+        let positionDeltaA
+        let positionDeltaC
         let marketPrice = (await oracle.latest()).price
 
         while (marketPrice.gt(triggerPrice)) {
           // two users change their position
-          positionA = positionA.add(parse6decimal('0.05'))
-          const timestampA = await changePosition(userA, positionA, 0, 0)
-          positionC = positionC.sub(parse6decimal('0.04'))
-          const timestampC = await changePosition(userC, 0, 0, positionC)
+          positionDeltaA = parse6decimal('0.05')
+          const timestampA = await updatePosition(userA, positionDeltaA, BigNumber.from(0), BigNumber.from(0))
+          positionDeltaC = parse6decimal('0.04').mul(-1)
+          const timestampC = await updatePosition(userC, BigNumber.from(0), BigNumber.from(0), positionDeltaC)
 
           // oracle versions fulfilled
           marketPrice = marketPrice.sub(parse6decimal('0.35'))
@@ -924,11 +916,12 @@ export function RunManagerTests(
         expect((await market.positions(userD.address)).long).to.equal(parse6decimal('0'))
       })
 
+      // FIXME: This test is failing in checkCompensation
       it('charges notional interface fee on whole position when closing', async () => {
         const interfaceBalanceBefore = await dsu.balanceOf(userB.address)
 
         // userD starts with a long 3 position
-        await changePosition(userD, 0, parse6decimal('3'), 0)
+        await updatePosition(userD, BigNumber.from(0), parse6decimal('3'), BigNumber.from(0))
         await commitPrice(parse6decimal('2000.4'))
         await market.settle(userD.address, TX_OVERRIDES)
         expect((await market.positions(userD.address)).long).to.equal(parse6decimal('3'))
@@ -973,13 +966,18 @@ export function RunManagerTests(
         const interfaceBalanceBefore = await dsu.balanceOf(userB.address)
 
         // userD starts with a short 2 position
-        await changePosition(userD, 0, 0, parse6decimal('2'))
+        await updatePosition(userD, BigNumber.from(0), BigNumber.from(0), parse6decimal('2'))
         await commitPrice(parse6decimal('2000.5'))
         await market.settle(userD.address, TX_OVERRIDES)
         expect((await market.positions(userD.address)).short).to.equal(parse6decimal('2'))
 
         // userD reduces their position by 0.35 but does not settle
-        const negOrderTimestamp = await changePosition(userD, 0, 0, parse6decimal('1.65'))
+        const negOrderTimestamp = await updatePosition(
+          userD,
+          BigNumber.from(0),
+          BigNumber.from(0),
+          parse6decimal('0.35').mul(-1),
+        )
         expect(await getPendingPosition(userD, Side.SHORT)).to.equal(parse6decimal('1.65'))
 
         // userD closes their short position

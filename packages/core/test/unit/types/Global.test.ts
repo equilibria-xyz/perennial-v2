@@ -10,8 +10,8 @@ import {
   GlobalTester__factory,
 } from '../../../types/generated'
 import { BigNumber, BigNumberish } from 'ethers'
-import { OracleReceipt, parse6decimal, DEFAULT_GLOBAL } from '../../../../common/testutil/types'
-import { GlobalStruct, MarketParameterStruct } from '../../../types/generated/contracts/Market'
+import { parse6decimal, DEFAULT_GLOBAL } from '../../../../common/testutil/types'
+import { MarketParameterStruct } from '../../../types/generated/contracts/Market'
 import { ProtocolParameterStruct } from '../../../types/generated/contracts/MarketFactory'
 import { OracleReceiptStruct } from '../../../types/generated/contracts/interfaces/IOracleProvider'
 import { VersionAccumulationResponseStruct } from '../../../types/generated/contracts/test/GlobalTester'
@@ -22,12 +22,10 @@ use(smock.matchers)
 function generateAccumulationResult(
   marketFee: BigNumberish,
   settlementFee: BigNumberish,
-  marketExposure: BigNumberish,
 ): VersionAccumulationResponseStruct {
   return {
     marketFee,
     settlementFee,
-    marketExposure,
   }
 }
 
@@ -63,7 +61,7 @@ function generateProtocolParameter(protocolFee: BigNumberish): ProtocolParameter
     minEfficiency: 0,
     referralFee: 0,
     minScale: 0,
-    maxStaleAfter: 172800, // 2 days
+    maxStaleAfter: 64800, // 18 hours
   }
 }
 
@@ -96,7 +94,6 @@ describe('Global', () => {
           _skew: 7,
         },
         latestPrice: 9,
-        exposure: 8,
       })
 
       const value = await global.read()
@@ -108,7 +105,6 @@ describe('Global', () => {
       expect(value.pAccumulator._value).to.equal(6)
       expect(value.pAccumulator._skew).to.equal(7)
       expect(value.latestPrice).to.equal(9)
-      expect(value.exposure).to.equal(8)
     })
 
     context('.currentId', async () => {
@@ -237,27 +233,6 @@ describe('Global', () => {
       })
     })
 
-    context('.exposure', async () => {
-      const STORAGE_SIZE = 63
-      it('saves if in range', async () => {
-        await global.store({
-          ...DEFAULT_GLOBAL,
-          exposure: BigNumber.from(2).pow(STORAGE_SIZE).sub(1),
-        })
-        const value = await global.read()
-        expect(value.exposure).to.equal(BigNumber.from(2).pow(STORAGE_SIZE).sub(1))
-      })
-
-      it('reverts if currentId out of range', async () => {
-        await expect(
-          global.store({
-            ...DEFAULT_GLOBAL,
-            exposure: BigNumber.from(2).pow(STORAGE_SIZE),
-          }),
-        ).to.be.revertedWithCustomError(globalStorageLib, 'GlobalStorageInvalidError')
-      })
-    })
-
     context('.pAccumulator._value', async () => {
       const STORAGE_SIZE = 31
       it('saves if in range (above)', async () => {
@@ -364,12 +339,7 @@ describe('Global', () => {
   describe('#update', async () => {
     context('zero settlement fee', async () => {
       it('no fees', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(123, 0, 0),
-          generateMarketParameter(0),
-          generateOracleReceipt(0),
-        )
+        await global.update(1, generateAccumulationResult(123, 0), generateMarketParameter(0), generateOracleReceipt(0))
 
         const value = await global.read()
         expect(value.latestId).to.equal(1)
@@ -378,7 +348,7 @@ describe('Global', () => {
       it('risk fee', async () => {
         await global.update(
           1,
-          generateAccumulationResult(123, 0, 0),
+          generateAccumulationResult(123, 0),
           generateMarketParameter(parse6decimal('0.1')),
           generateOracleReceipt(0),
         )
@@ -391,7 +361,7 @@ describe('Global', () => {
       it('risk fee 100%', async () => {
         await global.update(
           1,
-          generateAccumulationResult(123, 0, 0),
+          generateAccumulationResult(123, 0),
           generateMarketParameter(parse6decimal('1.0')),
           generateOracleReceipt(0),
         )
@@ -404,7 +374,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            generateAccumulationResult(123, 0, 0),
+            generateAccumulationResult(123, 0),
             generateMarketParameter(parse6decimal('1.1')),
             generateOracleReceipt(0),
           ),
@@ -414,7 +384,7 @@ describe('Global', () => {
       it('oracle fee', async () => {
         await global.update(
           1,
-          generateAccumulationResult(123, 0, 0),
+          generateAccumulationResult(123, 0),
           generateMarketParameter(0),
           generateOracleReceipt(parse6decimal('0.1')),
         )
@@ -427,7 +397,7 @@ describe('Global', () => {
       it('oracle fee 100%', async () => {
         await global.update(
           1,
-          generateAccumulationResult(123, 0, 0),
+          generateAccumulationResult(123, 0),
           generateMarketParameter(0),
           generateOracleReceipt(parse6decimal('1.0')),
         )
@@ -440,7 +410,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            generateAccumulationResult(123, 0, 0),
+            generateAccumulationResult(123, 0),
             generateMarketParameter(0),
             generateOracleReceipt(parse6decimal('1.1')),
           ),
@@ -450,7 +420,7 @@ describe('Global', () => {
       it('oracle / risk fee', async () => {
         await global.update(
           1,
-          generateAccumulationResult(123, 0, 0),
+          generateAccumulationResult(123, 0),
           generateMarketParameter(parse6decimal('0.3')),
           generateOracleReceipt(parse6decimal('0.1')),
         )
@@ -464,7 +434,7 @@ describe('Global', () => {
       it('oracle / risk fee 100%', async () => {
         await global.update(
           1,
-          generateAccumulationResult(123, 0, 0),
+          generateAccumulationResult(123, 0),
           generateMarketParameter(parse6decimal('1.0')),
           generateOracleReceipt(parse6decimal('0.1')),
         )
@@ -473,25 +443,13 @@ describe('Global', () => {
         expect(value.oracleFee).to.equal(12)
         expect(value.riskFee).to.equal(111)
       })
-
-      it('exposure', async () => {
-        await global.update(
-          1,
-          generateAccumulationResult(0, 0, 123),
-          generateMarketParameter(parse6decimal('0.9')),
-          generateOracleReceipt(parse6decimal('0.1')),
-        )
-
-        const value = await global.read()
-        expect(value.exposure).to.equal(123)
-      })
     })
 
     context('non-zero settlement fee', async () => {
       it('no fees', async () => {
         await global.update(
           1,
-          generateAccumulationResult(123, 456, 0),
+          generateAccumulationResult(123, 456),
           generateMarketParameter(0),
           generateOracleReceipt(0),
         )
@@ -504,7 +462,7 @@ describe('Global', () => {
       it('risk fee', async () => {
         await global.update(
           1,
-          generateAccumulationResult(123, 456, 0),
+          generateAccumulationResult(123, 456),
           generateMarketParameter(parse6decimal('0.1')),
           generateOracleReceipt(0),
         )
@@ -518,7 +476,7 @@ describe('Global', () => {
       it('risk fee 100%', async () => {
         await global.update(
           1,
-          generateAccumulationResult(123, 456, 0),
+          generateAccumulationResult(123, 456),
           generateMarketParameter(parse6decimal('1.0')),
           generateOracleReceipt(0),
         )
@@ -532,7 +490,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            generateAccumulationResult(123, 456, 0),
+            generateAccumulationResult(123, 456),
             generateMarketParameter(parse6decimal('1.1')),
             generateOracleReceipt(0),
           ),
@@ -542,7 +500,7 @@ describe('Global', () => {
       it('oracle fee', async () => {
         await global.update(
           1,
-          generateAccumulationResult(123, 456, 0),
+          generateAccumulationResult(123, 456),
           generateMarketParameter(0),
           generateOracleReceipt(parse6decimal('0.1')),
         )
@@ -555,7 +513,7 @@ describe('Global', () => {
       it('oracle fee 100%', async () => {
         await global.update(
           1,
-          generateAccumulationResult(123, 456, 0),
+          generateAccumulationResult(123, 456),
           generateMarketParameter(0),
           generateOracleReceipt(parse6decimal('1.0')),
         )
@@ -568,7 +526,7 @@ describe('Global', () => {
         await expect(
           global.update(
             1,
-            generateAccumulationResult(123, 456, 0),
+            generateAccumulationResult(123, 456),
             generateMarketParameter(0),
             generateOracleReceipt(parse6decimal('1.1')),
           ),
@@ -578,7 +536,7 @@ describe('Global', () => {
       it('oracle / risk fee', async () => {
         await global.update(
           1,
-          generateAccumulationResult(123, 456, 0),
+          generateAccumulationResult(123, 456),
           generateMarketParameter(parse6decimal('0.3')),
           generateOracleReceipt(parse6decimal('0.1')),
         )
@@ -592,7 +550,7 @@ describe('Global', () => {
       it('oracle / risk fee 100%', async () => {
         await global.update(
           1,
-          generateAccumulationResult(123, 456, 0),
+          generateAccumulationResult(123, 456),
           generateMarketParameter(parse6decimal('1.0')),
           generateOracleReceipt(parse6decimal('0.1')),
         )

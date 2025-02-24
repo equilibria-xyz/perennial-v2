@@ -27,7 +27,13 @@ contract SolverVault is ISolverVault, Vault {
         UFixed6 withdrawal,
         UFixed6 ineligible
     ) internal override view returns (Target[] memory targets) {
-        return SolverStrategyLib.allocate(context.registrations, deposit, withdrawal, ineligible);
+        return SolverStrategyLib.allocate(
+            context.registrations,
+            deposit,
+            withdrawal,
+            ineligible,
+            context.parameter.leverageBuffer
+        );
     }
 
     function updateCoordinator(address newCoordinator) public override(IVault, Vault) onlyOwner {
@@ -43,7 +49,7 @@ contract SolverVault is ISolverVault, Vault {
         to.update(address(this), Fixed6Lib.ZERO, Fixed6Lib.from(1, amount), address(0));
     }
 
-    modifier onlyCoordinator {
+    modifier onlyCoordinator override {
         if (msg.sender != coordinator) revert SolverVaultNotCoordinatorError();
         _;
     }

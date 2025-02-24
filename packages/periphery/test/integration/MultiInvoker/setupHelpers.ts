@@ -5,49 +5,48 @@ import { FakeContract, smock } from '@defi-wonderland/smock'
 import HRE from 'hardhat'
 
 import {
+  IBatcher,
+  IBatcher__factory,
+  IEmptySetReserve,
+  IEmptySetReserve__factory,
   IERC20Metadata,
   IERC20Metadata__factory,
+  IMarket,
+  IMargin,
+  IOracle,
+  IOracleFactory,
+  IOracleProvider,
+  IOracle__factory,
   IPayoffProvider,
   IPayoffProvider__factory,
-  IOracleProvider,
-  MultiInvoker,
-  MultiInvoker__factory,
-  Market,
-  PowerTwo__factory,
-  IMarket,
   IVault,
   IVaultFactory__factory,
   IVault__factory,
-  VaultFactory,
-  VaultFactory__factory,
-  MakerVault__factory,
-  OracleFactory,
-  Oracle__factory,
-  OracleFactory__factory,
-  IOracle,
-  IOracle__factory,
-  IOracleFactory,
   MarketFactory,
   MarketFactory__factory,
-  IBatcher,
-  IEmptySetReserve,
-  IBatcher__factory,
-  IEmptySetReserve__factory,
+  MultiInvoker,
+  OracleFactory,
+  OracleFactory__factory,
+  Oracle__factory,
+  PowerTwo__factory,
+  VaultFactory,
+  VaultFactory__factory,
   ISolverVault,
-} from '../../../../types/generated'
-import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../../common/testutil/types'
+  MultiInvoker__factory,
+} from '../../../types/generated'
+import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
 
 import { deployProductOnFork } from '@perennial/v2-vault/test/integration/helpers/setupHelpers'
 import {
+  AggregatorV3Interface,
+  AggregatorV3Interface__factory,
+  IVerifier,
   ProxyAdmin,
   ProxyAdmin__factory,
   TransparentUpgradeableProxy__factory,
-  IVerifier,
-  AggregatorV3Interface,
-  AggregatorV3Interface__factory,
 } from '@perennial/v2-core/types/generated'
 import { Verifier__factory } from '@perennial/v2-core/types/generated'
-import { deployMarketImplementation } from '../../../helpers/marketHelpers'
+import { deployMarketImplementation } from '../../helpers/marketHelpers'
 import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
 
 const { ethers } = HRE
@@ -64,6 +63,7 @@ export interface InstanceVars {
   proxyAdmin: ProxyAdmin
   oracleFactory: OracleFactory
   marketFactory: MarketFactory
+  margin: IMargin
   verifier: IVerifier
   payoff: IPayoffProvider
   dsu: IERC20Metadata
@@ -72,7 +72,6 @@ export interface InstanceVars {
   dsuBatcher: IBatcher | undefined
   chainlinkKeptFeed: AggregatorV3Interface
   oracle: IOracle
-  marketImpl: Market
 }
 
 // used to pass Verifyable Action Approvals to MultiInvoker Pyth tests
@@ -113,8 +112,7 @@ export async function deployProtocol(
     [],
   )
   const verifier = Verifier__factory.connect(verifierProxy.address, owner)
-
-  const marketImpl = await deployMarketImplementation(owner, verifier.address)
+  const [marketImpl, margin] = await deployMarketImplementation(owner, dsu, verifier)
 
   const factoryImpl = await new MarketFactory__factory(owner).deploy(
     oracleFactory.address,
@@ -134,6 +132,7 @@ export async function deployProtocol(
   await oracleFactory.connect(owner).initialize()
   await marketFactory.connect(owner).initialize()
   await verifier.connect(owner).initialize(marketFactory.address)
+  await margin.initialize(marketFactory.address)
 
   // Params
   await marketFactory.updatePauser(pauser.address)
@@ -147,6 +146,7 @@ export async function deployProtocol(
     referralFee: 0,
     minScale: parse6decimal('0.001'),
     maxStaleAfter: 7200,
+    minMinMaintenance: 0,
   })
 
   return {
@@ -159,6 +159,7 @@ export async function deployProtocol(
     proxyAdmin,
     oracleFactory,
     marketFactory,
+    margin,
     verifier,
     chainlinkKeptFeed: AggregatorV3Interface__factory.connect(chainlinkKeptFeedAddress, owner),
     payoff,
@@ -168,21 +169,11 @@ export async function deployProtocol(
       dsuBatcherAddress === constants.AddressZero ? undefined : IBatcher__factory.connect(dsuBatcherAddress, owner),
     dsuReserve: IEmptySetReserve__factory.connect(dsuReserveAddress, owner),
     oracle: oracleImpl, // placeholder until real oracle is deployed in chain-specific test setup
-    marketImpl,
   }
 }
 
 export async function settle(market: IMarket, account: SignerWithAddress): Promise<ContractTransaction> {
-  return market
-    .connect(account)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
-      account.address,
-      constants.MaxUint256,
-      constants.MaxUint256,
-      constants.MaxUint256,
-      0,
-      false,
-    )
+  return market.connect(account)['update(address,int256,int256,address)'](account.address, 0, 0, constants.AddressZero)
 }
 
 export async function createVault(
@@ -198,14 +189,14 @@ export async function createVault(
   const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000001'
   const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
 
-  const [owner, , user, userB, userC, userD, liquidator, perennialUser] = await ethers.getSigners()
+  const [owner, , user, userB, userC, userD, liquidator, perennialUser, coordinator] = await ethers.getSigners()
   const marketFactory = instanceVars.marketFactory
   const oracleFactory = instanceVars.oracleFactory
+  const margin = instanceVars.margin
 
   const vaultOracleFactory = await smock.fake<IOracleFactory>('IOracleFactory')
   await oracleFactory.connect(owner).register(vaultOracleFactory.address)
 
-  // TODO: Do we still want to fake the sub-oracle implementation on Arbitrum?
   const ethSubOracle = await smock.fake<IOracleProvider>('IOracleProvider')
   resetSubOracle(ethSubOracle, initialOracleVersionEth)
 
@@ -250,39 +241,29 @@ export async function createVault(
 
   const ethMarket = await deployProductOnFork({
     factory: marketFactory,
-    token: instanceVars.dsu,
     owner: owner,
     oracle: ethOracle.address,
     makerLimit: parse6decimal('1000'),
     minMaintenance: parse6decimal('50'),
-    takerFee: {
-      linearFee: 0,
-      proportionalFee: 0,
-      adiabaticFee: 0,
-      scale: parse6decimal('100'),
-    },
-    makerFee: {
-      linearFee: 0,
-      proportionalFee: 0,
+    synBook: {
+      d0: 0,
+      d1: 0,
+      d2: 0,
+      d3: 0,
       scale: parse6decimal('100'),
     },
   })
   const btcMarket = await deployProductOnFork({
     factory: marketFactory,
-    token: instanceVars.dsu,
     owner: owner,
     oracle: btcOracle.address,
     makerLimit: parse6decimal('100'),
     minMaintenance: parse6decimal('50'),
-    takerFee: {
-      linearFee: 0,
-      proportionalFee: 0,
-      adiabaticFee: 0,
-      scale: parse6decimal('10'),
-    },
-    makerFee: {
-      linearFee: 0,
-      proportionalFee: 0,
+    synBook: {
+      d0: 0,
+      d1: 0,
+      d2: 0,
+      d3: 0,
       scale: parse6decimal('10'),
     },
   })
@@ -299,17 +280,24 @@ export async function createVault(
   const vaultFactory = IVaultFactory__factory.connect(vaultFactoryProxy.address, owner)
   await vaultFactory.initialize()
   const vault = IVault__factory.connect(
-    await vaultFactory.callStatic.create(instanceVars.dsu.address, ethMarket.address, 'Blue Chip'),
+    await vaultFactory.callStatic.create(
+      instanceVars.dsu.address,
+      ethMarket.address,
+      parse6decimal('1.2'),
+      'Blue Chip',
+    ),
     owner,
   )
-  await vaultFactory.create(instanceVars.dsu.address, ethMarket.address, 'Blue Chip')
+  await vaultFactory.create(instanceVars.dsu.address, ethMarket.address, parse6decimal('1.2'), 'Blue Chip')
 
   await vault.register(btcMarket.address)
-  await vault.updateLeverage(0, leverage ?? parse6decimal('4.0'))
-  await vault.updateLeverage(1, leverage ?? parse6decimal('4.0'))
-  await vault.updateWeights([parse6decimal('0.8'), parse6decimal('0.2')])
+  await vault.connect(owner).updateCoordinator(coordinator.address)
+  await vault.connect(coordinator).updateLeverage(0, leverage ?? parse6decimal('4.0'))
+  await vault.connect(coordinator).updateLeverage(1, leverage ?? parse6decimal('4.0'))
+  await vault.connect(coordinator).updateWeights([parse6decimal('0.8'), parse6decimal('0.2')])
 
-  await vault.updateParameter({
+  await vault.connect(owner).updateParameter({
+    ...(await vault.parameter()),
     maxDeposit: maxCollateral ?? parse6decimal('500000'),
     minDeposit: 0,
     profitShare: 0,
@@ -322,51 +310,52 @@ export async function createVault(
   await asset.connect(userB).approve(vault.address, ethers.constants.MaxUint256)
   await asset.connect(userC).approve(vault.address, ethers.constants.MaxUint256)
   await asset.connect(userD).approve(vault.address, ethers.constants.MaxUint256)
-  await asset.connect(user).approve(ethMarket.address, ethers.constants.MaxUint256)
-  await asset.connect(userB).approve(ethMarket.address, ethers.constants.MaxUint256)
-  await asset.connect(userC).approve(btcMarket.address, ethers.constants.MaxUint256)
-  await asset.connect(userD).approve(btcMarket.address, ethers.constants.MaxUint256)
+  await asset.connect(user).approve(margin.address, ethers.constants.MaxUint256)
+  await asset.connect(userB).approve(margin.address, ethers.constants.MaxUint256)
+  await asset.connect(userC).approve(margin.address, ethers.constants.MaxUint256)
+  await asset.connect(userD).approve(margin.address, ethers.constants.MaxUint256)
 
   // Seed markets with some activity
+  const depositAmount = parse6decimal('100000')
+  await margin.connect(user).deposit(user.address, depositAmount)
   await ethMarket
     .connect(user)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
+    ['update(address,int256,int256,int256,address)'](
       user.address,
       parse6decimal('100'),
       0,
-      0,
-      parse6decimal('100000'),
-      false,
+      depositAmount,
+      constants.AddressZero,
     )
+  await margin.connect(userB).deposit(userB.address, depositAmount)
   await ethMarket
     .connect(userB)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
+    ['update(address,int256,int256,int256,address)'](
       userB.address,
       0,
       parse6decimal('50'),
-      0,
-      parse6decimal('100000'),
-      false,
+      depositAmount,
+      constants.AddressZero,
     )
+  await margin.connect(userC).deposit(userC.address, depositAmount)
   await btcMarket
     .connect(userC)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
+    ['update(address,int256,int256,int256,address)'](
       userC.address,
       parse6decimal('20'),
       0,
-      0,
-      parse6decimal('100000'),
-      false,
+      depositAmount,
+      constants.AddressZero,
     )
+  await margin.connect(userD).deposit(userD.address, depositAmount)
   await btcMarket
     .connect(userD)
-    ['update(address,uint256,uint256,uint256,int256,bool)'](
+    ['update(address,int256,int256,int256,address)'](
       userD.address,
       0,
       parse6decimal('10'),
-      0,
-      parse6decimal('100000'),
-      false,
+      depositAmount,
+      constants.AddressZero,
     )
 
   return [vault, vaultFactory, ethSubOracle, btcSubOracle]
@@ -396,20 +385,10 @@ export async function createInvoker(
     solverVaultFactory ? solverVaultFactory.address : constants.AddressZero,
     withBatcher && instanceVars.dsuBatcher ? instanceVars.dsuBatcher.address : constants.AddressZero,
     instanceVars.dsuReserve.address,
-    500_000,
-    500_000,
   )
 
   await instanceVars.marketFactory.connect(user).updateOperator(multiInvoker.address, true)
   await instanceVars.marketFactory.connect(userB).updateOperator(multiInvoker.address, true)
-  if (makerVaultFactory) {
-    await makerVaultFactory.connect(user).updateOperator(multiInvoker.address, true)
-    await makerVaultFactory.connect(userB).updateOperator(multiInvoker.address, true)
-  }
-  if (solverVaultFactory) {
-    await solverVaultFactory.connect(user).updateOperator(multiInvoker.address, true)
-    await solverVaultFactory.connect(userB).updateOperator(multiInvoker.address, true)
-  }
   await multiInvoker.initialize(instanceVars.chainlinkKeptFeed.address)
 
   return multiInvoker

@@ -4,49 +4,51 @@ pragma solidity 0.8.24;
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
-import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
 import { ReentrancyGuard } from "@equilibria/root/attribute/ReentrancyGuard.sol";
 import { IMarket } from "./interfaces/IMarket.sol";
 import { IMarketFactory } from "./interfaces/IMarketFactory.sol";
+import { IMargin } from "./interfaces/IMargin.sol";
 import { IOracleProvider } from "./interfaces/IOracleProvider.sol";
 import { IVerifier } from "./interfaces/IVerifier.sol";
 import { MarketParameter, MarketParameterStorage } from "./types/MarketParameter.sol";
 import { RiskParameter, RiskParameterStorage } from "./types/RiskParameter.sol";
 import { Global, GlobalStorage } from "./types/Global.sol";
-import { Position, PositionStorageGlobal, PositionStorageLocal } from "./types/Position.sol";
+import { Position, PositionLib, PositionStorageGlobal, PositionStorageLocal } from "./types/Position.sol";
 import { Local, LocalStorage } from "./types/Local.sol";
 import { Version, VersionStorage } from "./types/Version.sol";
 import { Order, OrderLib, OrderStorageGlobal, OrderStorageLocal } from "./types/Order.sol";
 import { Guarantee, GuaranteeLib, GuaranteeStorageGlobal, GuaranteeStorageLocal } from "./types/Guarantee.sol";
-import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
 import { Fill } from "./types/Fill.sol";
 import { Intent } from "./types/Intent.sol";
 import { Take } from "./types/Take.sol";
 import { OracleVersion } from "./types/OracleVersion.sol";
 import { OracleReceipt } from "./types/OracleReceipt.sol";
 import { InvariantLib } from "./libs/InvariantLib.sol";
-import { MagicValueLib } from "./libs/MagicValueLib.sol";
 import { VersionAccumulationResponse, VersionLib } from "./libs/VersionLib.sol";
-import { CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
+import { Checkpoint, CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
 
 /// @title Market
 /// @notice Manages logic and state for a single market.
 /// @dev Cloned by the Factory contract to launch new markets.
 contract Market is IMarket, Instance, ReentrancyGuard {
+    /// @dev Verifies intent messages
     IVerifier public immutable verifier;
 
-    /// @dev The underlying token that the market settles in
-    Token18 public token;
+    /// @dev Handles collateral across all markets
+    IMargin public immutable margin;
+
+    /// @dev DEPRECATED SLOT -- previously the collateral token
+    bytes32 private __unused0__;
 
     /// @dev DEPRECATED SLOT -- previously the reward token
-    bytes32 private __unused0__;
+    bytes32 private __unused1__;
 
     /// @dev The oracle that provides the market price
     IOracleProvider public oracle;
 
     /// @dev DEPRECATED SLOT -- previously the payoff provider
-    bytes32 private __unused1__;
+    bytes32 private __unused2__;
 
     /// @dev Beneficiary of the market, receives donations
     address public beneficiary;
@@ -67,7 +69,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     PositionStorageGlobal private _position;
 
     /// @dev DEPRECATED SLOT -- previously the global pending positions
-    bytes32 private __unused2__;
+    bytes32 private __unused3__;
 
     /// @dev Current local state of each account
     mapping(address => LocalStorage) private _locals;
@@ -76,7 +78,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     mapping(address => PositionStorageLocal) private _positions;
 
     /// @dev DEPRECATED SLOT -- previously the local pending positions
-    bytes32 private __unused3__;
+    bytes32 private __unused4__;
 
     /// @dev The historical version accumulator data for each accessed version
     mapping(uint256 => VersionStorage) private _versions;
@@ -93,8 +95,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @dev The local aggregate pending order for each account
     mapping(address => OrderStorageLocal) private _pendings;
 
-    /// @dev The local checkpoint for each version for each account
-    mapping(address => mapping(uint256 => CheckpointStorage)) private _checkpoints;
+    /// @dev DEPRECATED SLOT -- previously the local checkpoints
+    bytes32 private __unused5__;
 
     /// @dev The liquidator for each id for each account
     mapping(address => mapping(uint256 => address)) public liquidators;
@@ -113,18 +115,19 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
     /// @dev Construct the contract implementation
     /// @param verifier_ The verifier contract to use
-    constructor(IVerifier verifier_) {
+    /// @param margin_ The margin contract to use
+    constructor(IVerifier verifier_, IMargin margin_) {
         verifier = verifier_;
+        margin = margin_;
     }
 
     /// @notice Initializes the contract state
-    /// @param definition_ The market definition
-    function initialize(IMarket.MarketDefinition calldata definition_) external initializer(1) {
+    /// @param oracle_ Provider used for requesting prices
+    function initialize(IOracleProvider oracle_) external initializer(1) {
         __Instance__initialize();
         __ReentrancyGuard__initialize();
 
-        token = definition_.token;
-        oracle = definition_.oracle;
+        oracle = oracle_;
     }
 
     /// @notice Settles the account's position and collateral
@@ -173,6 +176,10 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ); // signer
     }
 
+	/// @notice Fills an intent order using a signed message
+	/// @param fill Message wrapping the Intent and identifying the solver
+	/// @param traderSignature Signature of the wrapped intent (inner)
+	/// @param solverSignature Signature of the fill message from the solver (outer)
     function update(
         Fill calldata fill,
         bytes memory traderSignature,
@@ -218,31 +225,31 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Updates the account's position
     /// @dev No collateral movement, signer is allowed to self-send
     /// @param account The account to operate on
-    /// @param amount The position delta of the order (positive for long, negative for short)
+    /// @param takerAmount The position delta of the order (positive for long, negative for short)
     /// @param referrer The referrer of the order
-    function update(address account, Fixed6 amount, address referrer) external nonReentrant whenNotPaused {
-       _updateMarket(account, msg.sender, Fixed6Lib.ZERO, amount, Fixed6Lib.ZERO, referrer);
+    function update(address account, Fixed6 takerAmount, address referrer) external nonReentrant whenNotPaused {
+       _updateMarket(account, msg.sender, Fixed6Lib.ZERO, takerAmount, Fixed6Lib.ZERO, referrer);
     }
 
-    /// @notice Updates the account's position and collateral
+    /// @notice Updates the account's taker position and isolated collateral
     /// @param account The account to operate on
-    /// @param amount The position delta of the order (positive for long, negative for short)
-    /// @param collateral The collateral delta of the order (positive for deposit, negative for withdrawal)
+    /// @param takerAmount The position delta of the order (positive for long, negative for short)
+    /// @param collateral In isolated mode, amount of collateral to add to or remove from the market
     /// @param referrer The referrer of the order
     function update(
         address account,
-        Fixed6 amount,
+        Fixed6 takerAmount,
         Fixed6 collateral,
         address referrer
     ) external nonReentrant whenNotPaused {
-        _updateMarket(account, address(0), Fixed6Lib.ZERO, amount, collateral, referrer);
+        _updateMarket(account, address(0), Fixed6Lib.ZERO, takerAmount, collateral, referrer);
     }
 
-    /// @notice Updates the account's position and collateral
+    /// @notice Updates the account's position and isolated collateral
     /// @param account The account to operate on
     /// @param makerAmount The maker of the order
     /// @param takerAmount The taker of the order (positive for long, negative for short)
-    /// @param collateral The collateral delta of the order (positive for deposit, negative for withdrawal)
+    /// @param collateral In isolated mode, amount of collateral to add to or remove from the market
     /// @param referrer The referrer of the order
     function update(
         address account,
@@ -254,60 +261,39 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _updateMarket(account, address(0), makerAmount, takerAmount, collateral, referrer);
     }
 
-    /// @notice Updates the account's position and collateral
+    /// @notice Closes the account's position
     /// @param account The account to operate on
-    /// @param newMaker The new maker position for the account
-    /// @param newMaker The new long position for the account
-    /// @param newMaker The new short position for the account
-    /// @param collateral The collateral amount to add or remove from the account
-    /// @param protect Whether to put the account into a protected status for liquidations
-    function update(
-        address account,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort,
-        Fixed6 collateral,
-        bool protect
-    ) external {
-        update(account, newMaker, newLong, newShort, collateral, protect, address(0));
-    }
-
-    /// @notice Updates the account's position and collateral
-    /// @param account The account to operate on
-    /// @param newMaker The new maker position for the account
-    /// @param newLong The new long position for the account
-    /// @param newShort The new short position for the account
-    /// @param collateral The collateral amount to add or remove from the account
     /// @param protect Whether to put the account into a protected status for liquidations
     /// @param referrer The referrer of the order
-    function update(
-        address account,
-        UFixed6 newMaker,
-        UFixed6 newLong,
-        UFixed6 newShort,
-        Fixed6 collateral,
-        bool protect,
-        address referrer
-    ) public nonReentrant whenNotPaused {
+    function close(address account, bool protect, address referrer) external {
         (Context memory context, UpdateContext memory updateContext) =
             _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
 
-        // magic values
-        (collateral, newMaker, newLong, newShort) =
-            MagicValueLib.process(context, updateContext, collateral, newMaker, newLong, newShort);
+        Fixed6 makerAmount;
+        Fixed6 takerAmount;
+
+        UFixed6 closable = context.latestPositionLocal.magnitude().sub(context.pendingLocal.neg());
+
+        if (updateContext.currentPositionLocal.maker.gt(UFixed6Lib.ZERO)) {
+            makerAmount = Fixed6Lib.from(-1, closable);
+        } else if (updateContext.currentPositionLocal.long.gt(UFixed6Lib.ZERO)) {
+            takerAmount = Fixed6Lib.from(-1, closable);
+        } else {
+            takerAmount = Fixed6Lib.from(1, closable);
+        }
 
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(
             context.currentTimestamp,
             updateContext.currentPositionLocal,
-            collateral,
-            newMaker,
-            newLong,
-            newShort,
+            makerAmount,
+            takerAmount,
+            Fixed6Lib.ZERO,
             protect,
             true,
             updateContext.orderReferralFee
         );
+
         Guarantee memory newGuarantee; // no guarantee is created for a market order
 
         // process update
@@ -338,28 +324,15 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Updates the risk parameter set of the market
     /// @param newRiskParameter The new risk parameter set
     function updateRiskParameter(RiskParameter memory newRiskParameter) external onlyCoordinator {
-        // load latest state
-        Global memory newGlobal = _global.read();
-        Position memory latestPosition = _position.read();
-        RiskParameter memory latestRiskParameter = _riskParameter.read();
-
-        // update risk parameter (first to capture truncation)
         _riskParameter.validateAndStore(newRiskParameter, IMarketFactory(address(factory())).parameter());
-        newRiskParameter = _riskParameter.read();
-
-        // update global exposure
-        newGlobal.update(latestRiskParameter, newRiskParameter, latestPosition);
-        _global.store(newGlobal);
-
         emit RiskParameterUpdated(newRiskParameter);
     }
 
-    /// @notice Claims any available fee that the sender has accrued
-    /// @dev Applicable fees include: protocol, oracle, risk, donation, and claimable
+    /// @notice Transfers a fee that the sender has accrued to the Margin contract
+    /// @dev Applicable fees include: protocol, oracle, and risk
     /// @return feeReceived The amount of the fee claimed
     function claimFee(address account) external onlyOperator(account) returns (UFixed6 feeReceived) {
         Global memory newGlobal = _global.read();
-        Local memory newLocal = _locals[account].read();
 
         // protocol fee
         if (account == factory().owner()) {
@@ -379,31 +352,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             newGlobal.riskFee = UFixed6Lib.ZERO;
         }
 
-        // claimable
-        feeReceived = feeReceived.add(newLocal.claimable);
-        newLocal.claimable = UFixed6Lib.ZERO;
-
         _global.store(newGlobal);
-        _locals[account].store(newLocal);
 
         if (!feeReceived.isZero()) {
-            token.push(msg.sender, UFixed18Lib.from(feeReceived));
+            margin.updateClaimable(msg.sender, Fixed6Lib.from(feeReceived));
             emit FeeClaimed(account, msg.sender, feeReceived);
         }
-    }
-
-    /// @notice Settles any exposure that has accrued to the market
-    /// @dev Resets exposure to zero, caller pays or receives to net out the exposure
-    function claimExposure() external onlyOwner {
-        Global memory newGlobal = _global.read();
-
-        if (newGlobal.exposure.sign() == 1) token.push(msg.sender, UFixed18Lib.from(newGlobal.exposure.abs()));
-        if (newGlobal.exposure.sign() == -1) token.pull(msg.sender, UFixed18Lib.from(newGlobal.exposure.abs()));
-
-        emit ExposureClaimed(msg.sender, newGlobal.exposure);
-
-        newGlobal.exposure = Fixed6Lib.ZERO;
-        _global.store(newGlobal);
     }
 
     /// @notice Returns the current parameter set
@@ -481,11 +435,43 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         return _pendings[account].read();
     }
 
-    /// @notice Returns the local checkpoint for the given account and version
-    /// @param account The account to query
+    // TODO: deprecate this in favor of calling the margin contract directly
+    /// @notice Returns the local isolated checkpoint for the given account and version
+    /// @param account The account with isolated collateral to query
     /// @param version The version to query
     function checkpoints(address account, uint256 version) external view returns (Checkpoint memory) {
-        return _checkpoints[account][version].read();
+        return margin.isolatedCheckpoints(account, this, version);
+    }
+
+    /// @inheritdoc IMarket
+    function hasPosition(address account) external view returns (bool) {
+        return !(_positions[account].read().empty() && _pendings[account].read().isEmpty());
+    }
+
+    /// @inheritdoc IMarket
+    function maintenanceRequired(
+        address account
+    ) external view returns (UFixed6 requirement) {
+        (OracleVersion memory latestOracleVersion, ) = oracle.status();
+        // TODO: add pending pos() to this as well, even though previous implementation excluded it
+        UFixed6 positionMagnitude = _positions[account].read().magnitude();
+        requirement = PositionLib.maintenance(positionMagnitude, latestOracleVersion, _riskParameter.read());
+    }
+
+    /// @inheritdoc IMarket
+    function marginRequired(
+        address account,
+        UFixed6 minCollateralization
+    ) external view returns (UFixed6 requirement) {
+        (OracleVersion memory latestOracleVersion, ) = oracle.status();
+        UFixed6 positionMagnitude = _positions[account].read().magnitude().add(_pendings[account].read().pos());
+        return PositionLib.margin(positionMagnitude, latestOracleVersion, _riskParameter.read(), minCollateralization);
+    }
+
+    /// @inheritdoc IMarket
+    function stale() external view returns (bool isStale) {
+        (OracleVersion memory latest, uint256 currentTimestamp) = oracle.status();
+        isStale = _stale(latest, currentTimestamp, _riskParameter.read().staleAfter);
     }
 
     /// @notice Loads the transaction context
@@ -569,6 +555,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         (updateContext.operator, updateContext.signer, updateContext.orderReferralFee) =
             IMarketFactory(address(factory())).authorization(context.account, msg.sender, signer, orderReferrer);
         if (guaranteeReferrer != address(0)) updateContext.guaranteeReferralFee = guaranteeReferralFee;
+
+        // load price adjustment
+        for (uint256 id = context.local.latestId + 1; id <= context.local.currentId; id++)
+            updateContext.priceAdjustment = updateContext.priceAdjustment
+                .add(_guarantees[context.account][id].read().priceAdjustment(context.latestOracleVersion.price));
     }
 
     /// @notice Stores the context for the update process
@@ -626,11 +617,44 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address orderReferrer,
         address guaranteeReferrer
     ) private {
+        // update collateral in margin contract
+        if (!newOrder.collateral.isZero() && // sender is modifying isolated collateral
+            !updateContext.signer &&     // sender is not relaying the account's signed intention
+            !updateContext.operator      // sender is not operator approved for account
+        ) revert IMarket.MarketOperatorNotAllowedError();
+        if (!newOrder.protected()) margin.handleMarketUpdate(context.account, newOrder.collateral);
+
         // process update
         _update(context, updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
 
         // store updated state
         _storeContext(context);
+
+        // TODO: consider updating these three checks into a post-save invariant;
+        // perhaps moving into a new InvariantLib function to reduce contract size
+
+        // when liquidating, ensure maintenance requirements are not met
+        if (newOrder.protected() && (
+            !context.pendingLocal.neg().eq(context.latestPositionLocal.magnitude()) || // total pending close is not equal to latest position
+            margin.maintained(context.account) ||                                      // latest position is properly maintained
+            !newOrder.collateral.eq(Fixed6Lib.ZERO)                                    // TODO: can eliminate because close method doesn't touch collateral
+        )) revert IMarket.MarketInvalidProtectionError();
+
+        // TODO: This doesn't need to be done post-save; keeping adjacent to maintenance/margin checks for future refactoring.
+        if (
+            !(updateContext.currentPositionLocal.magnitude().isZero() && context.latestPositionLocal.magnitude().isZero()) && // sender has no position
+            !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO)) &&                                               // sender is isolating collateral into account, without position change
+            _stale(context.latestOracleVersion, context.currentTimestamp, context.riskParameter.staleAfter)                                                                                                          // price is not stale
+        ) revert IMarket.MarketStalePriceError();
+
+        // check margin
+        if (!newOrder.protected() && (
+            !margin.margined(
+                context.account,
+                updateContext.collateralization,
+                updateContext.priceAdjustment                                             // apply price override adjustment from pending intents if present
+                    .add(newGuarantee.priceAdjustment(context.latestOracleVersion.price)) // apply price override adjustment from new intent if present
+        ))) revert IMarket.MarketInsufficientMarginError();
     }
 
     /// @notice Updates the account's position for an intent order
@@ -748,9 +772,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         updateContext.guaranteeGlobal.add(newGuarantee);
         updateContext.guaranteeLocal.add(newGuarantee);
 
-        // update collateral
-        context.local.update(newOrder.collateral);
-
         // protect account
         if (newOrder.protected()) updateContext.liquidator = msg.sender;
 
@@ -765,12 +786,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // store
         _storeUpdateContext(context, updateContext);
-
-        // fund
-        if (newOrder.collateral.sign() == 1) token.pull(msg.sender, UFixed18Lib.from(newOrder.collateral.abs()));
-        if (newOrder.collateral.sign() == -1) token.push(msg.sender, UFixed18Lib.from(newOrder.collateral.abs()));
-
-        // events
     }
 
     /// @notice Processes the referrer for the given order
@@ -803,7 +818,11 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Context memory context
     ) private view returns (SettlementContext memory settlementContext) {
         settlementContext.latestVersion = _versions[context.latestPositionGlobal.timestamp].read();
-        settlementContext.latestCheckpoint = _checkpoints[context.account][context.latestPositionLocal.timestamp].read();
+        settlementContext.latestCheckpoint = margin.isolatedCheckpoints(
+            context.account,
+            this,
+            context.latestPositionLocal.timestamp
+        );
 
         (settlementContext.orderOracleVersion, ) = oracle.at(context.latestPositionGlobal.timestamp);
         context.global.overrideIfZero(settlementContext.orderOracleVersion);
@@ -935,31 +954,28 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             versionTo
         );
 
-        context.local.update(newOrderId, accumulationResponse);
         context.latestPositionLocal.update(newOrder);
+        // calculate and store collateral change for account
+        Fixed6 pnl = context.local.update(newOrderId, accumulationResponse);
+        margin.updateCheckpoint(context.account, newOrder.timestamp, settlementContext.latestCheckpoint, pnl);
 
-        _checkpoints[context.account][newOrder.timestamp].store(settlementContext.latestCheckpoint);
-
-        _credit(context, liquidators[context.account][newOrderId], accumulationResponse.liquidationFee);
-        _credit(context, orderReferrers[context.account][newOrderId], accumulationResponse.subtractiveFee);
-        _credit(context, guaranteeReferrers[context.account][newOrderId], accumulationResponse.solverFee);
+        _credit(liquidators[context.account][newOrderId], accumulationResponse.liquidationFee);
+        _credit(orderReferrers[context.account][newOrderId], accumulationResponse.subtractiveFee);
+        _credit(guaranteeReferrers[context.account][newOrderId], accumulationResponse.solverFee);
     }
 
-    /// @notice Credits an account's claimable
+    /// @notice Credits an account's claimable balance in the margin contract
     /// @dev The amount must have already come from a corresponding debit in the settlement flow.
-    ///      If the receiver is the context's account, the amount is instead credited in-memory.
-    /// @param context The context to use
     /// @param receiver The account to credit
     /// @param amount The amount to credit
-    function _credit(Context memory context, address receiver, UFixed6 amount) private {
+    function _credit(address receiver, UFixed6 amount) private {
         if (amount.isZero()) return;
+        margin.updateClaimable(receiver, Fixed6Lib.from(amount));
+    }
 
-        if (receiver == context.account) context.local.credit(amount);
-        else {
-            Local memory receiverLocal = _locals[receiver].read();
-            receiverLocal.credit(amount);
-            _locals[receiver].store(receiverLocal);
-        }
+    /// @dev Returns true if the oracle price is stale, which should prevent position change and deisolation of collateral
+    function _stale(OracleVersion memory latest, uint256 currentTimestamp, uint256 staleAfter) private pure returns (bool) {
+        return !latest.valid || currentTimestamp - latest.timestamp >= staleAfter;
     }
 
     /// @notice Only the coordinator or the owner can call

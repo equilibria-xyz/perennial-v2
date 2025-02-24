@@ -37,6 +37,7 @@ interface IVault is IInstance {
     event ParameterUpdated(VaultParameter newParameter);
     event CoordinatorUpdated(address indexed newCoordinator);
     event Updated(address indexed sender, address indexed account, uint256 version, UFixed6 depositAssets, UFixed6 redeemShares, UFixed6 claimAssets);
+    event AllowedUpdated(address indexed account, bool newAllowed);
     event MarkUpdated(UFixed18 newMark, UFixed6 profitShares);
 
     // sig: 0xa9785d3d
@@ -57,12 +58,16 @@ interface IVault is IInstance {
     error VaultNotOperatorError();
     // sig: 0xa65ac9fb
     error VaultNotSingleSidedError();
-    // sig: 0xa65ac9fb
+    // sig: 0xf2fbeec4
     error VaultInsufficientMinimumError();
     // sig: 0xdbdb7620
     error VaultAggregateWeightError();
     // sig: 0x50ad85d6
     error VaultCurrentOutOfSyncError();
+    // sig: 0xcea74672
+    error VaultNotAllowedError();
+    // sig: 0xfad220c0
+    error VaultNotCoordinatorError();
 
     // sig: 0xb8a09499
     error AccountStorageInvalidError();
@@ -75,7 +80,7 @@ interface IVault is IInstance {
     // sig: 0x0f9f8b19
     error VaultParameterStorageInvalidError();
 
-    function initialize(Token18 asset, IMarket initialMaker, UFixed6 initialAmount, string calldata name_) external;
+    function initialize(Token18 asset, IMarket initialMaker, UFixed6 initialAmount, UFixed6 leverageBuffer, string calldata name_) external;
     function name() external view returns (string memory);
     function settle(address account) external;
     function rebalance(address account) external;
@@ -97,4 +102,14 @@ interface IVault is IInstance {
     function updateLeverage(uint256 marketId, UFixed6 newLeverage) external;
     function updateWeights(UFixed6[] calldata newWeights) external;
     function updateParameter(VaultParameter memory newParameter) external;
+
+    /// @notice Returns the allowed status of an account
+    /// @param account The account to check
+    /// @return The allowed status
+    function allowed(address account) external view returns (bool);
+
+    /// @notice Updates the allowed status of an account
+    /// @param account The account to update
+    /// @param newAllowed The new allowed status
+    function updateAllowed(address account, bool newAllowed) external;
 }

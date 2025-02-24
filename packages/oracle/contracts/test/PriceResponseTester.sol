@@ -32,10 +32,4 @@ contract PriceResponseTester {
     function settlementFee(PriceResponse memory self, uint256 callbacks) external pure returns (UFixed6) {
         return PriceResponseLib.settlementFee(self, callbacks);
     }
-
-    function applyFeeMaximum(UFixed6 maxSettlementFee, uint256 callbacks) external {
-        PriceResponse memory newPriceResponse = read();
-        newPriceResponse.applyFeeMaximum(maxSettlementFee, callbacks);
-        store(newPriceResponse);
-    }
 }

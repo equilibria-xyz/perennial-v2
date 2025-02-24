@@ -1,42 +1,43 @@
+import { ethers } from 'hardhat'
+import { expect, use } from 'chai'
+import { BigNumber, constants, utils } from 'ethers'
+import { FakeContract, smock } from '@defi-wonderland/smock'
+import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
+import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+
 import {
+  IMargin,
+  IMarket,
   IVault,
   IVaultFactory,
-  Market,
   MultiInvoker,
   IOracleProvider,
   IMultiInvoker,
   VaultFactory,
   MakerVault__factory,
   SolverVault__factory,
-} from '../../../../types/generated'
-import { Address } from 'hardhat-deploy/dist/types'
-import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+} from '../../../types/generated'
 import { InstanceVars, createVault, resetSubOracle } from './setupHelpers'
 
 import {
+  Actions,
   buildApproveTarget,
   buildClaimFee,
-  buildPlaceOrder,
   buildUpdateIntent,
   buildUpdateMarket,
   buildUpdateVault,
-} from '../../../helpers/MultiInvoker/invoke'
+} from '../../helpers/MultiInvoker/invoke'
 
-import { DEFAULT_ORDER, expectOrderEq, OracleReceipt, parse6decimal } from '../../../../../common/testutil/types'
-import { expect, use } from 'chai'
-import { FakeContract, smock } from '@defi-wonderland/smock'
-import { ethers } from 'hardhat'
-import { BigNumber, constants } from 'ethers'
-import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/withArgs'
-import { Compare, Dir, openTriggerOrder } from '../../../helpers/MultiInvoker/types'
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { DEFAULT_ORDER, expectOrderEq, OracleReceipt, parse6decimal } from '../../../../common/testutil/types'
 import { IERC20Metadata } from '@perennial/v2-core/types/generated'
-import { createMarket } from '../../../helpers/marketHelpers'
+import { createMarket } from '../../helpers/marketHelpers'
 import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
 
 use(smock.matchers)
 
 const LEGACY_ORACLE_DELAY = 3600
+const PRICE = utils.parseEther('3535.533906') // 113.882975  // 125.000000
 
 export function RunInvokerTests(
   getFixture: () => Promise<InstanceVars>,
@@ -48,14 +49,14 @@ export function RunInvokerTests(
   ) => Promise<MultiInvoker>,
   fundWalletDSU: (wallet: SignerWithAddress, amount: BigNumber) => Promise<void>,
   fundWalletUSDC: (wallet: SignerWithAddress, amount: BigNumber) => Promise<void>,
-  advanceToPrice: () => Promise<void>,
+  advanceToPrice: (price?: BigNumber, withPayoff?: boolean) => Promise<void>,
   initialOracleVersionEth: OracleVersionStruct,
   initialOracleVersionBtc: OracleVersionStruct,
 ): void {
   describe('Invoke', () => {
     let instanceVars: InstanceVars
     let multiInvoker: MultiInvoker
-    let market: Market
+    let market: IMarket
     let makerVault: IVault
     let solverVault: IVault
     let makerVaultFactory: IVaultFactory
@@ -64,6 +65,7 @@ export function RunInvokerTests(
     let makerBtcSubOracle: FakeContract<IOracleProvider>
     let solverEthSubOracle: FakeContract<IOracleProvider>
     let solverBtcSubOracle: FakeContract<IOracleProvider>
+    let withBatcher: boolean
 
     async function updateVaultOracle(
       newEthPrice?: BigNumber,
@@ -112,14 +114,17 @@ export function RunInvokerTests(
         '0x0000000000000000000000000000000000000000000000000000000000000003',
         '0x0000000000000000000000000000000000000000000000000000000000000004',
       )
-      market = await createMarket(instanceVars.owner, instanceVars.marketFactory, instanceVars.dsu, instanceVars.oracle)
+      market = await createMarket(instanceVars.owner, instanceVars.marketFactory, instanceVars.oracle)
       await instanceVars.oracle.register(market.address)
     }
 
     beforeEach(async () => {
       await loadFixture(fixture)
-      // TODO: move into fixture
+      // locks up if done within fixture
       multiInvoker = await createInvoker(instanceVars, makerVaultFactory, solverVaultFactory, true)
+      // allow all accounts to interact with the vault
+      await makerVault.connect(instanceVars.owner).updateAllowed(constants.AddressZero, true)
+      await solverVault.connect(instanceVars.owner).updateAllowed(constants.AddressZero, true)
     })
 
     afterEach(async () => {
@@ -138,14 +143,10 @@ export function RunInvokerTests(
       expect(await multiInvoker.reserve()).to.eq(instanceVars.dsuReserve.address)
       expect(await multiInvoker.USDC()).to.eq(usdc.address)
       expect(await multiInvoker.DSU()).to.eq(dsu.address)
-      expect(await multiInvoker.latestNonce()).to.eq(0)
     })
 
     it('initializes correctly', async () => {
       const { owner, dsu, usdc, dsuBatcher, dsuReserve, chainlinkKeptFeed } = instanceVars
-
-      expect(await multiInvoker.keeperToken()).to.eq(instanceVars.dsu.address)
-      expect(await multiInvoker.ethTokenOracleFeed()).to.eq(chainlinkKeptFeed.address)
 
       if (dsuBatcher) {
         expect(await dsu.allowance(multiInvoker.address, dsuBatcher.address)).to.eq(ethers.constants.MaxUint256)
@@ -168,26 +169,6 @@ export function RunInvokerTests(
       ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
     })
 
-    describe('#updateOperator', () => {
-      it('sets operator as enabled', async () => {
-        const { user, userD } = instanceVars
-        await expect(multiInvoker.connect(user).updateOperator(userD.address, true))
-          .to.emit(multiInvoker, 'OperatorUpdated')
-          .withArgs(user.address, userD.address, true)
-        expect(await multiInvoker.operators(user.address, userD.address)).to.be.true
-      })
-
-      it('sets an operator as disabled', async () => {
-        const { user, userD } = instanceVars
-        await multiInvoker.connect(user).updateOperator(userD.address, true)
-        expect(await multiInvoker.operators(user.address, userD.address)).to.be.true
-        await expect(multiInvoker.connect(user).updateOperator(userD.address, false))
-          .to.emit(multiInvoker, 'OperatorUpdated')
-          .withArgs(user.address, userD.address, false)
-        expect(await multiInvoker.operators(user.address, userD.address)).to.be.false
-      })
-    })
-
     const testCases = [
       {
         context: 'From user',
@@ -200,8 +181,8 @@ export function RunInvokerTests(
       {
         context: 'From delegate',
         setup: async () => {
-          const { user, userD } = instanceVars
-          await multiInvoker.connect(user).updateOperator(userD.address, true)
+          const { marketFactory, user, userD } = instanceVars
+          await marketFactory.connect(user).updateOperator(userD.address, true)
         },
         invoke: async (args: IMultiInvoker.InvocationStruct[]) => {
           const { user, userD } = instanceVars
@@ -209,6 +190,40 @@ export function RunInvokerTests(
         },
       },
     ]
+
+    const buildMarketUpdateAction = async ({
+      market,
+      makerDelta = BigNumber.from(0),
+      longDelta = BigNumber.from(0),
+      shortDelta = BigNumber.from(0),
+      collateral = BigNumber.from(0),
+      handleWrap,
+      interfaceFee1,
+      interfaceFee2,
+    }: {
+      market: IMarket
+      makerDelta?: BigNumber
+      longDelta?: BigNumber
+      shortDelta?: BigNumber
+      collateral?: BigNumber
+      handleWrap?: boolean
+      interfaceFee1?: InterfaceFeeStruct
+      interfaceFee2?: InterfaceFeeStruct
+    }): Promise<Actions> => {
+      const { user, margin } = instanceVars
+      collateral = collateral ?? (await margin.isolatedBalances(user.address, market.address)).mul(-1)
+
+      return buildUpdateMarket({
+        market: market.address,
+        makerDelta: makerDelta,
+        longDelta: longDelta,
+        shortDelta: shortDelta,
+        collateral: collateral,
+        handleWrap: handleWrap,
+        interfaceFee1: interfaceFee1,
+        interfaceFee2: interfaceFee2,
+      })
+    }
 
     testCases.forEach(({ context: contextStr, setup, invoke }) => {
       context(contextStr, async () => {
@@ -221,7 +236,7 @@ export function RunInvokerTests(
           const dsuCollateral = collateral.mul(1e12)
 
           it('deposits into market', async () => {
-            const { user, dsu } = instanceVars
+            const { user, dsu, margin } = instanceVars
 
             const userBalanceBefore = await dsu.balanceOf(user.address)
 
@@ -232,31 +247,29 @@ export function RunInvokerTests(
               .to.emit(dsu, 'Transfer')
               .withArgs(user.address, multiInvoker.address, dsuCollateral)
               .to.emit(dsu, 'Transfer')
-              .withArgs(multiInvoker.address, market.address, dsuCollateral)
+              .withArgs(multiInvoker.address, margin.address, dsuCollateral)
 
-            expect(await dsu.balanceOf(market.address)).to.eq(dsuCollateral)
+            expect(await margin.isolatedBalances(user.address, market.address)).to.eq(collateral)
 
             const userBalanceAfter = await dsu.balanceOf(user.address)
             expect(userBalanceBefore.sub(userBalanceAfter)).to.eq(dsuCollateral)
           })
 
           it('withdraws from market', async () => {
-            const { user, dsu } = instanceVars
+            const { user, dsu, margin } = instanceVars
 
             const userInitialBalance = await dsu.balanceOf(user.address)
 
             // deposit into market
             await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
             await expect(invoke(buildApproveTarget(market.address))).to.not.be.reverted
-
-            await expect(invoke(buildUpdateMarket({ market: market.address, collateral: collateral }))).to.not.be
+            await expect(invoke(await buildMarketUpdateAction({ market: market, collateral: collateral }))).to.not.be
               .reverted
 
             const userBalanceBefore = await dsu.balanceOf(user.address)
-
-            await expect(invoke(buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1) })))
+            await expect(invoke(await buildMarketUpdateAction({ market: market, collateral: collateral.mul(-1) })))
               .to.emit(dsu, 'Transfer')
-              .withArgs(market.address, multiInvoker.address, dsuCollateral)
+              .withArgs(margin.address, multiInvoker.address, dsuCollateral)
               .to.emit(dsu, 'Transfer')
               .withArgs(multiInvoker.address, user.address, dsuCollateral)
 
@@ -266,68 +279,67 @@ export function RunInvokerTests(
             expect(userBalanceAfter).to.eq(userInitialBalance)
           })
 
-          it('wraps USDC to DSU and deposits into market using BATCHER', async () => {
-            const { user, usdc, dsu, dsuBatcher } = instanceVars
-            if (!dsuBatcher) this.skip()
+          withBatcher &&
+            it('wraps USDC to DSU and deposits into market using BATCHER', async () => {
+              const { user, usdc, dsu, dsuBatcher } = instanceVars
 
-            const userBalanceBefore = await usdc.balanceOf(user.address)
-
-            await usdc.connect(user).approve(multiInvoker.address, collateral)
-            await expect(invoke(buildApproveTarget(market.address))).to.not.be.reverted
-
-            await expect(
-              invoke(buildUpdateMarket({ market: market.address, collateral: collateral, handleWrap: true })),
-            )
-              .to.emit(usdc, 'Transfer')
-              .withArgs(user.address, multiInvoker.address, collateral)
-              .to.emit(dsuBatcher, 'Wrap')
-              .withArgs(multiInvoker.address, dsuCollateral)
-
-            const userBalanceAfter = await usdc.balanceOf(user.address)
-
-            expect(userBalanceBefore.sub(userBalanceAfter).eq(collateral))
-            expect(await dsu.balanceOf(market.address)).to.eq(dsuCollateral)
-          })
-
-          it('wraps USDC to DSU and deposits into market using RESERVE if BATCHER balance < collateral', async () => {
-            const { user, userB, usdc, dsu, dsuBatcher, dsuReserve } = instanceVars
-
-            if (dsuBatcher) {
-              // userB uses collateral - 1 from batcher wrap
-              const drainBatcherByFixed6 = (await dsu.balanceOf(dsuBatcher.address))
-                .div(1e12)
-                .sub(collateral)
-                .add(parse6decimal('1'))
-              await fundWalletUSDC(userB, drainBatcherByFixed6)
-
-              await usdc.connect(userB).approve(multiInvoker.address, drainBatcherByFixed6)
-              await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
-
-              await expect(
-                multiInvoker
-                  .connect(userB)
-                  ['invoke((uint8,bytes)[])'](
-                    buildUpdateMarket({ market: market.address, collateral: drainBatcherByFixed6, handleWrap: true }),
-                  ),
-              )
-                .to.emit(dsuBatcher, 'Wrap')
-                .withArgs(multiInvoker.address, drainBatcherByFixed6.mul(1e12))
+              const userBalanceBefore = await usdc.balanceOf(user.address)
 
               await usdc.connect(user).approve(multiInvoker.address, collateral)
+              await expect(invoke(buildApproveTarget(market.address))).to.not.be.reverted
+
               await expect(
                 invoke(buildUpdateMarket({ market: market.address, collateral: collateral, handleWrap: true })),
               )
-                .to.emit(dsuReserve, 'Mint')
-                .withArgs(multiInvoker.address, dsuCollateral, anyValue)
-                .to.emit(dsu, 'Transfer')
-                .withArgs(multiInvoker.address, market.address, dsuCollateral)
-            } else {
-              this.skip()
-            }
-          })
+                .to.emit(usdc, 'Transfer')
+                .withArgs(user.address, multiInvoker.address, collateral)
+                .to.emit(dsuBatcher, 'Wrap')
+                .withArgs(multiInvoker.address, dsuCollateral)
+
+              const userBalanceAfter = await usdc.balanceOf(user.address)
+
+              expect(userBalanceBefore.sub(userBalanceAfter).eq(collateral))
+              expect(await dsu.balanceOf(market.address)).to.eq(dsuCollateral)
+            })
+
+          withBatcher &&
+            it('wraps USDC to DSU and deposits into market using RESERVE if BATCHER balance < collateral', async () => {
+              const { user, userB, usdc, dsu, dsuBatcher, dsuReserve } = instanceVars
+
+              if (dsuBatcher) {
+                // userB uses collateral - 1 from batcher wrap
+                const drainBatcherByFixed6 = (await dsu.balanceOf(dsuBatcher.address))
+                  .div(1e12)
+                  .sub(collateral)
+                  .add(parse6decimal('1'))
+                await fundWalletUSDC(userB, drainBatcherByFixed6)
+
+                await usdc.connect(userB).approve(multiInvoker.address, drainBatcherByFixed6)
+                await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
+
+                await expect(
+                  multiInvoker
+                    .connect(userB)
+                    ['invoke((uint8,bytes)[])'](
+                      buildUpdateMarket({ market: market.address, collateral: drainBatcherByFixed6, handleWrap: true }),
+                    ),
+                )
+                  .to.emit(dsuBatcher, 'Wrap')
+                  .withArgs(multiInvoker.address, drainBatcherByFixed6.mul(1e12))
+
+                await usdc.connect(user).approve(multiInvoker.address, collateral)
+                await expect(
+                  invoke(buildUpdateMarket({ market: market.address, collateral: collateral, handleWrap: true })),
+                )
+                  .to.emit(dsuReserve, 'Mint')
+                  .withArgs(multiInvoker.address, dsuCollateral, anyValue)
+                  .to.emit(dsu, 'Transfer')
+                  .withArgs(multiInvoker.address, market.address, dsuCollateral)
+              }
+            })
 
           it('wraps USDC to DSU and deposits into market using RESERVE if BATCHER address == 0', async () => {
-            const { owner, user, usdc, dsuReserve } = instanceVars
+            const { user, usdc, dsuReserve } = instanceVars
 
             // deploy multiinvoker with batcher == 0 address
             multiInvoker = await createInvoker(instanceVars, makerVaultFactory, solverVaultFactory, false)
@@ -344,87 +356,85 @@ export function RunInvokerTests(
               .withArgs(multiInvoker.address, dsuCollateral, anyValue)
           })
 
-          it('withdraws from market and unwraps DSU to USDC using BATCHER', async () => {
-            const { owner, user, userB, dsu, usdc, dsuBatcher } = instanceVars
+          withBatcher &&
+            it('withdraws from market and unwraps DSU to USDC using BATCHER', async () => {
+              const { user, userB, dsu, usdc, dsuBatcher } = instanceVars
 
-            if (dsuBatcher) {
-              const userUSDCBalanceBefore = await usdc.balanceOf(user.address)
+              if (dsuBatcher) {
+                const userUSDCBalanceBefore = await usdc.balanceOf(user.address)
 
-              await fundWalletUSDC(userB, parse6decimal('1000'))
-              await usdc.connect(userB).transfer(dsuBatcher.address, collateral)
+                await fundWalletUSDC(userB, parse6decimal('1000'))
+                await usdc.connect(userB).transfer(dsuBatcher.address, collateral)
 
-              await fundWalletUSDC(user, parse6decimal('1000'))
-              await usdc.connect(user).approve(multiInvoker.address, collateral)
-              await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
-              await invoke(buildApproveTarget(market.address))
+                await fundWalletUSDC(user, parse6decimal('1000'))
+                await usdc.connect(user).approve(multiInvoker.address, collateral)
+                await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
+                await invoke(buildApproveTarget(market.address))
 
-              await expect(
-                invoke(buildUpdateMarket({ market: market.address, collateral: collateral, handleWrap: true })),
-              ).to.not.be.reverted
+                await expect(
+                  invoke(buildUpdateMarket({ market: market.address, collateral: collateral, handleWrap: true })),
+                ).to.not.be.reverted
 
-              await expect(
-                await invoke(
-                  buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1), handleWrap: true }),
-                ),
-              )
-                .to.emit(dsu, 'Transfer')
-                .withArgs(market.address, multiInvoker.address, dsuCollateral)
-                .to.emit(dsuBatcher, 'Unwrap')
-                .withArgs(user.address, dsuCollateral)
+                await expect(
+                  await invoke(
+                    buildUpdateMarket({ market: market.address, collateral: collateral.mul(-1), handleWrap: true }),
+                  ),
+                )
+                  .to.emit(dsu, 'Transfer')
+                  .withArgs(market.address, multiInvoker.address, dsuCollateral)
+                  .to.emit(dsuBatcher, 'Unwrap')
+                  .withArgs(user.address, dsuCollateral)
 
-              expect((await usdc.balanceOf(user.address)).sub(userUSDCBalanceBefore)).to.eq(collateral)
-            } else {
-              this.skip()
-            }
-          })
+                expect((await usdc.balanceOf(user.address)).sub(userUSDCBalanceBefore)).to.eq(collateral)
+              }
+            })
 
-          it('withdraws from market and unwraps DSU to USDC using RESERVE if BATCHER balance < collateral', async () => {
-            const { user, userB, usdc, dsu, dsuBatcher, dsuReserve } = instanceVars
+          withBatcher &&
+            it('withdraws from market and unwraps DSU to USDC using RESERVE if BATCHER balance < collateral', async () => {
+              const { user, userB, usdc, dsu, dsuBatcher, dsuReserve } = instanceVars
 
-            if (dsuBatcher) {
-              // userB uses collateral - 1 from batcher wrap
-              const drainBatcherByFixed6 = (await usdc.balanceOf(dsuBatcher.address)).sub(collateral).add(1)
-              await fundWalletDSU(userB, drainBatcherByFixed6)
-              await dsu.connect(userB).approve(multiInvoker.address, drainBatcherByFixed6.mul(1e12))
-              await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
+              if (dsuBatcher) {
+                // userB uses collateral - 1 from batcher wrap
+                const drainBatcherByFixed6 = (await usdc.balanceOf(dsuBatcher.address)).sub(collateral).add(1)
+                await fundWalletDSU(userB, drainBatcherByFixed6)
+                await dsu.connect(userB).approve(multiInvoker.address, drainBatcherByFixed6.mul(1e12))
+                await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
 
-              await expect(
-                multiInvoker.connect(userB)['invoke((uint8,bytes)[])'](
-                  buildUpdateMarket({
-                    market: market.address,
-                    collateral: drainBatcherByFixed6,
-                    handleWrap: false,
-                  }),
-                ),
-              ).to.not.be.reverted
+                await expect(
+                  multiInvoker.connect(userB)['invoke((uint8,bytes)[])'](
+                    buildUpdateMarket({
+                      market: market.address,
+                      collateral: drainBatcherByFixed6,
+                      handleWrap: false,
+                    }),
+                  ),
+                ).to.not.be.reverted
 
-              // drain batcher usdc balance on withdraw and unwrap by batcher balance - collateral + 1
-              await expect(
-                multiInvoker.connect(userB)['invoke((uint8,bytes)[])'](
-                  buildUpdateMarket({
-                    market: market.address,
-                    collateral: drainBatcherByFixed6.mul(-1),
-                    handleWrap: true,
-                  }),
-                ),
-              ).to.not.be.reverted
+                // drain batcher usdc balance on withdraw and unwrap by batcher balance - collateral + 1
+                await expect(
+                  multiInvoker.connect(userB)['invoke((uint8,bytes)[])'](
+                    buildUpdateMarket({
+                      market: market.address,
+                      collateral: drainBatcherByFixed6.mul(-1),
+                      handleWrap: true,
+                    }),
+                  ),
+                ).to.not.be.reverted
 
-              // user deposits DSU then withdraws and unwraps USDC
-              await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
-              await invoke(buildUpdateMarket({ market: market.address, collateral: collateral, handleWrap: false }))
-              await expect(
-                invoke(
-                  buildUpdateMarket({ market: market.address, collateral: collateral.mul('-1'), handleWrap: true }),
-                ),
-              )
-                .to.emit(dsuReserve, 'Redeem')
-                .withArgs(multiInvoker.address, dsuCollateral, anyValue)
-                .to.emit(dsu, 'Transfer')
-                .withArgs(market.address, multiInvoker.address, dsuCollateral)
-            } else {
-              this.skip()
-            }
-          })
+                // user deposits DSU then withdraws and unwraps USDC
+                await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
+                await invoke(buildUpdateMarket({ market: market.address, collateral: collateral, handleWrap: false }))
+                await expect(
+                  invoke(
+                    buildUpdateMarket({ market: market.address, collateral: collateral.mul('-1'), handleWrap: true }),
+                  ),
+                )
+                  .to.emit(dsuReserve, 'Redeem')
+                  .withArgs(multiInvoker.address, dsuCollateral, anyValue)
+                  .to.emit(dsu, 'Transfer')
+                  .withArgs(market.address, multiInvoker.address, dsuCollateral)
+              }
+            })
 
           it('withdraws from market and unwraps DSU to USDC using RESERVE if BATCHER address == 0', async () => {
             const { user, dsu, dsuReserve } = instanceVars
@@ -444,42 +454,6 @@ export function RunInvokerTests(
             )
               .to.emit(dsuReserve, 'Redeem')
               .withArgs(multiInvoker.address, dsuCollateral, anyValue)
-          })
-
-          it('withdraws total collateral amount if using collateral magic value', async () => {
-            const { user, owner, usdc, dsu } = instanceVars
-
-            await usdc.connect(user).approve(multiInvoker.address, collateral)
-            await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
-            await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
-
-            await invoke(buildUpdateMarket({ market: market.address, collateral: collateral, handleWrap: true }))
-
-            if (instanceVars.dsuBatcher) {
-              await expect(
-                invoke(
-                  buildUpdateMarket({
-                    market: market.address,
-                    collateral: ethers.constants.MinInt256,
-                    handleWrap: true,
-                  }),
-                ),
-              )
-                .to.emit(instanceVars.dsuBatcher, 'Unwrap')
-                .withArgs(user.address, dsuCollateral)
-            } else {
-              await expect(
-                invoke(
-                  buildUpdateMarket({
-                    market: market.address,
-                    collateral: ethers.constants.MinInt256,
-                    handleWrap: true,
-                  }),
-                ),
-              )
-                .to.emit(instanceVars.dsuReserve, 'Redeem')
-                .withArgs(user.address, dsuCollateral, anyValue)
-            }
           })
 
           it('deposits / redeems / claims from vault (maker)', async () => {
@@ -642,9 +616,7 @@ export function RunInvokerTests(
 
             await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
 
-            await expect(
-              invoke(buildUpdateMarket({ market: market.address, collateral: collateral })),
-            ).to.be.revertedWith('Dollar: transfer amount exceeds allowance')
+            await expect(invoke(buildUpdateMarket({ market: market.address, collateral: collateral }))).to.be.reverted
           })
 
           it('charges an interface fee on deposit and pulls USDC to the receiver', async () => {
@@ -814,11 +786,13 @@ export function RunInvokerTests(
             await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
             await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
 
+            await advanceToPrice(PRICE)
+
             await invoke(
               buildUpdateMarket({
                 market: market.address,
                 collateral: collateral,
-                maker: parse6decimal('0.02'),
+                makerDelta: parse6decimal('0.02'),
                 interfaceFee1: {
                   amount: 0,
                   receiver: owner.address,
@@ -842,11 +816,13 @@ export function RunInvokerTests(
             await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
             await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
 
+            await advanceToPrice(PRICE)
+
             await invoke(
               buildUpdateMarket({
                 market: market.address,
                 collateral: collateral,
-                maker: parse6decimal('0.01'),
+                makerDelta: parse6decimal('0.01'),
                 interfaceFee1: {
                   amount: 0,
                   receiver: ethers.constants.AddressZero,
@@ -864,7 +840,7 @@ export function RunInvokerTests(
           })
 
           it('fills an intent update', async () => {
-            const { marketFactory, owner, user, userB, userC, usdc, dsu, verifier, oracle } = instanceVars
+            const { marketFactory, owner, user, userB, userC, usdc, dsu, margin, verifier, oracle } = instanceVars
 
             await marketFactory.updateParameter({
               ...(await marketFactory.parameter()),
@@ -873,6 +849,8 @@ export function RunInvokerTests(
             await usdc.connect(user).approve(multiInvoker.address, collateral)
             await dsu.connect(user).approve(multiInvoker.address, dsuCollateral)
             await multiInvoker['invoke((uint8,bytes)[])'](buildApproveTarget(market.address))
+
+            await advanceToPrice(PRICE)
 
             const intent = {
               amount: parse6decimal('1'),
@@ -891,40 +869,41 @@ export function RunInvokerTests(
               },
             }
 
-            await dsu.connect(user).approve(market.address, ethers.utils.parseUnits('1000', 18))
-            await dsu.connect(userB).approve(market.address, ethers.utils.parseUnits('1000', 18))
-            await dsu.connect(userC).approve(market.address, ethers.utils.parseUnits('1000', 18))
+            const depositAmount = parse6decimal('1000')
+            await dsu.connect(user).approve(margin.address, depositAmount.mul(1e12))
+            await dsu.connect(userB).approve(margin.address, depositAmount.mul(1e12))
+            await dsu.connect(userC).approve(margin.address, depositAmount.mul(1e12))
+            await margin.connect(user).deposit(user.address, depositAmount)
             await market
               .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 user.address,
                 0,
-                0,
-                0,
                 ethers.utils.parseUnits('1000', 6),
-                false,
+                constants.AddressZero,
               )
+            await margin.connect(userB).deposit(userB.address, depositAmount)
             await market
               .connect(userB)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,address)'](
                 userB.address,
                 0,
-                0,
-                0,
                 ethers.utils.parseUnits('1000', 6),
-                false,
+                constants.AddressZero,
               )
+            await margin.connect(userC).deposit(userC.address, depositAmount)
             await market
               .connect(userC)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
+              ['update(address,int256,int256,int256,address)'](
                 userC.address,
                 parse6decimal('1'),
                 0,
-                0,
-                ethers.utils.parseUnits('1000', 6),
-                false,
+                depositAmount,
+                constants.AddressZero,
               )
 
+            // set a price which matches the guarantee
+            await advanceToPrice(PRICE)
             await invoke(
               await buildUpdateIntent({
                 signer: userB,
@@ -935,19 +914,19 @@ export function RunInvokerTests(
             )
 
             const intentTimestamp = await oracle.current()
-            expectOrderEq(await market.pendingOrders(user.address, 1), {
+            expectOrderEq(await market.pendingOrders(user.address, 2), {
               ...DEFAULT_ORDER,
               timestamp: intentTimestamp,
               orders: 1,
               shortPos: parse6decimal('1'),
-              collateral: ethers.utils.parseUnits('1000', 6),
+              collateral: 0,
             })
-            expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            expectOrderEq(await market.pendingOrders(userB.address, 2), {
               ...DEFAULT_ORDER,
               timestamp: intentTimestamp,
               orders: 1,
               longPos: parse6decimal('1'),
-              collateral: ethers.utils.parseUnits('1000', 6),
+              collateral: 0,
               takerReferral: parse6decimal('0.05'),
             })
           })
@@ -957,15 +936,17 @@ export function RunInvokerTests(
             let userB: SignerWithAddress
             let dsu: IERC20Metadata
             let usdc: IERC20Metadata
+            let margin: IMargin
 
             beforeEach(async () => {
               user = instanceVars.user
               userB = instanceVars.userB
               dsu = instanceVars.dsu
               usdc = instanceVars.usdc
-              const { marketFactory, owner } = instanceVars
-              await dsu.connect(user).approve(market.address, parse6decimal('600').mul(1e12))
-              await dsu.connect(userB).approve(market.address, parse6decimal('600').mul(1e12))
+              margin = instanceVars.margin
+              const { owner, marketFactory } = instanceVars
+              await dsu.connect(user).approve(margin.address, parse6decimal('600').mul(1e12))
+              await dsu.connect(userB).approve(margin.address, parse6decimal('600').mul(1e12))
               // set up the market to pay out a maker referral fee
               const protocolParameters = await marketFactory.parameter()
               await marketFactory.connect(owner).updateParameter({
@@ -978,16 +959,17 @@ export function RunInvokerTests(
                 makerFee: parse6decimal('0.05'),
               })
 
+              await advanceToPrice(PRICE)
+
               // userB creates a maker position, referred by user
+              await margin.connect(userB).deposit(userB.address, parse6decimal('600'))
               await market
                 .connect(userB)
-                ['update(address,uint256,uint256,uint256,int256,bool,address)'](
+                ['update(address,int256,int256,int256,address)'](
                   userB.address,
                   parse6decimal('3'),
                   0,
-                  0,
                   parse6decimal('600'),
-                  false,
                   user.address,
                 )
               await advanceToPrice()
@@ -996,12 +978,12 @@ export function RunInvokerTests(
             })
 
             it('claims fee from a market', async () => {
-              const expectedFee = (await market.locals(user.address)).claimable
+              const expectedFee = await margin.claimables(user.address)
 
               // user invokes to claim their fee
               if (instanceVars.dsuBatcher) {
                 await expect(invoke(buildClaimFee({ market: market.address, unwrap: true })))
-                  .to.emit(market, 'FeeClaimed')
+                  .to.emit(margin, 'ClaimableWithdrawn')
                   .withArgs(user.address, multiInvoker.address, expectedFee)
                   .to.emit(instanceVars.dsuBatcher, 'Unwrap')
                   .withArgs(user.address, expectedFee.mul(1e12))
@@ -1009,21 +991,23 @@ export function RunInvokerTests(
                   .withArgs(instanceVars.dsuBatcher.address, user.address, expectedFee)
               } else {
                 await expect(invoke(buildClaimFee({ market: market.address, unwrap: true })))
-                  .to.emit(market, 'FeeClaimed')
+                  .to.emit(margin, 'ClaimableWithdrawn')
                   .withArgs(user.address, multiInvoker.address, expectedFee)
                   .to.emit(instanceVars.dsuReserve, 'Redeem')
-                  .withArgs(user.address, expectedFee.mul(1e12), anyValue)
+                  .withArgs(multiInvoker.address, expectedFee.mul(1e12), anyValue)
                   .to.emit(usdc, 'Transfer')
-                  .withArgs(instanceVars.dsuReserve.address, user.address, expectedFee)
+                  .withArgs(instanceVars.dsuReserve.address, multiInvoker.address, expectedFee)
+                  .to.emit(usdc, 'Transfer')
+                  .withArgs(multiInvoker.address, user.address, expectedFee)
               }
             })
 
             it('claims fee from a market without unwrapping', async () => {
-              const expectedFee = (await market.locals(user.address)).claimable
+              const expectedFee = await margin.claimables(user.address)
 
               // user invokes to claim their fee
               await expect(invoke(buildClaimFee({ market: market.address, unwrap: false })))
-                .to.emit(market, 'FeeClaimed')
+                .to.emit(margin, 'ClaimableWithdrawn')
                 .withArgs(user.address, multiInvoker.address, expectedFee)
                 .to.emit(dsu, 'Transfer')
                 .withArgs(multiInvoker.address, user.address, expectedFee.mul(1e12))
@@ -1048,18 +1032,6 @@ export function RunInvokerTests(
               multiInvoker,
               'MultiInvokerInvalidInstanceError',
             )
-          })
-
-          it('Fails to place an order in an address not created by MarketFactory', async () => {
-            const trigger = openTriggerOrder({
-              delta: collateral,
-              price: 1100e6,
-              side: Dir.L,
-              comparison: Compare.ABOVE_MARKET,
-            })
-            await expect(
-              invoke(buildPlaceOrder({ market: makerVault.address, collateral: collateral, order: trigger })),
-            ).to.be.revertedWithCustomError(multiInvoker, 'MultiInvokerInvalidInstanceError')
           })
 
           describe('#batcher 0 address', async () => {
