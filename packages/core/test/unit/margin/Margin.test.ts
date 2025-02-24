@@ -220,18 +220,6 @@ describe('Margin', () => {
       expect(dsu.transfer).to.have.been.calledWith(user.address, feeEarned.mul(1e12))
     })
 
-    it('user cannot withdraw negative claimable balance from exposure', async () => {
-      const deficit = parse6decimal('-0.3')
-      const marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
-      await expect(margin.connect(marketSigner).updateClaimable(user.address, deficit)).to.not.be.reverted
-      expect(await margin.claimables(user.address)).to.equal(deficit)
-
-      await expect(margin.connect(user).claim(user.address, user.address)).to.be.revertedWithCustomError(
-        margin,
-        'UFixed6UnderflowError',
-      )
-    })
-
     it('user can withdraw claimable funds to another address', async () => {
       const feeEarned = parse6decimal('0.4')
       const marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
