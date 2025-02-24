@@ -139,10 +139,14 @@ interface IMargin is IInstance {
         UFixed6 minCollateralization
     ) external returns (bool isMargined);
 
-    /// @dev Called by market when Market.update is called, used to adjust isolated collateral balance for market.
+    /// @dev Called by market when Market.update is called, used to adjust isolated collateral balance for market
     /// @param account User intending to adjust isolated collateral for market
     /// @param collateralDelta Change in collateral requested by order prepared by market
     function handleMarketUpdate(address account, Fixed6 collateralDelta) external;
+
+    /// @dev Called by market when Market.settle is called, used to implicitly deisolate when positions are closed.
+    /// @param account User who was settled
+    function handleMarketSettle(address account) external;
 
     /// @dev Called by market to adjust claimable balance when fees are claimed or exposure settled
     function updateClaimable(address account, UFixed6 collateralDelta) external;

@@ -95,6 +95,11 @@ describe('Margin', () => {
       expect(await margin.crossMarginBalances(target.address)).to.equal(balanceBefore.add(amount))
     }
 
+    async function settle(user: SignerWithAddress, market: FakeContract<IMarket>) {
+      const marketSigner = await impersonate.impersonateWithBalance(market.address, utils.parseEther('10'))
+      await expect(margin.connect(marketSigner).handleMarketSettle(user.address)).to.not.be.reverted
+    }
+
     function fakeOraclePrice(price: BigNumber) {
       oracle.status.returns([
         {
@@ -285,6 +290,30 @@ describe('Margin', () => {
       expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('500'))
       expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(0)
     })
+
+    it('markets implicitly deisolated after closing position', async () => {
+      await deposit(user, parse6decimal('500'))
+      await margin.isolate(user.address, marketA.address, parse6decimal('400'))
+
+      // simulate a position
+      marketA.hasPosition.whenCalledWith(user.address).returns(true)
+      marketA.stale.returns(false)
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('400'))
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+
+      // settlement with open position should not deisolate the market
+      await settle(user, marketA)
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('400'))
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+
+      // settlement with closed position should deisolate the market
+      marketA.hasPosition.whenCalledWith(user.address).returns(false)
+      await settle(user, marketA)
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(0)
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.false
+    })
+
+    // TODO: markets not implicitly deisolated if settled with no position after isolating funds with no position
 
     it('prevents unbounded number of markets from being crossed', async () => {
       const maxCrossedMarkets = (await margin.MAX_CROSS_MARGIN_MARKETS()).toNumber()

@@ -875,6 +875,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             (nextOrder = _pendingOrders[context.account][context.local.latestId + 1].read()).ready(context.latestOracleVersion)
         ) _processOrderLocal(context, settlementContext, context.local.latestId + 1, nextOrder.timestamp, nextOrder);
 
+        margin.handleMarketSettle(context.account);
+
         // don't sync in settle-only mode
         if (context.marketParameter.settle) return;
 

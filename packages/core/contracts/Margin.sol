@@ -14,6 +14,7 @@ import { Position } from "./types/Position.sol";
 import { RiskParameter } from "./types/RiskParameter.sol";
 import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
 import { IMarket, IMarketFactory } from "./interfaces/IMarketFactory.sol";
+import "hardhat/console.sol";
 
 contract Margin is IMargin, Instance, ReentrancyGuard {
     IMarket private constant CROSS_MARGIN = IMarket(address(0));
@@ -123,12 +124,24 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     /// @inheritdoc IMargin
     function handleMarketUpdate(address account, Fixed6 collateralDelta) external onlyMarket {
-        if (!collateralDelta.isZero() || _isIsolated(account, IMarket(msg.sender)))
+        IMarket market = IMarket(msg.sender);
+        if (!collateralDelta.isZero() || _isIsolated(account, market))
             // Account's isolated collateral is changing, or market is already isolated
-            _isolate(account, IMarket(msg.sender), collateralDelta, false);
+            _isolate(account, market, collateralDelta, false);
         else
             // Ensure market is tracked as cross-margined
-            _cross(account, IMarket(msg.sender));
+            _cross(account, market);
+    }
+
+    /// @inheritdoc IMargin
+    function handleMarketSettle(address account) external onlyMarket {
+        IMarket market = IMarket(msg.sender);
+        UFixed6 isolatedBalance = UFixed6Lib.unsafeFrom(_balances[account][market]);
+        // FIXME: if market also had no position when isolated balance last changed, should not deisolate
+        if (!market.hasPosition(account) && !isolatedBalance.isZero()) {
+            // If position is closed, deisolate all funds from the market
+            _isolate(account, market, Fixed6Lib.from(-1, isolatedBalance), false);
+        }
     }
 
     /// @inheritdoc IMargin
