@@ -1935,6 +1935,7 @@ describe('Fees', () => {
         amount: POSITION.div(2),
         price: PRICE.add(0.5e6),
         fee: parse6decimal('0.5'),
+        additiveFee: 0,
         originator: userC.address,
         solver: owner.address,
         collateralization: parse6decimal('0.01'),
@@ -1955,7 +1956,7 @@ describe('Fees', () => {
       await market
         .connect(userC)
         [
-          'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+          'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
         ](userC.address, intent, signature)
 
       console.log(5)
