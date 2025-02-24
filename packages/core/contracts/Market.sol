@@ -821,7 +821,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address orderReferrer,
         address guaranteeReferrer
     ) private pure {
-        if (!newOrder.makerReferral.isZero() || !newOrder.takerReferral.isZero()) {
+        if (!newOrder.makerReferral.isZero() || !newOrder.takerReferral.isZero() || !newOrder.additiveFee.isZero()) {
             if (updateContext.orderReferrer == address(0)) updateContext.orderReferrer = orderReferrer;
             if (updateContext.orderReferrer != orderReferrer) revert MarketInvalidReferrerError();
         }
