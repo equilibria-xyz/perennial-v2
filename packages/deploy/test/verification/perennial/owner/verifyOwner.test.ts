@@ -11,6 +11,8 @@ import {
   ProxyAdmin__factory,
   Controller_Optimism,
   Controller_Optimism__factory,
+  StorkFactory,
+  StorkFactory__factory,
 } from '../../../../types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 
@@ -69,5 +71,13 @@ describe('Verify Owner', () => {
       signer,
     )
     expect(await controller.callStatic.owner()).to.equal(owner)
+  })
+
+  it('StorkFactory', async () => {
+    const storkFactory: StorkFactory = StorkFactory__factory.connect(
+      (await HRE.deployments.get('StorkFactory')).address,
+      signer,
+    )
+    expect(await storkFactory.callStatic.owner()).to.equal(owner)
   })
 })
