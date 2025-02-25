@@ -95,6 +95,11 @@ describe('Margin', () => {
       expect(await margin.crossMarginBalances(target.address)).to.equal(balanceBefore.add(amount))
     }
 
+    async function marketUpdate(user: SignerWithAddress, market: FakeContract<IMarket>, collateralDelta: BigNumber) {
+      const marketSigner = await impersonate.impersonateWithBalance(market.address, utils.parseEther('10'))
+      await margin.connect(marketSigner).handleMarketUpdate(user.address, collateralDelta)
+    }
+
     async function settle(user: SignerWithAddress, market: FakeContract<IMarket>) {
       const marketSigner = await impersonate.impersonateWithBalance(market.address, utils.parseEther('10'))
       await expect(margin.connect(marketSigner).handleMarketSettle(user.address)).to.not.be.reverted
@@ -292,12 +297,11 @@ describe('Margin', () => {
     })
 
     it('markets implicitly deisolated after closing position', async () => {
+      // simulate a position while isolating through margin contract
       await deposit(user, parse6decimal('500'))
-      await margin.isolate(user.address, marketA.address, parse6decimal('400'))
-
-      // simulate a position
       marketA.hasPosition.whenCalledWith(user.address).returns(true)
       marketA.stale.returns(false)
+      await margin.isolate(user.address, marketA.address, parse6decimal('400'))
       expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('400'))
       expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
 
@@ -311,9 +315,51 @@ describe('Margin', () => {
       await settle(user, marketA)
       expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(0)
       expect(await margin.isIsolated(user.address, marketA.address)).to.be.false
+
+      // simulate a position while isolating through market contract
+      await deposit(userB, parse6decimal('300'))
+      marketA.hasPosition.whenCalledWith(userB.address).returns(true)
+      marketA.stale.returns(false)
+      await marketUpdate(userB, marketA, parse6decimal('300'))
+      expect(await margin.isolatedBalances(userB.address, marketA.address)).to.equal(parse6decimal('300'))
+      expect(await margin.isIsolated(userB.address, marketA.address)).to.be.true
+
+      // settlement with open position should not deisolate the market
+      await settle(userB, marketA)
+      expect(await margin.isolatedBalances(userB.address, marketA.address)).to.equal(parse6decimal('300'))
+      expect(await margin.isIsolated(userB.address, marketA.address)).to.be.true
+
+      // settlement with closed position should deisolate the market
+      marketA.hasPosition.whenCalledWith(userB.address).returns(false)
+      await settle(userB, marketA)
+      expect(await margin.isolatedBalances(userB.address, marketA.address)).to.equal(0)
+      expect(await margin.isIsolated(userB.address, marketA.address)).to.be.false
     })
 
-    // TODO: markets not implicitly deisolated if settled with no position after isolating funds with no position
+    it('does not implicitly deisolate after isolating funds with no position', async () => {
+      await deposit(user, parse6decimal('500'))
+
+      // user isolates through margin contract with no position
+      marketA.hasPosition.whenCalledWith(user.address).returns(false)
+      await margin.isolate(user.address, marketA.address, parse6decimal('240'))
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('240'))
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+
+      // user settles with no position
+      await settle(user, marketA)
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('240'))
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+
+      // user isolates through market with no position
+      await marketUpdate(user, marketA, parse6decimal('250'))
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('490'))
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+
+      // user settles with no position
+      await settle(user, marketA)
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('490'))
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+    })
 
     it('prevents unbounded number of markets from being crossed', async () => {
       const maxCrossedMarkets = (await margin.MAX_CROSS_MARGIN_MARKETS()).toNumber()

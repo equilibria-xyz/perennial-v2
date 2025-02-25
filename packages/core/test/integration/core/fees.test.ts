@@ -945,7 +945,7 @@ describe('Fees', () => {
         currentId: 2,
         latestId: 2,
       })
-      expect(await margin.isolatedBalances(userD.address, market.address)).to.equal(COLLATERAL.sub(expectedPriceImpact))
+      expect(await margin.crossMarginBalances(userD.address)).to.equal(COLLATERAL.sub(expectedPriceImpact))
       expectOrderEq(await market.pendingOrders(userD.address, 2), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,

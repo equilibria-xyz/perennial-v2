@@ -14,7 +14,6 @@ import { Position } from "./types/Position.sol";
 import { RiskParameter } from "./types/RiskParameter.sol";
 import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
 import { IMarket, IMarketFactory } from "./interfaces/IMarketFactory.sol";
-import "hardhat/console.sol";
 
 contract Margin is IMargin, Instance, ReentrancyGuard {
     IMarket private constant CROSS_MARGIN = IMarket(address(0));
@@ -44,6 +43,9 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @dev Storage for account checkpoints: user -> market -> version -> checkpoint
     /// Cross-margin checkpoints stored as IMarket(address(0))
     mapping(address => mapping(IMarket => mapping(uint256 => CheckpointStorage))) private _checkpoints;
+
+    /// @dev Prevents implicit deisolation when isolating with no position
+    mapping(address => mapping(IMarket => bool)) private _hadPositionAtLastIsolate;
 
     /// @dev Creates instance
     /// @param dsu Digital Standard Unit stablecoin used as collateral
@@ -137,8 +139,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     function handleMarketSettle(address account) external onlyMarket {
         IMarket market = IMarket(msg.sender);
         UFixed6 isolatedBalance = UFixed6Lib.unsafeFrom(_balances[account][market]);
-        // FIXME: if market also had no position when isolated balance last changed, should not deisolate
-        if (!market.hasPosition(account) && !isolatedBalance.isZero()) {
+        // If market also had no position when isolated balance last changed, should not deisolate
+        if (!isolatedBalance.isZero() && !market.hasPosition(account) && _hadPositionAtLastIsolate[account][market]) {
             // If position is closed, deisolate all funds from the market
             _isolate(account, market, Fixed6Lib.from(-1, isolatedBalance), false);
         }
@@ -201,8 +203,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     function _isolatedMargined(
-        address account, 
-        IMarket market, 
+        address account,
+        IMarket market,
         UFixed6 minCollateralization
     ) private view returns (bool isMargined) {
         Fixed6 isolatedCollateral = _balances[account][market];
@@ -284,6 +286,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         if (isolating) _uncross(account, market);
 
         // Update storage
+        bool hasPosition = market.hasPosition(account);
+        _hadPositionAtLastIsolate[account][market] = hasPosition;
         _balances[account][CROSS_MARGIN] = newCrossBalance;
         _balances[account][market] = newIsolatedBalance;
         if (updateCheckpoint_) {
@@ -303,9 +307,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         if (newIsolatedBalance.gt(oldIsolatedBalance) && !_crossMargined(account)) {
             revert IMarket.MarketInsufficientMarginError();
         }
-
         // If decreasing an existing isolated balance with position, ensure price is not stale
-        if (market.hasPosition(account) && decreasingIsolatedBalance && market.stale()) {
+        if (hasPosition && decreasingIsolatedBalance && market.stale()) {
             revert IMarket.MarketStalePriceError();
         }
 

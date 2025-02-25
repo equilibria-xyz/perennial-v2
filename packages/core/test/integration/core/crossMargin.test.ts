@@ -177,7 +177,7 @@ describe('Cross Margin', () => {
       .connect(oracleFactory)
       .commit(oracleVersion, user.address, 0)
 
-    market.market.connect(user).settle(user.address)
+    await market.market.connect(user).settle(user.address)
 
     // inform the caller of the current timestamp
     return await getTimestamp(tx)
@@ -197,7 +197,7 @@ describe('Cross Margin', () => {
     takerDelta: BigNumberish,
   ): Promise<number> {
     const tx = await changePositionImpl(market, user, makerDelta, takerDelta)
-    // console.log('changePosition at', await getTimestamp(tx))
+    await expect(tx).to.not.be.reverted
     return await getTimestamp(tx)
   }
 
@@ -311,5 +311,38 @@ describe('Cross Margin', () => {
     // userA collateral should have increased; userB collateral should have decreased
     expect(await margin.crossMarginBalances(userA.address)).to.equal(parse6decimal('286274.6216'))
     expect(await margin.crossMarginBalances(userB.address)).to.equal(parse6decimal('113722.64075'))
+  })
+
+  it('implicitly deisolates when closing position', async () => {
+    // userA isolates some collateral
+    await margin.connect(userA).isolate(userA.address, marketA.market.address, parse6decimal('1000'))
+
+    // settlement with no position should not deisolate
+    await marketA.market.settle(userA.address)
+    expect(await margin.isolatedBalances(userA.address, marketA.market.address)).to.equal(parse6decimal('1000'))
+    expect(await margin.isIsolated(userA.address, marketA.market.address)).to.equal(true)
+
+    // userA creates isolated maker position
+    let timestamp = await changePosition(marketA, userA, parse6decimal('20'), 0)
+    await advanceToPrice(marketA, userA, timestamp, parse6decimal('100.5'))
+    expectPositionEq(await marketA.market.positions(userA.address), {
+      ...DEFAULT_POSITION,
+      maker: parse6decimal('20'),
+      timestamp: timestamp,
+    })
+    expect(await margin.isolatedBalances(userA.address, marketA.market.address)).to.equal(parse6decimal('1000'))
+    expect(await margin.isIsolated(userA.address, marketA.market.address)).to.equal(true)
+
+    // userA closes position
+    timestamp = await changePosition(marketA, userA, parse6decimal('-20'), 0)
+    await advanceToPrice(marketA, userA, timestamp, parse6decimal('100.6'))
+    expectPositionEq(await marketA.market.positions(userA.address), {
+      ...DEFAULT_POSITION,
+      timestamp: timestamp,
+    })
+
+    // userA balance should be deisolated
+    expect(await margin.isolatedBalances(userA.address, marketA.market.address)).to.equal(0)
+    expect(await margin.isIsolated(userA.address, marketA.market.address)).to.equal(false)
   })
 })

@@ -2711,7 +2711,7 @@ describe('Happy Path', () => {
       currentId: 4,
       latestId: 4,
     })
-    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(collateral4)
+    expect(await margin.crossMarginBalances(userB.address)).to.equal(COLLATERAL.add(collateral4))
     expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_4), {
       ...DEFAULT_CHECKPOINT,
       collateral: collateral4,

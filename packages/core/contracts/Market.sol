@@ -120,6 +120,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _settle(context);
 
         _storeContext(context);
+
+        margin.handleMarketSettle(context.account);
     }
 
     /// @notice Updates both the long and short positions of an intent order
@@ -874,8 +876,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             context.local.currentId != context.local.latestId &&
             (nextOrder = _pendingOrders[context.account][context.local.latestId + 1].read()).ready(context.latestOracleVersion)
         ) _processOrderLocal(context, settlementContext, context.local.latestId + 1, nextOrder.timestamp, nextOrder);
-
-        margin.handleMarketSettle(context.account);
 
         // don't sync in settle-only mode
         if (context.marketParameter.settle) return;
