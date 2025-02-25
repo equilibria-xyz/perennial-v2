@@ -2113,7 +2113,7 @@ describe('Fees', () => {
       })
     })
 
-    it('intent order fee exclusion with zero cross', async () => {
+    it.only('intent order fee exclusion with zero cross', async () => {
       const { owner, user, userB, userC, marketFactory, verifier, dsu, chainlink } = instanceVars
 
       const protocolParameter = { ...(await marketFactory.parameter()) }
@@ -2124,23 +2124,23 @@ describe('Fees', () => {
       const POSITION = parse6decimal('10')
       const COLLATERAL = parse6decimal('10000')
 
-      await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
-
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
       await market
         .connect(userB)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+        ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
-      await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
-
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
       await market
         .connect(user)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+        ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
 
-      await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
-
+      await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userC).deposit(userC.address, COLLATERAL)
       await market
         .connect(userC)
-        ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+        ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
       const intent: IntentStruct = {
         amount: POSITION.div(4).mul(-1),
@@ -2207,6 +2207,7 @@ describe('Fees', () => {
         notional: POSITION.div(4).mul(PRICE).div(1e6).add(6), // loss of precision
         longPos: POSITION.div(4),
         shortNeg: POSITION.div(4),
+        shortPos: POSITION.div(4),
         orderReferral: parse6decimal('1.5'),
         solverReferral: parse6decimal('0.75'),
       })
@@ -2240,7 +2241,9 @@ describe('Fees', () => {
       })
 
       await chainlink.next()
+      await chainlink.next()
 
+      // FIXME: Failing here with arithmetic underflow in position.updateClose() in _accumulateSpread()
       await market.settle(user.address)
       await market.settle(userB.address)
       await market.settle(userC.address)
