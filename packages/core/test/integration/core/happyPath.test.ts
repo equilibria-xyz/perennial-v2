@@ -1696,7 +1696,7 @@ describe('Happy Path', () => {
   })
 
   it('opens intent order', async () => {
-    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu, margin } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -1708,23 +1708,26 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('10000')
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
 
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
-    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
     await market
       .connect(userC)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
     const intent: IntentStruct = {
       amount: POSITION.div(2),
@@ -3091,7 +3094,7 @@ describe('Happy Path', () => {
   })
 
   it('opens zero cross intent order (pos)', async () => {
-    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu, margin } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -3103,23 +3106,26 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('10000')
 
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
 
-    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
     await market
       .connect(userC)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
     const intent: IntentStruct = {
       amount: POSITION.div(4).mul(-1),
@@ -3186,6 +3192,7 @@ describe('Happy Path', () => {
       notional: parse6decimal('312.5'),
       longPos: POSITION.div(4),
       shortNeg: POSITION.div(4),
+      shortPos: POSITION.div(4),
       orderReferral: parse6decimal('1.5'),
       solverReferral: parse6decimal('0.75'),
     })
@@ -3220,7 +3227,7 @@ describe('Happy Path', () => {
   })
 
   it('opens zero cross intent order (neg)', async () => {
-    const { owner, user, userB, userC, marketFactory, verifier, dsu } = instanceVars
+    const { owner, user, userB, userC, marketFactory, verifier, dsu, margin } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -3232,23 +3239,26 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('10000')
 
-    await dsu.connect(userB).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
 
     await market
       .connect(userB)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userB.address, POSITION, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
 
-    await dsu.connect(user).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
 
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
 
-    await dsu.connect(userC).approve(market.address, COLLATERAL.mul(1e12))
+    await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userC).deposit(userC.address, COLLATERAL)
 
     await market
       .connect(userC)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](userC.address, 0, 0, 0, COLLATERAL, false)
+      ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
 
     const intent: IntentStruct = {
       amount: POSITION.div(4),
