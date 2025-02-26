@@ -462,7 +462,6 @@ abstract contract Vault is IVault, Instance {
 
         Target[] memory targets = _strategy(
             context,
-            deposit,
             withdrawal,
             _ineligible(context, deposit, withdrawal)
         );
@@ -477,13 +476,11 @@ abstract contract Vault is IVault, Instance {
 
     /// @dev Determines how the vault allocates capital and manages positions
     /// @param context The context to use
-    /// @param deposit The amount of assets that are being deposited into the vault
     /// @param withdrawal The amount of assets that need to be withdrawn from the markets into the vault
     /// @param ineligible The amount of assets that are ineligible for allocation due to pending claims
     /// @return targets Target allocations for each market; must have single entry for each registered market
     function _strategy(
         Context memory context,
-        UFixed6 deposit,
         UFixed6 withdrawal,
         UFixed6 ineligible
     ) internal virtual view returns (Target[] memory targets);
@@ -537,6 +534,7 @@ abstract contract Vault is IVault, Instance {
         context.currentTimestamp = type(uint256).max;
         context.registrations = new Registration[](totalMarkets);
         context.collaterals = new Fixed6[](totalMarkets);
+        context.totalCollateral = margin.crossMarginBalances(address(this));
 
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
             // parameter

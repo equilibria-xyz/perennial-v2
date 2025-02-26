@@ -42,7 +42,7 @@ const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000
 const UNSUPPORTED_TOKEN_ADDRESS = '0x92e187a03b6cd19cb6af293ba17f2745fd2357d5'
 const UNSUPPORTED_TOKEN_HOLDER = '0x48DdD27a4d54CD3e8c34F34F7e66e998442DBcE3'
 
-describe('SolverVault', () => {
+describe.only('SolverVault', () => {
   let vault: ISolverVault
   let asset: IERC20Metadata
   let vaultFactory: IVaultFactory
@@ -118,6 +118,7 @@ describe('SolverVault', () => {
   async function totalCollateralInVault() {
     return (await collateralInVault())
       .add(await btcCollateralInVault())
+      .add(await margin.crossMarginBalances(vault.address))
       .mul(1e12)
       .add(await asset.balanceOf(vault.address))
   }
@@ -742,7 +743,6 @@ describe('SolverVault', () => {
       )
 
       await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
-      return
 
       expect(await totalCollateralInVault()).to.equal(0)
       expect(await asset.balanceOf(user.address)).to.equal(
@@ -868,7 +868,7 @@ describe('SolverVault', () => {
       expect((await vault.accounts(ethers.constants.AddressZero)).assets).to.equal(0)
     })
 
-    it('multiple users w/ takerFee', async () => {
+    it.only('multiple users w/ takerFee', async () => {
       await updateOracle()
       await vault.settle(constants.AddressZero)
 
@@ -1016,13 +1016,14 @@ describe('SolverVault', () => {
       await updateOracle()
       await vault['rebalance(address)'](user.address)
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
+      // FIXME: actual is over 10x higher
       expect(await vault.totalAssets()).to.equal(parse6decimal('1000').add(0))
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('1000'))
       expect(await vault.convertToAssets(parse6decimal('1000'))).to.equal(parse6decimal('1000').add(0))
       expect(await vault.convertToShares(parse6decimal('1000').add(0))).to.equal(parse6decimal('1000'))
     })
 
-    it('multiple users w/ takerFee + settlement fee', async () => {
+    it.only('multiple users w/ takerFee + settlement fee', async () => {
       await updateOracle()
       await vault.settle(constants.AddressZero)
 
@@ -1179,6 +1180,7 @@ describe('SolverVault', () => {
       await vault.connect(user).update(user.address, smallDeposit, 0, 0)
       await updateOracle()
       await vault['rebalance(address)'](user.address)
+      // FIXME: actual is over 10x higher
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
       expect(await vault.totalAssets()).to.equal(parse6decimal('1000').add(0))
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('1000'))

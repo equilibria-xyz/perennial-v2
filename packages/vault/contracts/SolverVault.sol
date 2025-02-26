@@ -23,13 +23,11 @@ contract SolverVault is ISolverVault, Vault {
 
     function _strategy(
         Context memory context,
-        UFixed6 deposit,
         UFixed6 withdrawal,
         UFixed6 ineligible
     ) internal override view returns (Target[] memory targets) {
         return SolverStrategyLib.allocate(
             context.registrations,
-            deposit,
             withdrawal,
             ineligible,
             context.parameter.leverageBuffer

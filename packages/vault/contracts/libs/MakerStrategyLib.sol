@@ -87,19 +87,17 @@ library MakerStrategyLib {
 
     /// @notice Compute the target allocation for each market
     /// @param registrations The registrations of the underlying markets
-    /// @param deposit The amount of assets that are being deposited into the vault
     /// @param withdrawal The amount of assets to make available for withdrawal
     /// @param ineligible The amount of assets that are inapplicable for allocation
     function allocate(
         Registration[] memory registrations,
-        UFixed6 deposit,
         UFixed6 withdrawal,
         UFixed6 ineligible,
         UFixed6 leverageBuffer
     ) internal view returns (Target[] memory targets) {
         MakerStrategyContext memory context = _load(registrations);
 
-        UFixed6 collateral = UFixed6Lib.unsafeFrom(context.totalCollateral).add(deposit).unsafeSub(withdrawal);
+        UFixed6 collateral = UFixed6Lib.unsafeFrom(context.totalCollateral).unsafeSub(withdrawal);
         UFixed6 assets = collateral.unsafeSub(ineligible);
 
         if (collateral.lt(context.totalMargin)) revert MakerStrategyInsufficientCollateralError();
@@ -157,6 +155,9 @@ library MakerStrategyLib {
     /// @return context The strategy context of the vault
     function _load(Registration[] memory registrations) internal view returns (MakerStrategyContext memory context) {
         context.markets = new MarketMakerStrategyContext[](registrations.length);
+        if (registrations.length != 0)
+            context.totalCollateral = registrations[0].market.margin().crossMarginBalances(address(this));
+
         for (uint256 marketId; marketId < registrations.length; marketId++) {
             context.markets[marketId] = _loadContext(registrations[marketId]);
             context.totalMargin = context.totalMargin.add(context.markets[marketId].margin);
