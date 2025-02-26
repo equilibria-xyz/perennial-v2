@@ -1604,6 +1604,208 @@ describe('Version', () => {
       })
     })
 
+    describe('fee accumulation', () => {
+      it('allocates when no makers', async () => {
+        await version.store(VALID_VERSION)
+
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          { ...FROM_POSITION, long: parse6decimal('20'), short: parse6decimal('30'), maker: 0 },
+          ORDER_ID,
+          {
+            ...ORDER,
+            makerNeg: parse6decimal('0'),
+            makerPos: parse6decimal('10'),
+            longPos: parse6decimal('30'),
+            longNeg: parse6decimal('10'),
+            shortPos: parse6decimal('50'),
+            shortNeg: parse6decimal('20'),
+            makerReferral: 0,
+            takerReferral: 0,
+          },
+          { ...DEFAULT_GUARANTEE },
+          { ...ORACLE_VERSION_1, price: parse6decimal('121') },
+          { ...ORACLE_VERSION_2 },
+          DEFAULT_ORACLE_RECEIPT,
+          { ...VALID_MARKET_PARAMETER, makerFee: parse6decimal('0.02'), takerFee: parse6decimal('0.01') },
+          {
+            ...VALID_RISK_PARAMETER,
+            pController: { min: 0, max: 0, k: parse6decimal('1') },
+            utilizationCurve: {
+              minRate: 0,
+              maxRate: 0,
+              targetRate: 0,
+              targetUtilization: 0,
+            },
+          },
+        )
+
+        const makerFee = parse6decimal('0.2') // 10 * 0.02
+        const takerFee = parse6decimal('1.1') // 110 * 0.01
+        const fee = makerFee.add(takerFee).mul(123)
+
+        expect(value.makerFee._value).to.equal(makerFee.mul(-1).mul(123).div(10))
+        expect(value.takerFee._value).to.equal(takerFee.mul(-1).mul(123).div(110))
+        expect(value.settlementFee._value).to.equal(0)
+        expect(ret.tradeFee).to.equal(fee)
+      })
+
+      it('allocates when makers', async () => {
+        await version.store(VALID_VERSION)
+
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          { ...FROM_POSITION, long: parse6decimal('20'), short: parse6decimal('30'), maker: parse6decimal('50') },
+          // longSoc = min(50+30,20) = 20  shortSoc = min(50+20,30) = 30  takerSoc = min(major,minor)+50 = min(30,20)+50 = 70
+          ORDER_ID,
+          {
+            ...ORDER,
+            makerNeg: parse6decimal('10'),
+            makerPos: parse6decimal('20'), // +10 -> 60 maker
+            longPos: parse6decimal('30'),
+            longNeg: parse6decimal('10'), // +20 -> 40 long
+            shortPos: parse6decimal('50'),
+            shortNeg: parse6decimal('20'), // +30 -> 60 short
+            // takerPos = 50, takerNeg = 60
+            makerReferral: 0,
+            takerReferral: 0,
+          },
+          { ...DEFAULT_GUARANTEE },
+          { ...ORACLE_VERSION_1, price: parse6decimal('121') },
+          { ...ORACLE_VERSION_2 },
+          DEFAULT_ORACLE_RECEIPT,
+          { ...VALID_MARKET_PARAMETER, makerFee: parse6decimal('0.02'), takerFee: parse6decimal('0.01') },
+          {
+            ...VALID_RISK_PARAMETER,
+            pController: { min: 0, max: 0, k: parse6decimal('1') },
+            utilizationCurve: {
+              minRate: 0,
+              maxRate: 0,
+              targetRate: 0,
+              targetUtilization: 0,
+            },
+          },
+        )
+
+        const makerFee = parse6decimal('0.6') // 30 * 0.02
+        const takerFee = parse6decimal('1.1') // 110 * 0.01
+        const fee = makerFee.add(takerFee).mul(123)
+
+        expect(value.makerFee._value).to.equal(makerFee.mul(-1).mul(123).div(30))
+        expect(value.takerFee._value).to.equal(takerFee.mul(-1).mul(123).div(110))
+        expect(value.settlementFee._value).to.equal(0)
+
+        expect(ret.tradeFee).to.equal(fee)
+      })
+
+      it('allocates when makers and referrals', async () => {
+        await version.store(VALID_VERSION)
+
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          { ...FROM_POSITION, maker: parse6decimal('10'), long: parse6decimal('12'), short: parse6decimal('8') },
+          ORDER_ID,
+          {
+            ...ORDER,
+            makerPos: parse6decimal('22'),
+            makerNeg: parse6decimal('2'), // +20 maker -> 30 maker
+            longPos: parse6decimal('28'),
+            longNeg: parse6decimal('3'), // +25 long -> 37 long
+            shortPos: parse6decimal('4'),
+            shortNeg: parse6decimal('2'), // +2 short -> 10 short
+            makerReferral: parse6decimal('0.025'),
+            takerReferral: parse6decimal('0.0125'),
+          },
+          { ...DEFAULT_GUARANTEE },
+          { ...ORACLE_VERSION_1, price: parse6decimal('121') },
+          { ...ORACLE_VERSION_2 }, // price 123
+          DEFAULT_ORACLE_RECEIPT,
+          { ...VALID_MARKET_PARAMETER, makerFee: parse6decimal('0.02'), takerFee: parse6decimal('0.01') },
+          {
+            ...VALID_RISK_PARAMETER,
+            pController: { min: 0, max: 0, k: parse6decimal('1') },
+            utilizationCurve: {
+              minRate: 0,
+              maxRate: 0,
+              targetRate: 0,
+              targetUtilization: 0,
+            },
+          },
+        )
+
+        // (makerpos+makerneg) * 0.02 * price = 24 * 0.02 * 123
+        const makerFee = parse6decimal('59.04')
+        // makerFee * makerReferral / makerTotal
+        const makerSubtractiveFee = makerFee.mul(parse6decimal('0.025')).div(24).div(1e6)
+        // (longpos+longneg+shortpos+shortneg) * 0.01 * price = (31+6) * 0.01 * 123
+        const takerFee = parse6decimal('45.51')
+        // takerFee * takerReferral / takerTotal
+        const takerSubtractiveFee = takerFee.mul(parse6decimal('0.0125')).div(37).div(1e6)
+        const fee = makerFee.add(takerFee).sub(makerSubtractiveFee).sub(takerSubtractiveFee)
+
+        // makerFee * -1 / makerTotal
+        expect(value.makerFee._value).to.equal(makerFee.mul(-1).div(24))
+        // takerFee * -1 / takerTotal = takerFee / (31+6)
+        expect(value.takerFee._value).to.equal(takerFee.mul(-1).div(37))
+        expect(value.settlementFee._value).to.equal(0)
+        expect(ret.tradeFee).to.equal(fee)
+      })
+
+      it('allocates when makers and guarantees with takerFee', async () => {
+        await version.store(VALID_VERSION)
+
+        const { ret, value } = await accumulateWithReturn(
+          GLOBAL,
+          { ...FROM_POSITION, maker: parse6decimal('38'), long: parse6decimal('33'), short: parse6decimal('40') },
+          ORDER_ID,
+          {
+            ...ORDER,
+            makerPos: parse6decimal('4'),
+            makerNeg: parse6decimal('6'), // -2 maker -> 36 maker
+            longPos: parse6decimal('5'),
+            longNeg: parse6decimal('8'), // -3 long -> 30 long
+            shortPos: parse6decimal('10'),
+            shortNeg: parse6decimal('2'), // +8 short -> 48 short
+            makerReferral: 0,
+            takerReferral: 0,
+          },
+          {
+            ...DEFAULT_GUARANTEE,
+            longPos: parse6decimal('2'),
+            longNeg: parse6decimal('3'),
+            takerFee: parse6decimal('1.50'),
+          },
+          { ...ORACLE_VERSION_1, price: parse6decimal('121') },
+          { ...ORACLE_VERSION_2 },
+          DEFAULT_ORACLE_RECEIPT,
+          { ...VALID_MARKET_PARAMETER, makerFee: parse6decimal('0.02'), takerFee: parse6decimal('0.01') },
+          {
+            ...VALID_RISK_PARAMETER,
+            pController: { min: 0, max: 0, k: parse6decimal('1') },
+            utilizationCurve: {
+              minRate: 0,
+              maxRate: 0,
+              targetRate: 0,
+              targetUtilization: 0,
+            },
+          },
+        )
+
+        // (makerpos+makerneg) * 0.02 * price = 10 * 0.02 * 123
+        const makerFee = parse6decimal('24.6')
+        // (longpos+longneg+shortpos+shortneg - guarantee.takerFee) * 0.01 * price = (13+12-1.5) * 0.01 * 123
+        const takerFee = parse6decimal('28.905')
+        const fee = makerFee.add(takerFee)
+
+        // makerFee * -1 / makerTotal
+        expect(value.makerFee._value).to.equal(makerFee.mul(-1).div(10))
+        // takerFee * -1 / (takerTotal - guarantee.takerFee)
+        expect(value.takerFee._value).to.equal(takerFee.mul(-1).mul(1e6).div(parse6decimal('23.5')))
+        expect(value.settlementFee._value).to.equal(0)
+        expect(ret.tradeFee).to.equal(fee)
+      })
+    })
+
     describe('funding accumulation', () => {
       context('no time elapsed', () => {
         it('accumulates 0 funding', async () => {
