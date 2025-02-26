@@ -46,6 +46,7 @@ describe('Coordinator', () => {
     minMaintenance: parse6decimal('500'),
     staleAfter: 7200,
     makerReceiveOnly: false,
+    maxLiquidationFee: parse6decimal('1000'),
   }
 
   beforeEach(async () => {

@@ -80,67 +80,6 @@ describe('Liquidate', () => {
     expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
   })
 
-  it('liquidates a user with close', async () => {
-    const POSITION = parse6decimal('10')
-    const COLLATERAL = parse6decimal('1000')
-    const { user, userB, dsu, margin, chainlink } = instanceVars
-
-    // reset chainlink params
-    chainlink.updateParams(BigNumber.from(0), BigNumber.from(0))
-
-    const market = await createMarket(instanceVars)
-    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
-    await margin.connect(user).deposit(user.address, COLLATERAL)
-    await market
-      .connect(user)
-      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
-
-    // Settle the market with a new oracle version
-    await chainlink.nextWithPriceModification(price => price.mul(2))
-
-    // liquidate user
-    await expect(market.connect(userB).close(user.address, true, constants.AddressZero))
-      .to.emit(market, 'OrderCreated')
-      .withArgs(
-        user.address,
-        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION, protection: 1, invalidation: 1 },
-        { ...DEFAULT_GUARANTEE },
-        userB.address,
-        constants.AddressZero,
-        constants.AddressZero,
-      )
-
-    expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
-    expect(await market.liquidators(user.address, 2)).to.eq(userB.address)
-    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
-
-    chainlink.updateParams(parse6decimal('1.0'), parse6decimal('0.1'))
-    await chainlink.next()
-    await market
-      .connect(user)
-      ['update(address,int256,int256,int256,address)'](user.address, 0, 0, 0, constants.AddressZero) // settle
-    expect(await margin.claimables(userB.address)).to.equal(parse6decimal('10'))
-    await market.connect(userB).claimFee(userB.address) // liquidator withdrawal
-
-    expect(await margin.claimables(userB.address)).to.equal(parse6decimal('10')) // claimed fee
-    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
-      parse6decimal('1000').sub(parse6decimal('11')),
-    )
-
-    await market
-      .connect(user)
-      ['update(address,int256,int256,int256,address)'](
-        user.address,
-        0,
-        0,
-        COLLATERAL.sub(parse6decimal('11')).mul(-1),
-        constants.AddressZero,
-      ) // withdraw everything
-
-    expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
-    expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
-  })
-
   it.skip('creates and resolves a shortfall', async () => {
     const POSITION = parse6decimal('10')
     const COLLATERAL = parse6decimal('1000')
@@ -533,5 +472,75 @@ describe('Liquidate', () => {
     expect((await market.locals(user.address)).latestId).to.equal(4)
     expect(await market.liquidators(user.address, 4)).to.eq(constants.AddressZero)
     expect(await market.orderReferrers(user.address, 4)).to.eq(constants.AddressZero)
+  })
+
+  it('liquidates a user with maxLiquidationFee set to 5', async () => {
+    const POSITION = parse6decimal('10')
+    const COLLATERAL = parse6decimal('1000')
+    const { user, userB, dsu, chainlink, owner, margin } = instanceVars
+
+    // reset chainlink params
+    chainlink.updateParams(BigNumber.from(0), BigNumber.from(0))
+
+    const market = await createMarket(instanceVars)
+
+    // set maxLiquidationFee to 5
+    await market.connect(owner).updateRiskParameter({
+      ...(await market.riskParameter()),
+      maxLiquidationFee: parse6decimal('5'),
+    })
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await market
+      .connect(user)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, COLLATERAL, constants.AddressZero)
+
+    // Settle the market with a new oracle version
+    await chainlink.nextWithPriceModification(price => price.mul(2))
+
+    await expect(await market.connect(userB).close(user.address, true, constants.AddressZero)) // liquidate
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        user.address,
+        { ...DEFAULT_ORDER, timestamp: TIMESTAMP_2, orders: 1, makerNeg: POSITION, protection: 1, invalidation: 1 },
+        { ...DEFAULT_GUARANTEE },
+        userB.address,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
+
+    expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
+    expect(await market.liquidators(user.address, 2)).to.eq(userB.address)
+
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
+    expect(await dsu.balanceOf(margin.address)).to.equal(utils.parseEther('1000'))
+
+    chainlink.updateParams(parse6decimal('1.0'), parse6decimal('0.1'))
+    await chainlink.next()
+    await market
+      .connect(user)
+      ['update(address,int256,int256,int256,address)'](user.address, 0, 0, 0, constants.AddressZero) // settle
+    expect(await margin.claimables(userB.address)).to.equal(parse6decimal('5'))
+    await market.connect(userB).claimFee(userB.address)
+    await expect(margin.connect(userB).claim(userB.address, userB.address)) // liquidator withdrawal
+      .to.emit(margin, 'ClaimableWithdrawn')
+      .withArgs(userB.address, userB.address, parse6decimal('5'))
+
+    expect(await dsu.balanceOf(userB.address)).to.equal(utils.parseEther('200005')) // Original 200000 + fee
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.sub(parse6decimal('6')))
+    expect(await dsu.balanceOf(margin.address)).to.equal(utils.parseEther('1000').sub(utils.parseEther('5')))
+
+    await market
+      .connect(user)
+      ['update(address,int256,int256,int256,address)'](
+        user.address,
+        0,
+        0,
+        COLLATERAL.sub(parse6decimal('6')).mul(-1),
+        constants.AddressZero,
+      ) // withdraw everything
+
+    expect((await market.position()).timestamp).to.eq(TIMESTAMP_2)
+    expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
   })
 })

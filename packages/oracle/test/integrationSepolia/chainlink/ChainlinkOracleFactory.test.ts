@@ -305,6 +305,7 @@ testOracles.forEach(testOracle => {
         minMaintenance: parse6decimal('5'),
         staleAfter: 7200,
         makerReceiveOnly: false,
+        maxLiquidationFee: parse6decimal('1000'),
       }
       const marketParameter = {
         fundingFee: parse6decimal('0.1'),
