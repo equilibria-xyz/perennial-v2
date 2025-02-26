@@ -22,6 +22,7 @@ import { DeployAccount } from "./types/DeployAccount.sol";
 import { MarketTransfer } from "./types/MarketTransfer.sol";
 import { RebalanceConfigChange } from "./types/RebalanceConfigChange.sol";
 import { RelayedTake } from "./types/RelayedTake.sol";
+import { RelayedFill } from "./types/RelayedFill.sol";
 import { RelayedNonceCancellation } from "./types/RelayedNonceCancellation.sol";
 import { RelayedGroupCancellation } from "./types/RelayedGroupCancellation.sol";
 import { RelayedOperatorUpdate } from "./types/RelayedOperatorUpdate.sol";
@@ -186,6 +187,30 @@ abstract contract Controller_Incentivized is Controller, IRelayer, Kept {
         // relay the message to Market
         IMarket market = IMarket(message.take.common.domain);
         market.update(message.take, innerSignature);
+    }
+
+    /// @inheritdoc IRelayer
+    function relayFill(
+        RelayedFill calldata message,
+        bytes calldata outerSignature,
+        bytes calldata traderSignature,
+        bytes calldata solverSignature
+    )
+        external
+        override
+        keepCollateralAccount(
+            message.action.common.account,
+            abi.encode(message, outerSignature, traderSignature, solverSignature),
+            message.action.maxFee,
+            0
+        )
+    {
+        // ensure the message was signed by the owner or a delegated signer
+        verifier.verifyRelayedFill(message, outerSignature);
+
+        // relay the message to Market
+        IMarket market = IMarket(message.fill.common.domain);
+        market.update(message.fill, traderSignature, solverSignature);
     }
 
     /// @inheritdoc IRelayer
