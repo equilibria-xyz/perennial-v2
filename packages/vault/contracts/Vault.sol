@@ -6,10 +6,9 @@ import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.so
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { Token18 } from "@equilibria/root/token/types/Token18.sol";
 import { Instance } from "@equilibria/root/attribute/Instance.sol";
-import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
+import { IMarket, IMargin } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 import { Checkpoint as PerennialCheckpoint } from  "@perennial/v2-core/contracts/types/Checkpoint.sol";
 import { OracleVersion } from  "@perennial/v2-core/contracts/types/OracleVersion.sol";
-import { Local } from  "@perennial/v2-core/contracts/types/Local.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IVault } from "./interfaces/IVault.sol";
 import { IVaultFactory } from "./interfaces/IVaultFactory.sol";
@@ -50,8 +49,8 @@ abstract contract Vault is IVault, Instance {
     /// @dev Per-id accounting state variables
     mapping(uint256 => CheckpointStorage) private _checkpoints;
 
-    /// @dev DEPRECATED SLOT -- previously the mappings
-    bytes32 private __unused0__;
+    /// @dev Margin contract used to manage collateral isolated to registered markets
+    IMargin public margin;
 
     /// @dev Mapping to track allowed accounts
     mapping(address => bool) public allowed;
@@ -81,6 +80,7 @@ abstract contract Vault is IVault, Instance {
 
         asset = asset_;
         _name = name_;
+        margin = initialMarket.margin();
         _register(initialMarket);
         _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO, UFixed6Lib.ZERO, leverageBuffer));
 
@@ -187,9 +187,12 @@ abstract contract Vault is IVault, Instance {
     /// @param market The market to register
     function _register(IMarket market) private {
         if (!IVaultFactory(address(factory())).marketFactory().instances(market)) revert VaultNotMarketError();
-        if (!market.token().eq(asset)) revert VaultIncorrectAssetError();
+        // TODO: Since MarketFactory is the same, is the second check superfluous?
+        // This vault could have been created with an old Market implementation which uses the same token but
+        // a different Margin contract.  Maybe create a new error (and test) for this case.
+        if (!market.margin().DSU().eq(asset) || market.margin() != margin) revert VaultIncorrectAssetError();
 
-        asset.approve(address(market));
+        asset.approve(address(margin));
 
         uint256 newMarketId = _registerMarket(market);
         _updateMarket(newMarketId, newMarketId == 0 ? UFixed6Lib.ONE : UFixed6Lib.ZERO, UFixed6Lib.ZERO);
@@ -356,8 +359,12 @@ abstract contract Vault is IVault, Instance {
         context.currentCheckpoint.update(depositAssets, redeemShares);
 
         // manage assets
+        // since margin.deposit sees this vault as msg.sender, need to pull funds from user
         asset.pull(msg.sender, UFixed18Lib.from(depositAssets));
+        margin.deposit(address(this), depositAssets);
         _manage(context, depositAssets, claimAmount, !depositAssets.isZero() || !redeemShares.isZero());
+        margin.withdraw(address(this), claimAmount);
+        // since margin.deposit sees this vault as msg.sender, need to push funds to user after withdrawal
         asset.push(msg.sender, UFixed18Lib.from(claimAmount));
 
         emit Updated(msg.sender, account, context.currentId, depositAssets, redeemShares, claimAssets);
@@ -531,9 +538,9 @@ abstract contract Vault is IVault, Instance {
             else if (currentTimestamp != context.currentTimestamp) revert VaultCurrentOutOfSyncError();
 
             // local
-            Local memory local = registration.market.locals(address(this));
-            context.collaterals[marketId] = local.collateral;
-            context.totalCollateral = context.totalCollateral.add(local.collateral);
+            Fixed6 collateral = margin.isolatedBalances(address(this), registration.market);
+            context.collaterals[marketId] = collateral;
+            context.totalCollateral = context.totalCollateral.add(collateral);
         }
 
         if (account != address(0)) context.local = _accounts[account].read();

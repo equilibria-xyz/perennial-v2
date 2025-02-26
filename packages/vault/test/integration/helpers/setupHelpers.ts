@@ -11,7 +11,6 @@ export interface DeployProductParams
   marketMakerFee?: BigNumberish
   marketTakerFee?: BigNumberish
   factory: IMarketFactory
-  token: IERC20Metadata
   oracle: string
   owner: SignerWithAddress
 }
@@ -19,7 +18,6 @@ export interface DeployProductParams
 // Deploys a product that uses an oracle based on an oracle in the Chainlink feed registry.
 // Returns the address of the deployed product.
 export async function deployProductOnFork({
-  token,
   factory,
   oracle,
   owner,
@@ -28,8 +26,7 @@ export async function deployProductOnFork({
   fundingFee,
   interestFee,
   makerLimit,
-  makerFee,
-  takerFee,
+  synBook,
   marketMakerFee,
   marketTakerFee,
   efficiencyLimit,
@@ -42,15 +39,11 @@ export async function deployProductOnFork({
   const riskParameter: RiskParameterStruct = {
     margin: margin ?? parse6decimal('0.10'),
     maintenance: maintenance ?? parse6decimal('0.10'),
-    takerFee: takerFee ?? {
-      linearFee: parse6decimal('0.0'),
-      proportionalFee: parse6decimal('0.0'),
-      adiabaticFee: parse6decimal('0.0'),
-      scale: parse6decimal('0.0'),
-    },
-    makerFee: makerFee ?? {
-      linearFee: parse6decimal('0.0'),
-      proportionalFee: parse6decimal('0.0'),
+    synBook: synBook ?? {
+      d0: 0,
+      d1: 0,
+      d2: 0,
+      d3: 0,
       scale: parse6decimal('0.0'),
     },
     makerLimit: makerLimit ?? parse6decimal('100'),
@@ -87,17 +80,13 @@ export async function deployProductOnFork({
     closed: false,
     settle: false,
   }
-  const marketDefinition: IMarket.MarketDefinitionStruct = {
-    token: token.address,
-    oracle: oracle ?? constants.AddressZero,
-  }
 
   const protocolParameter = { ...(await factory.parameter()) }
   protocolParameter.maxLiquidationFee = parse6decimal('25')
   await factory.connect(owner).updateParameter(protocolParameter)
 
-  const productAddress = await factory.connect(owner).callStatic.create(marketDefinition)
-  await factory.connect(owner).create(marketDefinition)
+  const productAddress = await factory.connect(owner).callStatic.create(oracle ?? constants.AddressZero)
+  await factory.connect(owner).create(oracle ?? constants.AddressZero)
 
   const market = IMarket__factory.connect(productAddress, owner)
   await market.connect(owner).updateRiskParameter(riskParameter)

@@ -8,8 +8,8 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed18, UFixed18Lib } from "@equilibria/root/number/types/UFixed18.sol";
 import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { IMarket, IMarketFactory } from "@perennial/v2-core/contracts/interfaces/IMarketFactory.sol";
+import { IMargin } from "@perennial/v2-core/contracts/interfaces/IMargin.sol";
 
-import { IAccount, IController } from "../CollateralAccounts/interfaces/IController.sol";
 import { IManager } from "./interfaces/IManager.sol";
 import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
 import { Action } from "./types/Action.sol";
@@ -37,7 +37,7 @@ abstract contract Manager is IManager, Kept {
     IOrderVerifier public immutable verifier;
 
     /// @dev Used for keeper compensation
-    IController public immutable controller;
+    IMargin public immutable margin;
 
     /// @dev Configuration used for keeper compensation
     KeepConfig public keepConfig;
@@ -59,21 +59,21 @@ abstract contract Manager is IManager, Kept {
     /// @param reserve_ DSU reserve contract used for unwrapping
     /// @param marketFactory_ Contract used to validate fee claims
     /// @param verifier_ Used to validate EIP712 signatures
-    /// @param controller_ Collateral Account Controller used for compensating keeper and paying interface fees
+    /// @param margin_ Margin contract used for compensating keeper and paying interface fees
     constructor(
         Token6 usdc_,
         Token18 dsu_,
         IEmptySetReserve reserve_,
         IMarketFactory marketFactory_,
         IOrderVerifier verifier_,
-        IController controller_
+        IMargin margin_
     ) {
         USDC = usdc_;
         DSU = dsu_;
         reserve = reserve_;
         marketFactory = marketFactory_;
         verifier = verifier_;
-        controller = controller_;
+        margin = margin_;
     }
 
     /// @notice Initialize the contract
@@ -165,8 +165,9 @@ abstract contract Manager is IManager, Kept {
 
         // compensate keeper
         uint256 applicableGas = startGas - gasleft();
-        bytes memory data = abi.encode(market, account, order.maxFee);
-        _handleKeeperFee(keepConfigBuffered, applicableGas, abi.encode(market, account, orderId), 0, data);
+        bytes memory data = abi.encode(account, order.maxFee);
+
+        _handleKeeperFee(keepConfigBuffered, applicableGas, abi.encode(account, orderId), 0, data);
     }
 
     /// @inheritdoc IManager
@@ -178,7 +179,7 @@ abstract contract Manager is IManager, Kept {
         else DSU.push(msg.sender, UFixed18Lib.from(claimableAmount));
     }
 
-    /// @notice Transfers DSU from market to manager to compensate keeper
+    /// @notice Transfers DSU from margin contract to manager to compensate keeper
     /// @param amount Keeper fee as calculated
     /// @param data Identifies the market from and user for which funds should be withdrawn,
     ///             and the user-defined fee cap
@@ -187,10 +188,10 @@ abstract contract Manager is IManager, Kept {
         UFixed18 amount,
         bytes memory data
     ) internal virtual override returns (UFixed18) {
-        (IMarket market, address account, UFixed6 maxFee) = abi.decode(data, (IMarket, address, UFixed6));
+        (address account, UFixed6 maxFee) = abi.decode(data, (address, UFixed6));
         UFixed6 raisedKeeperFee = UFixed6Lib.from(amount, true).min(maxFee);
 
-        _collateralAccountWithdraw(account, raisedKeeperFee);
+        _marginWithdraw(account, raisedKeeperFee);
 
         return UFixed18Lib.from(raisedKeeperFee);
     }
@@ -216,18 +217,16 @@ abstract contract Manager is IManager, Kept {
             order.interfaceFee.amount :
             order.notionalValue(market, account).mul(order.interfaceFee.amount);
 
-        _collateralAccountWithdraw(account, feeAmount);
+        _marginWithdraw(account, feeAmount);
 
         claimable[order.interfaceFee.receiver] = claimable[order.interfaceFee.receiver].add(feeAmount);
 
         return true;
     }
 
-    /// @dev Transfers DSU from collateral account to manager to pay fees
-    /// @param account Address of the owner of the collateral account (not the account itself)
-    /// @param amount Quantity of DSU to transfer, converted to 18-decimal by callee
-    function _collateralAccountWithdraw(address account, UFixed6 amount) private {
-        controller.chargeFee(account, amount);
+    /// @notice Transfers DSU from margin contract to manager contract to pay keeper or interface fee
+    function _marginWithdraw(address account, UFixed6 amount) private {
+        margin.withdraw(account, amount);
     }
 
     function _placeOrder(IMarket market, address account, uint256 orderId, TriggerOrder calldata order) private {
@@ -249,7 +248,7 @@ abstract contract Manager is IManager, Kept {
     }
 
     modifier keepAction(Action calldata action, bytes memory applicableCalldata) {
-        bytes memory data = abi.encode(action.market, action.common.account, action.maxFee);
+        bytes memory data = abi.encode(action.common.account, action.maxFee);
 
         uint256 startGas = gasleft();
         _;

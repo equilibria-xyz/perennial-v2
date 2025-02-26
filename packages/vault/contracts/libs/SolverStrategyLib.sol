@@ -163,7 +163,9 @@ library SolverStrategyLib {
         marketContext.latestPrice = registration.market.oracle().latest().price;
 
         // local
-        marketContext.collateral = UFixed6Lib.unsafeFrom(registration.market.locals(address(this)).collateral);
+        marketContext.collateral = UFixed6Lib.unsafeFrom(
+            registration.market.margin().isolatedBalances(address(this), registration.market)
+        );
         Position memory currentAccountPosition = registration.market.positions(address(this));
         Order memory pendingLocal = registration.market.pendings(address(this));
         currentAccountPosition.update(pendingLocal);

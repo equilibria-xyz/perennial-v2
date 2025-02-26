@@ -35,8 +35,8 @@ struct CheckpointAccumulationResult {
     /// @dev Trade fee accumulated for this checkpoint
     UFixed6 tradeFee;
 
-    /// @dev Trade price impact accumulated for this checkpoint
-    Fixed6 offset;
+    /// @dev Spread accumulated for this checkpoint
+    Fixed6 spread;
 
     /// @dev Settlement fee charged for this checkpoint
     UFixed6 settlementFee;
@@ -73,10 +73,10 @@ library CheckpointLib {
         CheckpointAccumulationResult memory result;
 
         // accumulate
-        result.collateral = _accumulateCollateral(context.latestPositionLocal, fromVersion, toVersion);
+        result.collateral = _accumulateCollateral(context.latestPositionLocal, order, fromVersion, toVersion);
         result.priceOverride = _accumulatePriceOverride(guarantee, toVersion);
         (result.tradeFee, result.subtractiveFee, result.solverFee) = _accumulateFee(order, guarantee, toVersion);
-        result.offset = _accumulateOffset(order, guarantee, toVersion);
+        result.spread = _accumulateSpread(order, guarantee, toVersion);
         result.settlementFee = _accumulateSettlementFee(order, guarantee, toVersion);
         result.liquidationFee = _accumulateLiquidationFee(order, toVersion);
 
@@ -89,7 +89,7 @@ library CheckpointLib {
             .add(result.collateral)                                                 // incorporate collateral change at this settlement
             .add(result.priceOverride);                                             // incorporate price override pnl at this settlement
         next.transfer = order.collateral;
-        next.tradeFee = Fixed6Lib.from(result.tradeFee).add(result.offset);
+        next.tradeFee = Fixed6Lib.from(result.tradeFee).add(result.spread);
         next.settlementFee = result.settlementFee.add(result.liquidationFee);
 
         emit IMarket.AccountPositionProcessed(context.account, orderId, order, result);
@@ -106,7 +106,7 @@ library CheckpointLib {
         response.collateral = result.collateral
             .add(result.priceOverride)
             .sub(Fixed6Lib.from(result.tradeFee))
-            .sub(result.offset)
+            .sub(result.spread)
             .sub(Fixed6Lib.from(result.settlementFee));
         response.liquidationFee = result.liquidationFee;
         response.subtractiveFee = result.subtractiveFee;
@@ -119,12 +119,34 @@ library CheckpointLib {
     /// @param toVersion The next version
     function _accumulateCollateral(
         Position memory fromPosition,
+        Order memory order,
         Version memory fromVersion,
         Version memory toVersion
-    ) private pure returns (Fixed6) {
-        return toVersion.makerValue.accumulated(fromVersion.makerValue, fromPosition.maker)
-            .add(toVersion.longValue.accumulated(fromVersion.longValue, fromPosition.long))
-            .add(toVersion.shortValue.accumulated(fromVersion.shortValue, fromPosition.short));
+    ) private pure returns (Fixed6 collateral) {
+        // calculate position after closes
+        Position memory closedPosition = fromPosition.clone();
+        closedPosition.updateClose(order);
+
+        // calculate position after order
+        Position memory toPosition = fromPosition.clone();
+        toPosition.update(order);
+
+        // collateral change pre position change
+        collateral = collateral
+            .add(toVersion.makerPreValue.accumulated(fromVersion.makerPreValue, fromPosition.maker))
+            .add(toVersion.longPreValue.accumulated(fromVersion.longPreValue, fromPosition.long))
+            .add(toVersion.shortPreValue.accumulated(fromVersion.shortPreValue, fromPosition.short));
+
+       // collateral change after applying closing portion of order
+        collateral = collateral
+            .add(toVersion.makerCloseValue.accumulated(fromVersion.makerCloseValue, closedPosition.maker))
+            .add(toVersion.longCloseValue.accumulated(fromVersion.longCloseValue, closedPosition.long))
+            .add(toVersion.shortCloseValue.accumulated(fromVersion.shortCloseValue, closedPosition.short));
+
+        // collateral change after applying entire order
+        collateral = collateral
+            .add(toVersion.longPostValue.accumulated(fromVersion.longPostValue, toPosition.long))
+            .add(toVersion.shortPostValue.accumulated(fromVersion.shortPostValue, toPosition.short));
     }
 
     /// @notice Accumulate trade fees for the next position
@@ -163,23 +185,21 @@ library CheckpointLib {
         subtractiveFee = makerSubtractiveFee.add(takerSubtractiveFee).sub(solverFee);
     }
 
-    /// @notice Accumulate price offset for the next position
-    /// @dev This includes adjustment for linear, proportional, and adiabatic order fees
+    /// @notice Accumulate spread charged for the next position
     /// @param order The next order
     /// @param guarantee The next guarantee
     /// @param toVersion The next version
-    function _accumulateOffset(
+    function _accumulateSpread(
         Order memory order,
         Guarantee memory guarantee,
         Version memory toVersion
     ) private pure returns (Fixed6) {
-        (UFixed6 takerPos, UFixed6 takerNeg) =
-            (order.takerPos().sub(guarantee.takerPos()), order.takerNeg().sub(guarantee.takerNeg()));
+        (UFixed6 exposurePos, UFixed6 exposureNeg) = order.exposure(guarantee, toVersion);
 
+        // flip sign because we want the accumulator to round up correctly, but need charged spread to be positive
         return Fixed6Lib.ZERO
-            .sub(toVersion.makerOffset.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()))
-            .sub(toVersion.takerPosOffset.accumulated(Accumulator6(Fixed6Lib.ZERO), takerPos))
-            .sub(toVersion.takerNegOffset.accumulated(Accumulator6(Fixed6Lib.ZERO), takerNeg));
+            .sub(toVersion.spreadPos.accumulated(Accumulator6(Fixed6Lib.ZERO), exposurePos))
+            .sub(toVersion.spreadNeg.accumulated(Accumulator6(Fixed6Lib.ZERO), exposureNeg));
     }
 
 

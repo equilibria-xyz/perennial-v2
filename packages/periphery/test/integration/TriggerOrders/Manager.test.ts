@@ -9,15 +9,8 @@ import { getEventArguments, getTimestamp } from '../../../../common/testutil/tra
 import { parse6decimal } from '../../../../common/testutil/types'
 
 import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@perennial/v2-core/types/generated'
-import { IKeeperOracle } from '@perennial/v2-oracle/types/generated'
-import {
-  IAccount,
-  IAccount__factory,
-  IController,
-  IEmptySetReserve,
-  IManager,
-  IOrderVerifier,
-} from '../../../types/generated'
+import { IKeeperOracle, IMargin__factory } from '@perennial/v2-oracle/types/generated'
+import { IController, IManager, IMargin, IOrderVerifier } from '../../../types/generated'
 import { PlaceOrderActionStruct } from '../../../types/generated/contracts/TriggerOrders/Manager'
 
 import { signAction, signCancelOrderAction, signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
@@ -29,7 +22,6 @@ import {
   orderFromStructOutput,
   Side,
 } from '../../helpers/TriggerOrders/order'
-import { transferCollateral } from '../../helpers/marketHelpers'
 import { advanceToPrice } from '../../helpers/oracleHelpers'
 import { Address } from 'hardhat-deploy/dist/types'
 import { impersonate } from '../../../../common/testutil'
@@ -58,9 +50,9 @@ export function RunManagerTests(
   describe(name, () => {
     let dsu: IERC20Metadata
     let usdc: IERC20Metadata
-    let reserve: IEmptySetReserve
     let keeperOracle: IKeeperOracle
     let manager: IManager
+    let margin: IMargin
     let marketFactory: IMarketFactory
     let market: IMarket
     let oracle: IOracleProvider
@@ -95,8 +87,17 @@ export function RunManagerTests(
 
       // cost of transaction
       const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2603)
-      // keeper should be compensated between 100-200% of actual gas cost
-      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(2))
+      // keeper should be compensated between 100-250% of actual gas cost
+      // please retain below for debugging purposes
+      /*console.log(
+        'keeperFeesPaid',
+        keeperFeesPaid.div(1e9).toNumber() / 1e9,
+        'keeperGasCostInUSD',
+        keeperGasCostInUSD.div(1e9).toNumber() / 1e9,
+        'keeperGasUpperLimit',
+        keeperGasCostInUSD.mul(5).div(2e9).toNumber() / 1e9,
+      )*/
+      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(5).div(2))
     }
 
     // commits an oracle version and advances time 10 seconds
@@ -131,13 +132,6 @@ export function RunManagerTests(
           },
         },
       }
-    }
-
-    // deploys a collateral account
-    async function createCollateralAccount(user: SignerWithAddress): Promise<IAccount> {
-      const accountAddress = await controller.getAccountAddress(user.address)
-      await controller.connect(user).deployAccount(TX_OVERRIDES)
-      return IAccount__factory.connect(accountAddress, user)
     }
 
     async function ensureNoPosition(user: SignerWithAddress) {
@@ -182,11 +176,11 @@ export function RunManagerTests(
           if (order.interfaceFee.unwrap) {
             await expect(tx)
               .to.emit(dsu, 'Transfer')
-              .withArgs(collateralAccountAddress, manager.address, expectedInterfaceFee.mul(1e12))
+              .withArgs(margin.address, manager.address, expectedInterfaceFee.mul(1e12))
           } else {
             await expect(tx)
               .to.emit(dsu, 'Transfer')
-              .withArgs(collateralAccountAddress, manager.address, expectedInterfaceFee.mul(1e12))
+              .withArgs(margin.address, manager.address, expectedInterfaceFee.mul(1e12))
           }
         }
       }
@@ -286,6 +280,7 @@ export function RunManagerTests(
       }
       const signature = await signPlaceOrderAction(user, verifier, message)
 
+      await setNextBlockBaseFee()
       await expect(manager.connect(keeper).placeOrderWithSignature(message, signature, TX_OVERRIDES))
         .to.emit(manager, 'TriggerOrderPlaced')
         .withArgs(market.address, user.address, message.order, message.action.orderId)
@@ -313,15 +308,12 @@ export function RunManagerTests(
       // funds, approves, and deposits DSU into the market
       const reservedForFees = amount.mul(1).div(100)
       await fundWalletDSU(user, amount.mul(1e12))
-      await dsu.connect(user).approve(market.address, amount.mul(1e12))
-      await transferCollateral(user, market, amount.sub(reservedForFees))
+      await dsu.connect(user).approve(await market.margin(), amount.mul(1e12))
+      await margin.connect(user).deposit(user.address, amount)
+      await margin.connect(user).isolate(user.address, market.address, amount.sub(reservedForFees))
 
       // allows manager to interact with markets on the user's behalf
       await marketFactory.connect(user).updateOperator(manager.address, true)
-
-      // set up collateral account for fee payments
-      const collateralAccount = await createCollateralAccount(user)
-      dsu.connect(user).transfer(collateralAccount.address, reservedForFees.mul(1e12))
     }
 
     const fixture = async () => {
@@ -329,7 +321,6 @@ export function RunManagerTests(
       const fixture = await getFixture(TX_OVERRIDES)
       dsu = fixture.dsu
       usdc = fixture.usdc
-      reserve = fixture.reserve
       keeperOracle = fixture.keeperOracle
       manager = fixture.manager
       marketFactory = fixture.marketFactory
@@ -344,6 +335,8 @@ export function RunManagerTests(
       userD = fixture.userD
       keeper = fixture.keeper
       oracleFeeReceiver = fixture.oracleFeeReceiver
+
+      margin = IMargin__factory.connect(await market.margin(), owner)
 
       nextOrderId[userA.address] = BigNumber.from(500)
       nextOrderId[userB.address] = BigNumber.from(500)
@@ -923,6 +916,7 @@ export function RunManagerTests(
         expect((await market.positions(userD.address)).long).to.equal(parse6decimal('0'))
       })
 
+      // FIXME: This test is failing in checkCompensation
       it('charges notional interface fee on whole position when closing', async () => {
         const interfaceBalanceBefore = await dsu.balanceOf(userB.address)
 

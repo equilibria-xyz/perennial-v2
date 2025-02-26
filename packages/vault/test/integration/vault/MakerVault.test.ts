@@ -12,14 +12,16 @@ import {
   IMarketFactory,
   IMakerVault,
   IMakerVault__factory,
+  IMargin,
   IOracleFactory,
   IOracleProvider,
-  MakerVault__factory,
-  VaultFactory__factory,
   IVaultFactory,
   IVaultFactory__factory,
+  MakerVault__factory,
+  VaultFactory__factory,
+  IMargin,
 } from '../../../types/generated'
-import { BigNumber, constants } from 'ethers'
+import { BigNumber, constants, utils } from 'ethers'
 import { deployProtocol, fundWallet, settle } from '@perennial/v2-core/test/integration/helpers/setupHelpers'
 import { OracleReceipt, DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
 import { MarketFactory, ProxyAdmin, TransparentUpgradeableProxy__factory } from '@perennial/v2-core/types/generated'
@@ -33,6 +35,8 @@ const STARTING_TIMESTAMP = BigNumber.from(1646456563)
 const LEGACY_ORACLE_DELAY = 3600
 const ETH_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000001'
 const BTC_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000002'
+const UNSUPPORTED_TOKEN_ADDRESS = '0x92e187a03b6cd19cb6af293ba17f2745fd2357d5'
+const UNSUPPORTED_TOKEN_HOLDER = '0x48DdD27a4d54CD3e8c34F34F7e66e998442DBcE3'
 
 describe('MakerVault', () => {
   let vault: IMakerVault
@@ -53,6 +57,7 @@ describe('MakerVault', () => {
   let maxCollateral: BigNumber
   let originalOraclePrice: BigNumber
   let oracle: FakeContract<IOracleProvider>
+  let margin: IMargin
   let market: IMarket
   let btcOriginalOraclePrice: BigNumber
   let btcOracle: FakeContract<IOracleProvider>
@@ -105,11 +110,11 @@ describe('MakerVault', () => {
   }
 
   async function collateralInVault() {
-    return (await market.locals(vault.address)).collateral
+    return await margin.isolatedBalances(vault.address, market.address)
   }
 
   async function btcCollateralInVault() {
-    return (await btcMarket.locals(vault.address)).collateral
+    return await margin.isolatedBalances(vault.address, btcMarket.address)
   }
 
   async function totalCollateralInVault() {
@@ -143,6 +148,7 @@ describe('MakerVault', () => {
 
   const fixture = async () => {
     const instanceVars = await deployProtocol()
+    margin = instanceVars.margin
 
     let pauser
     ;[owner, pauser, user, user2, btcUser1, btcUser2, liquidator, perennialUser, other, coordinator] =
@@ -220,40 +226,30 @@ describe('MakerVault', () => {
 
     market = await deployProductOnFork({
       factory: instanceVars.marketFactory,
-      token: instanceVars.dsu,
       owner: owner,
       oracle: rootOracle.address,
       makerLimit: parse6decimal('1000'),
       minMargin: parse6decimal('50'),
       minMaintenance: parse6decimal('50'),
-      takerFee: {
-        linearFee: 0,
-        proportionalFee: 0,
-        adiabaticFee: 0,
-        scale: parse6decimal('100'),
-      },
-      makerFee: {
-        linearFee: 0,
-        proportionalFee: 0,
+      synBook: {
+        d0: 0,
+        d1: 0,
+        d2: 0,
+        d3: 0,
         scale: parse6decimal('100'),
       },
     })
     btcMarket = await deployProductOnFork({
       factory: instanceVars.marketFactory,
-      token: instanceVars.dsu,
       owner: owner,
       oracle: btcRootOracle.address,
       minMargin: parse6decimal('50'),
       minMaintenance: parse6decimal('50'),
-      takerFee: {
-        linearFee: 0,
-        proportionalFee: 0,
-        adiabaticFee: 0,
-        scale: parse6decimal('10'),
-      },
-      makerFee: {
-        linearFee: 0,
-        proportionalFee: 0,
+      synBook: {
+        d0: 0,
+        d1: 0,
+        d2: 0,
+        d3: 0,
         scale: parse6decimal('10'),
       },
     })
@@ -310,52 +306,56 @@ describe('MakerVault', () => {
       asset.connect(btcUser2).approve(vault.address, ethers.constants.MaxUint256),
       asset.connect(btcUser2).approve(vault.address, ethers.constants.MaxUint256),
       asset.connect(other).approve(vault.address, ethers.constants.MaxUint256),
-      asset.connect(user).approve(market.address, ethers.constants.MaxUint256),
-      asset.connect(user2).approve(market.address, ethers.constants.MaxUint256),
-      asset.connect(btcUser1).approve(btcMarket.address, ethers.constants.MaxUint256),
-      asset.connect(btcUser2).approve(btcMarket.address, ethers.constants.MaxUint256),
-      asset.connect(other).approve(market.address, ethers.constants.MaxUint256),
-      asset.connect(other).approve(btcMarket.address, ethers.constants.MaxUint256),
+      asset.connect(user).approve(margin.address, ethers.constants.MaxUint256),
+      asset.connect(user2).approve(margin.address, ethers.constants.MaxUint256),
+      asset.connect(btcUser1).approve(margin.address, ethers.constants.MaxUint256),
+      asset.connect(btcUser2).approve(margin.address, ethers.constants.MaxUint256),
+      asset.connect(other).approve(margin.address, ethers.constants.MaxUint256),
     ])
 
     // allow all accounts to interact with the vault
     await vault.connect(owner).updateAllowed(constants.AddressZero, true)
 
     // Seed markets with some activity
+    const deposit = parse6decimal('100000')
+    await margin.connect(user).deposit(user.address, deposit)
     await market
       .connect(user)
       ['update(address,int256,int256,int256,address)'](
         user.address,
         parse6decimal('200'),
         0,
-        parse6decimal('100000'),
+        deposit,
         constants.AddressZero,
       )
+    await margin.connect(user2).deposit(user2.address, deposit)
     await market
       .connect(user2)
       ['update(address,int256,int256,int256,address)'](
         user2.address,
         0,
         parse6decimal('100'),
-        parse6decimal('100000'),
+        deposit,
         constants.AddressZero,
       )
+    await margin.connect(btcUser1).deposit(btcUser1.address, deposit)
     await btcMarket
       .connect(btcUser1)
       ['update(address,int256,int256,int256,address)'](
         btcUser1.address,
         parse6decimal('20'),
         0,
-        parse6decimal('100000'),
+        deposit,
         constants.AddressZero,
       )
+    await margin.connect(btcUser2).deposit(btcUser2.address, deposit)
     await btcMarket
       .connect(btcUser2)
       ['update(address,int256,int256,int256,address)'](
         btcUser2.address,
         0,
         parse6decimal('10'),
-        parse6decimal('100000'),
+        deposit,
         constants.AddressZero,
       )
 
@@ -464,19 +464,14 @@ describe('MakerVault', () => {
 
       market3 = await deployProductOnFork({
         factory: factory,
-        token: asset,
         owner: owner,
         oracle: rootOracle3.address,
         makerLimit: parse6decimal('1000000'),
-        takerFee: {
-          linearFee: 0,
-          proportionalFee: 0,
-          adiabaticFee: 0,
-          scale: parse6decimal('100000'),
-        },
-        makerFee: {
-          linearFee: 0,
-          proportionalFee: 0,
+        synBook: {
+          d0: 0,
+          d1: 0,
+          d2: 0,
+          d3: 0,
           scale: parse6decimal('100000'),
         },
       })
@@ -510,52 +505,16 @@ describe('MakerVault', () => {
     })
 
     it('reverts when the asset is incorrect', async () => {
-      const realVersion4 = {
-        timestamp: STARTING_TIMESTAMP,
-        price: BigNumber.from('13720000'),
-        valid: true,
-      }
-
-      const oracle4 = await smock.fake<IOracleProvider>('IOracleProvider')
-      oracle4.request.returns([realVersion4, realVersion4.timestamp.add(LEGACY_ORACLE_DELAY)])
-      oracle4.latest.returns(realVersion4)
-      oracle4.at.whenCalledWith(realVersion4.timestamp).returns([realVersion4, DEFAULT_ORACLE_RECEIPT])
-
-      const LINK0_PRICE_FEE_ID = '0x0000000000000000000000000000000000000000000000000000000000000004'
-      vaultOracleFactory.instances.whenCalledWith(oracle4.address).returns(true)
-      vaultOracleFactory.oracles.whenCalledWith(LINK0_PRICE_FEE_ID).returns(oracle4.address)
-
-      const rootOracle4 = IOracle__factory.connect(
-        await oracleFactory
-          .connect(owner)
-          .callStatic.create(LINK0_PRICE_FEE_ID, vaultOracleFactory.address, 'LINK0-USD'),
-        owner,
+      const unsupportedTokenHolder = await impersonate.impersonateWithBalance(
+        UNSUPPORTED_TOKEN_HOLDER,
+        utils.parseEther('10'),
       )
-      await oracleFactory.connect(owner).create(LINK0_PRICE_FEE_ID, vaultOracleFactory.address, 'LINK0-USD')
+      const unsupportedToken = IERC20Metadata__factory.connect(UNSUPPORTED_TOKEN_ADDRESS, unsupportedTokenHolder)
+      await unsupportedToken.transfer(owner.address, await vaultFactory.initialAmount())
 
-      const marketBadAsset = await deployProductOnFork({
-        factory: factory,
-        token: IERC20Metadata__factory.connect(constants.AddressZero, owner),
-        owner: owner,
-        oracle: rootOracle4.address,
-        makerLimit: parse6decimal('1000000'),
-        takerFee: {
-          linearFee: 0,
-          proportionalFee: 0,
-          adiabaticFee: 0,
-          scale: parse6decimal('100000'),
-        },
-        makerFee: {
-          linearFee: 0,
-          proportionalFee: 0,
-          scale: parse6decimal('100000'),
-        },
-      })
-
-      await expect(vault.connect(owner).register(marketBadAsset.address)).to.be.revertedWithCustomError(
-        vault,
-        'VaultIncorrectAssetError',
-      )
+      await expect(
+        vaultFactory.create(UNSUPPORTED_TOKEN_ADDRESS, market.address, parse6decimal('1.1'), 'Unsupported'),
+      ).to.be.revertedWithCustomError(vault, 'VaultIncorrectAssetError')
     })
   })
 
@@ -1073,12 +1032,14 @@ describe('MakerVault', () => {
       const reservedForVault = parse6decimal('5')
 
       // risk parameters limit maker position to 1000; let a non-vault user consume most of that
-      await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
+      await asset.connect(perennialUser).approve(margin.address, constants.MaxUint256)
+      const nonVaultDeposit = parse6decimal('662500')
+      await margin.connect(perennialUser).deposit(perennialUser.address, nonVaultDeposit)
       await market.connect(perennialUser)['update(address,int256,int256,int256,address)'](
         perennialUser.address,
         makerAvailable.sub(reservedForVault), // 795
         0,
-        parse6decimal('662500'),
+        nonVaultDeposit,
         constants.AddressZero,
       )
 
@@ -1260,14 +1221,16 @@ describe('MakerVault', () => {
       const currentNet = currentPosition.long.sub(currentPosition.short).abs()
 
       // Open taker position up to 100% utilization minus 1 ETH
-      await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
+      await asset.connect(perennialUser).approve(margin.address, constants.MaxUint256)
+      const takerDeposit = parse6decimal('1000000')
+      await margin.connect(perennialUser).deposit(perennialUser.address, takerDeposit)
       await market
         .connect(perennialUser)
         ['update(address,int256,int256,int256,address)'](
           perennialUser.address,
           0,
           currentPosition.maker.sub(currentNet).sub(parse6decimal('1')),
-          parse6decimal('1000000'),
+          takerDeposit,
           constants.AddressZero,
         )
 
@@ -1299,14 +1262,16 @@ describe('MakerVault', () => {
       const currentNet = currentPosition.long.sub(currentPosition.short).abs()
 
       // Open taker position up to 100% utilization minus 0.1 BTC
-      await asset.connect(perennialUser).approve(btcMarket.address, constants.MaxUint256)
+      await asset.connect(perennialUser).approve(margin.address, constants.MaxUint256)
+      const takerDeposit = parse6decimal('1000000')
+      await margin.connect(perennialUser).deposit(perennialUser.address, takerDeposit)
       await btcMarket
         .connect(perennialUser)
         ['update(address,int256,int256,int256,address)'](
           perennialUser.address,
           0,
           currentPosition.maker.sub(currentNet).sub(parse6decimal('0.1')),
-          parse6decimal('1000000'),
+          takerDeposit,
           constants.AddressZero,
         )
 
@@ -1413,14 +1378,16 @@ describe('MakerVault', () => {
 
     it('close to makerLimit', async () => {
       // Get maker product very close to the makerLimit
-      await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
+      await asset.connect(perennialUser).approve(margin.address, constants.MaxUint256)
+      const makerDeposit = parse6decimal('400000')
+      await margin.connect(perennialUser).deposit(perennialUser.address, makerDeposit)
       await market
         .connect(perennialUser)
         ['update(address,int256,int256,int256,address)'](
           perennialUser.address,
           parse6decimal('480'),
           0,
-          parse6decimal('400000'),
+          makerDeposit,
           constants.AddressZero,
         )
       await updateOracle()
@@ -1440,15 +1407,17 @@ describe('MakerVault', () => {
 
     it('exactly at makerLimit', async () => {
       // Get maker product very close to the makerLimit
-      await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
+      await asset.connect(perennialUser).approve(margin.address, constants.MaxUint256)
       const makerAvailable = (await market.riskParameter()).makerLimit.sub((await currentPositionGlobal(market)).maker)
+      const makerDeposit = parse6decimal('400000')
+      await margin.connect(perennialUser).deposit(perennialUser.address, makerDeposit)
       await market
         .connect(perennialUser)
         ['update(address,int256,int256,int256,address)'](
           perennialUser.address,
           makerAvailable,
           0,
-          parse6decimal('400000'),
+          makerDeposit,
           constants.AddressZero,
         )
 
@@ -1475,14 +1444,16 @@ describe('MakerVault', () => {
       await vault.rebalance(user.address)
 
       // Get taker product very close to the maker
-      await asset.connect(perennialUser).approve(market.address, constants.MaxUint256)
+      await asset.connect(perennialUser).approve(margin.address, constants.MaxUint256)
+      const takerDeposit = parse6decimal('1000000')
+      await margin.connect(perennialUser).deposit(perennialUser.address, takerDeposit)
       await market
         .connect(perennialUser)
         ['update(address,int256,int256,int256,address)'](
           perennialUser.address,
           0,
           parse6decimal('110'),
-          parse6decimal('1000000'),
+          takerDeposit,
           constants.AddressZero,
         )
 
@@ -1573,21 +1544,15 @@ describe('MakerVault', () => {
     })
 
     it('multiple users w/ makerFee', async () => {
-      const riskParameters = { ...(await market.riskParameter()) }
-      await market.updateRiskParameter({
-        ...riskParameters,
-        makerFee: {
-          ...riskParameters.makerFee,
-          linearFee: parse6decimal('0.001'),
-        },
+      const marketParameter = { ...(await market.parameter()) }
+      await market.updateParameter({
+        ...marketParameter,
+        makerFee: parse6decimal('0.001'),
       })
-      const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
-      await btcMarket.updateRiskParameter({
+      const btcRiskParameters = { ...(await btcMarket.parameter()) }
+      await btcMarket.updateParameter({
         ...btcRiskParameters,
-        makerFee: {
-          ...btcRiskParameters.makerFee,
-          linearFee: parse6decimal('0.001'),
-        },
+        makerFee: parse6decimal('0.001'),
       })
 
       expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
@@ -1609,8 +1574,8 @@ describe('MakerVault', () => {
       expect(await position()).to.be.equal(collateralForRebalance.mul(leverage).mul(4).div(5).div(originalOraclePrice))
       expect(await btcPosition()).to.be.equal(collateralForRebalance.mul(leverage).div(5).div(btcOriginalOraclePrice))
 
-      const balanceOf2 = BigNumber.from('9997751413')
-      const totalAssets = BigNumber.from('10996225611')
+      const balanceOf2 = BigNumber.from('9999782696')
+      const totalAssets = BigNumber.from('10996023245')
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
       expect((await vault.accounts(user2.address)).shares).to.equal(balanceOf2)
       expect(await vault.totalAssets()).to.equal(totalAssets)
@@ -1645,9 +1610,9 @@ describe('MakerVault', () => {
       const currentTradeFee = (await market.checkpoints(vault.address, marketPreviousCurrenTimestamp)).tradeFee
       const btcCurrentTradeFee = (await btcMarket.checkpoints(vault.address, btcMarketPreviousCurrenTimestamp)).tradeFee
 
-      const unclaimed1 = BigNumber.from('992142730')
-      const unclaimed2 = BigNumber.from('9923301914')
-      const finalTotalAssets = BigNumber.from('39840084') // last trade fee
+      const unclaimed1 = BigNumber.from('991920553')
+      const unclaimed2 = BigNumber.from('9921195678')
+      const finalTotalAssets = BigNumber.from('39840089') // last trade fee
       expect(await totalCollateralInVault()).to.equal(unclaimed1.add(unclaimed2).mul(1e12))
       expect((await vault.accounts(user.address)).shares).to.equal(0)
       expect((await vault.accounts(user2.address)).shares).to.equal(0)
@@ -1689,21 +1654,15 @@ describe('MakerVault', () => {
     })
 
     it('multiple users w/ makerFee + settlement fee', async () => {
-      const riskParameters = { ...(await market.riskParameter()) }
-      await market.updateRiskParameter({
-        ...riskParameters,
-        makerFee: {
-          ...riskParameters.makerFee,
-          linearFee: parse6decimal('0.001'),
-        },
+      const marketParameter = { ...(await market.parameter()) }
+      await market.updateParameter({
+        ...marketParameter,
+        makerFee: parse6decimal('0.001'),
       })
-      const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
-      await btcMarket.updateRiskParameter({
+      const btcRiskParameters = { ...(await btcMarket.parameter()) }
+      await btcMarket.updateParameter({
         ...btcRiskParameters,
-        makerFee: {
-          ...btcRiskParameters.makerFee,
-          linearFee: parse6decimal('0.001'),
-        },
+        makerFee: parse6decimal('0.001'),
       })
 
       const oracleRecteipt = { ...DEFAULT_ORACLE_RECEIPT, settlementFee: parse6decimal('1.00') }
@@ -1734,8 +1693,8 @@ describe('MakerVault', () => {
       expect(await position()).to.be.equal(collateralForRebalance.mul(leverage).mul(4).div(5).div(originalOraclePrice))
       expect(await btcPosition()).to.be.equal(collateralForRebalance.mul(leverage).div(5).div(btcOriginalOraclePrice))
 
-      const balanceOf2 = BigNumber.from('10015653937')
-      const totalAssets = BigNumber.from('10994246014')
+      const balanceOf2 = BigNumber.from('10017692486')
+      const totalAssets = BigNumber.from('10994043690')
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
       expect((await vault.accounts(user2.address)).shares).to.equal(balanceOf2)
       expect(await vault.totalAssets()).to.equal(totalAssets)
@@ -1775,9 +1734,9 @@ describe('MakerVault', () => {
       const btcCurrentSettlementFee = (await btcMarket.checkpoints(vault.address, btcMarketPreviousCurrenTimestamp))
         .settlementFee
 
-      const unclaimed1 = BigNumber.from('988182487')
-      const unclaimed2 = BigNumber.from('9919706416')
-      const finalTotalAssets = BigNumber.from('41832125') // last trade fee + settlement fee
+      const unclaimed1 = BigNumber.from('987960350')
+      const unclaimed2 = BigNumber.from('9917600959')
+      const finalTotalAssets = BigNumber.from('41832096') // last trade fee + settlement fee
       expect(await totalCollateralInVault()).to.equal(unclaimed1.add(unclaimed2).mul(1e12))
       expect((await vault.accounts(user.address)).shares).to.equal(0)
       expect((await vault.accounts(user2.address)).shares).to.equal(0)
@@ -1854,13 +1813,10 @@ describe('MakerVault', () => {
     })
 
     it('simple deposits and redemptions w/ factory initial amount (with fees)', async () => {
-      const riskParameters = { ...(await market.riskParameter()) }
-      await market.updateRiskParameter({
-        ...riskParameters,
-        makerFee: {
-          ...riskParameters.makerFee,
-          linearFee: parse6decimal('0.001'),
-        },
+      const marketParameter = { ...(await market.parameter()) }
+      await market.updateParameter({
+        ...marketParameter,
+        makerFee: parse6decimal('0.001'),
       })
 
       const oracleRecteipt = { ...DEFAULT_ORACLE_RECEIPT, settlementFee: parse6decimal('1.00') }
@@ -1902,17 +1858,23 @@ describe('MakerVault', () => {
       const riskParameters = { ...(await market.riskParameter()) }
       await market.updateRiskParameter({
         ...riskParameters,
-        makerFee: {
-          ...riskParameters.makerFee,
-          linearFee: parse6decimal('0.001'),
+        synBook: {
+          ...riskParameters.synBook,
+          d0: parse6decimal('0.001'),
+          d1: parse6decimal('0.002'),
+          d2: parse6decimal('0.004'),
+          d3: parse6decimal('0.008'),
         },
       })
       const btcRiskParameters = { ...(await btcMarket.riskParameter()) }
       await btcMarket.updateRiskParameter({
         ...btcRiskParameters,
-        makerFee: {
-          ...btcRiskParameters.makerFee,
-          linearFee: parse6decimal('0.001'),
+        synBook: {
+          ...riskParameters.synBook,
+          d0: parse6decimal('0.001'),
+          d1: parse6decimal('0.002'),
+          d2: parse6decimal('0.004'),
+          d3: parse6decimal('0.008'),
         },
       })
 
@@ -1938,7 +1900,7 @@ describe('MakerVault', () => {
       await vault.rebalance(user.address)
       await vault.rebalance(user2.address)
 
-      const totalAssets = BigNumber.from('10910767469')
+      const totalAssets = BigNumber.from('10984291835')
       expect((await vault.accounts(constants.AddressZero)).assets).to.equal(totalAssets)
     })
 
@@ -2196,7 +2158,7 @@ describe('MakerVault', () => {
           await btcMarket.connect(user).settle(vault.address)
 
           // Ensure maintenance requirement is violated.
-          let collateral = (await btcMarket.locals(vault.address)).collateral
+          let collateral = await margin.isolatedBalances(vault.address, btcMarket.address)
           let position = (await btcMarket.positions(vault.address)).maker
           const maintenanceRatio = (await btcMarket.riskParameter()).maintenance
           let maintenanceRequired = position.mul(price).mul(maintenanceRatio).div(1e12)
@@ -2206,7 +2168,7 @@ describe('MakerVault', () => {
           await expect(smallRedeem(user)).to.not.be.reverted
 
           // Ensure maintenance requirement is no longer violated.
-          collateral = (await btcMarket.locals(vault.address)).collateral
+          collateral = await margin.isolatedBalances(vault.address, btcMarket.address)
           position = (await btcMarket.positions(vault.address)).maker
           maintenanceRequired = position.mul(price).mul(maintenanceRatio).div(1e12)
           expect(collateral).to.be.greaterThan(maintenanceRequired)
@@ -2249,7 +2211,7 @@ describe('MakerVault', () => {
           // 2. Settle accounts / Liquidate the vault's maker position.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('5149547500')
           await btcMarket.connect(user).close(vault.address, true, constants.AddressZero)
-          expect((await btcMarket.locals(vault.address)).collateral).to.equal(
+          expect(await margin.isolatedBalances(vault.address, btcMarket.address)).to.equal(
             BigNumber.from('4428767485').add(EXPECTED_LIQUIDATION_FEE),
           ) // no shortfall
           expect((await btcMarket.pendingOrders(vault.address, 2)).protection).to.equal(1)
@@ -2283,7 +2245,7 @@ describe('MakerVault', () => {
           // 2. Settle accounts / Liquidate the vault's maker position.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('8239276000')
           await btcMarket.connect(user).close(vault.address, true, constants.AddressZero)
-          expect((await btcMarket.locals(vault.address)).collateral).to.equal(
+          expect(await margin.isolatedBalances(vault.address, btcMarket.address)).to.equal(
             BigNumber.from('-26673235277').add(EXPECTED_LIQUIDATION_FEE),
           ) // shortfall
           expect((await btcMarket.pendingOrders(vault.address, 2)).protection).to.equal(1)
@@ -2318,22 +2280,25 @@ describe('MakerVault', () => {
           await updateOracle()
 
           // get utilization closer to target in order to trigger pnl on price deviation
+          const deposit = parse6decimal('100000')
+          await margin.connect(user2).deposit(user2.address, deposit)
           await market
             .connect(user2)
             ['update(address,int256,int256,int256,address)'](
               user2.address,
               0,
               parse6decimal('100').mul(-1),
-              parse6decimal('100000'),
+              deposit,
               constants.AddressZero,
             )
+          await margin.connect(btcUser2).deposit(btcUser2.address, deposit)
           await btcMarket
             .connect(btcUser2)
             ['update(address,int256,int256,int256,address)'](
               btcUser2.address,
               0,
               parse6decimal('10').mul(-1),
-              parse6decimal('100000'),
+              deposit,
               constants.AddressZero,
             )
           await updateOracle()
@@ -2350,7 +2315,7 @@ describe('MakerVault', () => {
           // 2. Settle accounts / Liquidate the vault's maker position.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('2059819000')
           await btcMarket.connect(user).close(vault.address, true, constants.AddressZero)
-          expect((await btcMarket.locals(vault.address)).collateral).to.equal(
+          expect(await margin.isolatedBalances(vault.address, btcMarket.address)).to.equal(
             BigNumber.from('350411418').add(EXPECTED_LIQUIDATION_FEE),
           ) // no shortfall
           expect((await btcMarket.pendingOrders(vault.address, 3)).protection).to.equal(1)
@@ -2384,7 +2349,7 @@ describe('MakerVault', () => {
           // 2. Settle accounts / Liquidate the vault's maker position.
           const EXPECTED_LIQUIDATION_FEE = BigNumber.from('1956828050')
           await btcMarket.connect(user).close(vault.address, true, constants.AddressZero)
-          expect((await btcMarket.locals(vault.address)).collateral).to.equal(
+          expect(await margin.isolatedBalances(vault.address, btcMarket.address)).to.equal(
             BigNumber.from('-480340107').add(EXPECTED_LIQUIDATION_FEE),
           ) // shortfall
           expect((await btcMarket.pendingOrders(vault.address, 3)).protection).to.equal(1)

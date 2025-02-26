@@ -43,11 +43,19 @@ library PositionLib {
     /// @param order The new order
     function update(Position memory self, Order memory order) internal pure {
         self.timestamp = order.timestamp;
+        self.maker = self.maker.add(order.makerPos).sub(order.makerNeg);
+        self.long = self.long.add(order.longPos).sub(order.longNeg);
+        self.short = self.short.add(order.shortPos).sub(order.shortNeg);
+    }
 
+    /// @notice Updates the position with only the closing sides of a new order
+    /// @param self The position object to update
+    /// @param order The new order
+    function updateClose(Position memory self, Order memory order) internal pure {
         (self.maker, self.long, self.short) = (
-            UFixed6Lib.from(Fixed6Lib.from(self.maker).add(order.maker())),
-            UFixed6Lib.from(Fixed6Lib.from(self.long).add(order.long())),
-            UFixed6Lib.from(Fixed6Lib.from(self.short).add(order.short()))
+            self.maker.sub(order.makerNeg),
+            self.long.sub(order.longNeg),
+            self.short.sub(order.shortNeg)
         );
     }
 
@@ -85,6 +93,20 @@ library PositionLib {
     /// @return The skew of the position
     function skew(Position memory self) internal pure returns (Fixed6) {
         return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short));
+    }
+
+    /// @notice Returns the exposure percentage of each side of the market
+    /// @dev long and short can have exposure < 100% during times of socialization
+    /// @param self The position object to check
+    /// @return The maker exposure percentage
+    /// @return The long exposure percentage
+    /// @return The short exposure percentage
+    function exposure(Position memory self) internal pure returns (Fixed6, UFixed6, UFixed6) {
+        return (
+            makerSocialized(self).unsafeDiv(Fixed6Lib.from(self.maker)),
+            longSocialized(self).unsafeDiv(self.long),
+            shortSocialized(self).unsafeDiv(self.short)
+        );
     }
 
     /// @notice Returns the utilization of the position
@@ -131,6 +153,14 @@ library PositionLib {
     /// @return The major position with socialization taken into account
     function takerSocialized(Position memory self) internal pure returns (UFixed6) {
         return major(self).min(minor(self).add(self.maker));
+    }
+
+    /// @notice Returns the major position with socialization taken into account
+    /// @param self The position object to check
+    /// @return The major position with socialization taken into account
+    function makerSocialized(Position memory self) internal pure returns (Fixed6) {
+        return Fixed6Lib.from(self.long).sub(Fixed6Lib.from(self.short))
+            .min(Fixed6Lib.from(1, self.maker)).max(Fixed6Lib.from(-1, self.maker));
     }
 
     /// @notice Returns the efficiency of the position
@@ -190,32 +220,6 @@ library PositionLib {
         return _collateralRequirement(positionMagnitude, latestVersion, riskParameter.margin.max(collateralization), riskParameter.minMargin);
     }
 
-    /// @notice Returns the maintenance requirement of the position
-    /// @param self The position object to check
-    /// @param latestVersion The latest oracle version
-    /// @param riskParameter The current risk parameter
-    /// @return The maintenance requirement of the position
-    function maintenance(
-        Position memory self,
-        OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter
-    ) internal pure returns (UFixed6) {
-        return maintenance(magnitude(self), latestVersion, riskParameter);
-    }
-
-    /// @notice Returns the margin requirement of the position
-    /// @param self The position object to check
-    /// @param latestVersion The latest oracle version
-    /// @param riskParameter The current risk parameter
-    /// @return The margin requirement of the position
-    function margin(
-        Position memory self,
-        OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter
-    ) internal pure returns (UFixed6) {
-        return margin(magnitude(self), latestVersion, riskParameter, UFixed6Lib.ZERO);
-    }
-
     /// @notice Returns the collateral requirement of the position magnitude
     /// @param positionMagnitude The position magnitude value to check
     /// @param latestVersion The latest oracle version
@@ -230,74 +234,6 @@ library PositionLib {
     ) private pure returns (UFixed6) {
         if (positionMagnitude.isZero()) return UFixed6Lib.ZERO;
         return positionMagnitude.mul(latestVersion.price.abs()).mul(requirementRatio).max(requirementFixed);
-    }
-
-    /// @notice Returns the whether the position is maintained
-    /// @dev shortfall is considered solvent for 0-position
-    /// @param positionMagnitude The position magnitude value to check
-    /// @param latestVersion The latest oracle version
-    /// @param riskParameter The current risk parameter
-    /// @param collateral The current account's collateral
-    /// @return Whether the position is maintained
-    function maintained(
-        UFixed6 positionMagnitude,
-        OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter,
-        Fixed6 collateral
-    ) internal pure returns (bool) {
-        return UFixed6Lib.unsafeFrom(collateral).gte(maintenance(positionMagnitude, latestVersion, riskParameter));
-    }
-
-    /// @notice Returns the whether the position is margined
-    /// @dev shortfall is considered solvent for 0-position
-    /// @param positionMagnitude The position magnitude value to check
-    /// @param latestVersion The latest oracle version
-    /// @param riskParameter The current risk parameter
-    /// @param collateralization The collateralization requirement override provided by the caller
-    /// @param collateral The current account's collateral
-    /// @return Whether the position is margined
-    function margined(
-        UFixed6 positionMagnitude,
-        OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter,
-        UFixed6 collateralization,
-        Fixed6 collateral
-    ) internal pure returns (bool) {
-        return UFixed6Lib.unsafeFrom(collateral).gte(margin(positionMagnitude, latestVersion, riskParameter, collateralization));
-    }
-
-    /// @notice Returns the whether the position is maintained
-    /// @dev shortfall is considered solvent for 0-position
-    /// @param self The position object to check
-    /// @param latestVersion The latest oracle version
-    /// @param riskParameter The current risk parameter
-    /// @param collateral The current account's collateral
-    /// @return Whether the position is maintained
-    function maintained(
-        Position memory self,
-        OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter,
-        Fixed6 collateral
-    ) internal pure returns (bool) {
-        return maintained(magnitude(self), latestVersion, riskParameter, collateral);
-    }
-
-    /// @notice Returns the whether the position is margined
-    /// @dev shortfall is considered solvent for 0-position
-    /// @param self The position object to check
-    /// @param latestVersion The latest oracle version
-    /// @param riskParameter The current risk parameter
-    /// @param collateralization The collateralization requirement override provided by the caller
-    /// @param collateral The current account's collateral
-    /// @return Whether the position is margined
-    function margined(
-        Position memory self,
-        OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter,
-        UFixed6 collateralization,
-        Fixed6 collateral
-    ) internal pure returns (bool) {
-        return margined(magnitude(self), latestVersion, riskParameter, collateralization, collateral);
     }
 }
 

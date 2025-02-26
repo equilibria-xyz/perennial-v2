@@ -5,7 +5,6 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { MarketParameter } from "@perennial/v2-core/contracts/types/MarketParameter.sol";
 import { RiskParameter } from "@perennial/v2-core/contracts/types/RiskParameter.sol";
-import { Local } from "@perennial/v2-core/contracts/types/Local.sol";
 import { Global } from "@perennial/v2-core/contracts/types/Global.sol";
 import { Position, PositionLib } from "@perennial/v2-core/contracts/types/Position.sol";
 import { Order } from "@perennial/v2-core/contracts/types/Order.sol";
@@ -35,8 +34,8 @@ struct MarketMakerStrategyContext {
     /// @dev The risk parameter set
     RiskParameter riskParameter;
 
-    /// @dev The local state of the vault
-    Local local;
+    /// @dev The collateral of the market
+    Fixed6 collateral;
 
     /// @dev The vault's current account position
     Position currentAccountPosition;
@@ -138,7 +137,7 @@ library MakerStrategyLib {
             .mul(marketContext.registration.weight)
             .min(marketCollateral.mul(params.leverageBuffer));
 
-        target.collateral = Fixed6Lib.from(marketCollateral).sub(marketContext.local.collateral);
+        target.collateral = Fixed6Lib.from(marketCollateral).sub(marketContext.collateral);
 
         UFixed6 minAssets = marketContext.riskParameter.minMargin
             .unsafeDiv(marketContext.registration.leverage.mul(marketContext.riskParameter.maintenance));
@@ -161,7 +160,7 @@ library MakerStrategyLib {
         for (uint256 marketId; marketId < registrations.length; marketId++) {
             context.markets[marketId] = _loadContext(registrations[marketId]);
             context.totalMargin = context.totalMargin.add(context.markets[marketId].margin);
-            context.totalCollateral = context.totalCollateral.add(context.markets[marketId].local.collateral);
+            context.totalCollateral = context.totalCollateral.add(context.markets[marketId].collateral);
             context.minAssets = context.minAssets.max(
                 (registrations[marketId].leverage.isZero() || registrations[marketId].weight.isZero()) ?
                     UFixed6Lib.ZERO : // skip if no leverage or weight
@@ -181,7 +180,7 @@ library MakerStrategyLib {
         marketContext.registration = registration;
         marketContext.marketParameter = registration.market.parameter();
         marketContext.riskParameter = registration.market.riskParameter();
-        marketContext.local = registration.market.locals(address(this));
+        marketContext.collateral = registration.market.margin().isolatedBalances(address(this), registration.market);
         OracleVersion memory latestVersion = registration.market.oracle().latest();
 
         marketContext.latestAccountPosition = registration.market.positions(address(this));
@@ -209,14 +208,5 @@ library MakerStrategyLib {
                 .unsafeSub(marketContext.currentPosition.skew().abs()).min(marketContext.closable));
         marketContext.maxPosition = marketContext.currentAccountPosition.maker
             .add(marketContext.riskParameter.makerLimit.unsafeSub(marketContext.currentPosition.maker));
-    }
-
-    function _getTargetPosition(MarketMakerStrategyContext memory marketContext, UFixed6 marketAssets) private pure returns (Fixed6) {
-        UFixed6 newMaker = marketAssets
-            .muldiv(marketContext.registration.leverage, marketContext.latestPrice.abs())
-            .max(marketContext.minPosition)
-            .min(marketContext.maxPosition);
-
-        return Fixed6Lib.from(newMaker).sub(Fixed6Lib.from(marketContext.currentAccountPosition.maker));
     }
 }

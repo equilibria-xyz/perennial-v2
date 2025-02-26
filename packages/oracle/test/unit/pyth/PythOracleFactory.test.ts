@@ -19,6 +19,7 @@ import {
   KeeperOracle,
   KeeperOracle__factory,
   GasOracle,
+  IMargin,
 } from '../../../types/generated'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { utils, BigNumber, BigNumberish } from 'ethers'
@@ -96,7 +97,10 @@ describe('PythOracleFactory', () => {
     market.factory.returns(marketFactory.address)
     marketFactory.instances.whenCalledWith(market.address).returns(true)
     market.settle.returns()
-    market.token.returns(dsu.address)
+
+    const margin = await smock.fake<IMargin>('IMargin')
+    market.margin.returns(margin.address)
+    margin.DSU.returns(dsu.address)
 
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
