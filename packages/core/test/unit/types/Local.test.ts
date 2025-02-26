@@ -131,12 +131,13 @@ describe('Local', () => {
         liquidationFee: 256,
         subtractiveFee: 0,
         solverFee: 0,
+        additiveFee: 0,
       }
 
       const pnl = await local.callStatic.update(11, checkpointAccumulationResponse)
       expect(pnl).to.equal(756)
 
-      await local['update(uint256,(int256,uint256,uint256,uint256))'](11, checkpointAccumulationResponse)
+      await local['update(uint256,(int256,uint256,uint256,uint256,uint256))'](11, checkpointAccumulationResponse)
       const storedLocal = await local.read()
       expect(await storedLocal.collateral).to.equal(0)
       expect(await storedLocal.latestId).to.equal(11)

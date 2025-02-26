@@ -146,6 +146,7 @@ describe('TriggerOrder', () => {
         invalidation: pending.isZero() ? 0 : 1,
         makerReferral: constants.Zero,
         takerReferral: constants.Zero,
+        additiveFee: constants.Zero,
       })
     }
 

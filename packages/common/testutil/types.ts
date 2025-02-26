@@ -42,6 +42,7 @@ export interface Order {
   invalidation: BigNumberish
   makerReferral: BigNumberish
   takerReferral: BigNumberish
+  additiveFee: BigNumberish
 }
 
 export interface Guarantee {
@@ -404,6 +405,7 @@ export const DEFAULT_ORDER: Order = {
   invalidation: 0,
   makerReferral: 0,
   takerReferral: 0,
+  additiveFee: 0,
 }
 
 export const DEFAULT_GUARANTEE: Guarantee = {

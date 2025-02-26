@@ -23,6 +23,9 @@ struct CheckpointAccumulationResponse {
 
     /// @dev Solver fee accumulated the previous position to the next position (this amount is included in the linear fee)
     UFixed6 solverFee;
+
+    /// @dev Additive fee accumulated from the previous position to the next position
+    UFixed6 additiveFee;
 }
 
 struct CheckpointAccumulationResult {
@@ -49,6 +52,9 @@ struct CheckpointAccumulationResult {
 
     /// @dev Solver fee accumulated the previous position to the next position (this amount is included in the linear fee)
     UFixed6 solverFee;
+
+    /// @dev Additive fee accumulated from the previous position to the next position
+    UFixed6 additiveFee;
 }
 
 /// @title CheckpointLib
@@ -75,7 +81,7 @@ library CheckpointLib {
         // accumulate
         result.collateral = _accumulateCollateral(context.latestPositionLocal, order, fromVersion, toVersion);
         result.priceOverride = _accumulatePriceOverride(guarantee, toVersion);
-        (result.tradeFee, result.subtractiveFee, result.solverFee) = _accumulateFee(order, guarantee, toVersion);
+        (result.tradeFee, result.subtractiveFee, result.solverFee, result.additiveFee) = _accumulateFee(order, guarantee, toVersion);
         result.spread = _accumulateSpread(order, guarantee, toVersion);
         result.settlementFee = _accumulateSettlementFee(order, guarantee, toVersion);
         result.liquidationFee = _accumulateLiquidationFee(order, toVersion);
@@ -111,6 +117,7 @@ library CheckpointLib {
         response.liquidationFee = result.liquidationFee;
         response.subtractiveFee = result.subtractiveFee;
         response.solverFee = result.solverFee;
+        response.additiveFee = result.additiveFee;
     }
 
     /// @notice Accumulate pnl, funding, and interest from the latest position to next position
@@ -157,7 +164,7 @@ library CheckpointLib {
         Order memory order,
         Guarantee memory guarantee,
         Version memory toVersion
-    ) private pure returns (UFixed6 tradeFee, UFixed6 subtractiveFee, UFixed6 solverFee) {
+    ) private pure returns (UFixed6 tradeFee, UFixed6 subtractiveFee, UFixed6 solverFee, UFixed6 additiveFee) {
         UFixed6 takerTotal = order.takerTotal().sub(guarantee.takerFee);
 
         // accumulate total trade fees on maker and taker orders
@@ -181,7 +188,8 @@ library CheckpointLib {
             UFixed6Lib.ZERO :
             takerFee.muldiv(guarantee.solverReferral, takerTotal); // guarantee.solverReferral is instantiated as a subset of order.takerReferral
 
-        tradeFee = makerFee.add(takerFee);
+        additiveFee = order.additiveFee.mul(toVersion.price.abs());
+        tradeFee = makerFee.add(takerFee).add(additiveFee);
         subtractiveFee = makerSubtractiveFee.add(takerSubtractiveFee).sub(solverFee);
     }
 
