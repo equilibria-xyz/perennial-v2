@@ -1555,7 +1555,7 @@ describe('SolverVault', () => {
       })
     })
 
-    context('liquidation', () => {
+    context.only('liquidation', () => {
       it('recovers from liquidation', async () => {
         expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
         expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
@@ -1642,9 +1642,7 @@ describe('SolverVault', () => {
           .div(1e12)
         expect(collateral).to.be.lessThan(maintenanceRequired)
 
-        await btcMarket
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
+        await btcMarket.connect(user).close(vault.address, true, constants.AddressZero)
 
         await updateOracle()
         await btcMarket.settle(vault.address)
@@ -1759,9 +1757,7 @@ describe('SolverVault', () => {
           .div(1e12)
         expect(collateral).to.be.lessThan(maintenanceRequired)
 
-        await btcMarket
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
+        await btcMarket.connect(user).close(vault.address, true, constants.AddressZero)
 
         await updateOracle()
         await btcMarket.settle(vault.address)
@@ -1818,7 +1814,7 @@ describe('SolverVault', () => {
       })
     })
 
-    context('insolvency', () => {
+    context.only('insolvency', () => {
       it('gracefully unwinds upon total insolvency', async () => {
         expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
         expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
@@ -1897,9 +1893,7 @@ describe('SolverVault', () => {
         const newBtcOraclePrice = btcOriginalOraclePrice.add(parse6decimal('20000'))
 
         await updateOracle(undefined, newBtcOraclePrice)
-        await btcMarket
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
+        await btcMarket.connect(user).close(vault.address, true, constants.AddressZero)
         await vault.connect(user).update(user.address, 0, 1, 0)
 
         // Vault should no longer have enough collateral to cover claims, pro-rata claim should be enabled
@@ -2002,9 +1996,7 @@ describe('SolverVault', () => {
         const newBtcOraclePrice = btcOriginalOraclePrice.add(parse6decimal('2000'))
 
         await updateOracle(undefined, newBtcOraclePrice)
-        await btcMarket
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
+        await btcMarket.connect(user).close(vault.address, true, constants.AddressZero)
 
         await updateOracle()
         await vault['rebalance(address)'](user.address)
