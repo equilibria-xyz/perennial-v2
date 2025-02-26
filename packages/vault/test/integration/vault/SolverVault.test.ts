@@ -1555,7 +1555,7 @@ describe('SolverVault', () => {
       })
     })
 
-    context.only('liquidation', () => {
+    context('liquidation', () => {
       it('recovers from liquidation', async () => {
         expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
         expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
@@ -1814,7 +1814,7 @@ describe('SolverVault', () => {
       })
     })
 
-    context.only('insolvency', () => {
+    context('insolvency', () => {
       it('gracefully unwinds upon total insolvency', async () => {
         expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
         expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
