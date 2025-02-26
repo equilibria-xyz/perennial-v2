@@ -1642,9 +1642,7 @@ describe('SolverVault', () => {
           .div(1e12)
         expect(collateral).to.be.lessThan(maintenanceRequired)
 
-        await btcMarket
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
+        await btcMarket.connect(user).close(vault.address, true, constants.AddressZero)
 
         await updateOracle()
         await btcMarket.settle(vault.address)
@@ -1759,9 +1757,7 @@ describe('SolverVault', () => {
           .div(1e12)
         expect(collateral).to.be.lessThan(maintenanceRequired)
 
-        await btcMarket
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
+        await btcMarket.connect(user).close(vault.address, true, constants.AddressZero)
 
         await updateOracle()
         await btcMarket.settle(vault.address)
@@ -1897,9 +1893,7 @@ describe('SolverVault', () => {
         const newBtcOraclePrice = btcOriginalOraclePrice.add(parse6decimal('20000'))
 
         await updateOracle(undefined, newBtcOraclePrice)
-        await btcMarket
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
+        await btcMarket.connect(user).close(vault.address, true, constants.AddressZero)
         await vault.connect(user).update(user.address, 0, 1, 0)
 
         // Vault should no longer have enough collateral to cover claims, pro-rata claim should be enabled
@@ -2002,9 +1996,7 @@ describe('SolverVault', () => {
         const newBtcOraclePrice = btcOriginalOraclePrice.add(parse6decimal('2000'))
 
         await updateOracle(undefined, newBtcOraclePrice)
-        await btcMarket
-          .connect(user)
-          ['update(address,uint256,uint256,uint256,int256,bool)'](vault.address, 0, 0, 0, 0, true)
+        await btcMarket.connect(user).close(vault.address, true, constants.AddressZero)
 
         await updateOracle()
         await vault['rebalance(address)'](user.address)
