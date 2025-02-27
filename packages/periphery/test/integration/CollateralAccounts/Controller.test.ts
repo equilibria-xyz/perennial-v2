@@ -504,7 +504,7 @@ export function RunControllerBaseTests(
         // perform an initial deposit
         await transfer(parse6decimal('10000'), userA)
 
-        // withdraw 3k from the the market
+        // withdraw 3k from the market
         const transferAmount = parse6decimal('-3000')
         await transfer(transferAmount, userA)
 
