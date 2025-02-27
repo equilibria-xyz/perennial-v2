@@ -27,7 +27,9 @@
     "node:fork:arbitrum": "FORK_ENABLED=true FORK_NETWORK=arbitrum NODE_INTERVAL_MINING=250 hardhat node",
     "deploy:fork:arbitrum": "OPTIMIZER_ENABLED=true  FORK_ENABLED=true FORK_NETWORK=arbitrum hardhat deploy --network localhost",
     "node:fork:base": "FORK_ENABLED=true FORK_NETWORK=base NODE_INTERVAL_MINING=250 hardhat node",
-    "deploy:fork:base": "OPTIMIZER_ENABLED=true  FORK_ENABLED=true FORK_NETWORK=base hardhat deploy --network localhost"
+    "deploy:fork:base": "OPTIMIZER_ENABLED=true  FORK_ENABLED=true FORK_NETWORK=base hardhat deploy --network localhost",
+    "node:fork:perennialSepolia": "FORK_ENABLED=true FORK_NETWORK=perennialSepolia NODE_INTERVAL_MINING=250 hardhat node",
+    "deploy:fork:perennialSepolia": "OPTIMIZER_ENABLED=true  FORK_ENABLED=true FORK_NETWORK=perennialSepolia hardhat deploy --network localhost"
   },
   "author": "",
   "license": "APACHE-2.0",
