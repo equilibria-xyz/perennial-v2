@@ -7,6 +7,7 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Token18, UFixed18, UFixed18Lib } from "@equilibria/root/token/types/Token18.sol";
 
+import { CheckpointLib } from "./libs/CheckpointLib.sol";
 import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
 import { Guarantee } from "./types/Guarantee.sol";
 import { Local } from "./types/Local.sol";
@@ -136,13 +137,18 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     /// @inheritdoc IMargin
-    function handleMarketSettle(address account) external onlyMarket {
+    function handleMarketSettle(address account, uint256 latestVersion) external onlyMarket {
         IMarket market = IMarket(msg.sender);
         UFixed6 isolatedBalance = UFixed6Lib.unsafeFrom(_balances[account][market]);
         // If market also had no position when isolated balance last changed, should not deisolate
         if (!isolatedBalance.isZero() && !market.hasPosition(account) && _hadPositionAtLastIsolate[account][market]) {
             // If position is closed, deisolate all funds from the market
-            _isolate(account, market, Fixed6Lib.from(-1, isolatedBalance), false);
+            Fixed6 amount = Fixed6Lib.from(-1, isolatedBalance);
+            _isolate(account, market, amount, false);
+            // Update the checkpoint which closed the position to record the deisolation
+            Checkpoint memory checkpoint = _checkpoints[account][market][latestVersion].read();
+            CheckpointLib.deisolate(checkpoint, amount);
+            _checkpoints[account][market][latestVersion].store(checkpoint);
         }
     }
 

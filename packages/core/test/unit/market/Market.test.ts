@@ -17821,6 +17821,7 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_CHECKPOINT,
+            transfer: -COLLATERAL.sub(SETTLEMENT_FEE), // deisolated on position close
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
           })
           expectLocalEq(await market.locals(userB.address), {

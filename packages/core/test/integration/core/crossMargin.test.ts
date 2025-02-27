@@ -39,7 +39,13 @@ import {
   Verifier__factory,
 } from '../../../types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { DEFAULT_POSITION, expectPositionEq, parse6decimal } from '../../../../common/testutil/types'
+import {
+  DEFAULT_CHECKPOINT,
+  DEFAULT_POSITION,
+  expectCheckpointEq,
+  expectPositionEq,
+  parse6decimal,
+} from '../../../../common/testutil/types'
 
 const MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE = 'update(address,int256,int256,int256,address)'
 
@@ -344,5 +350,23 @@ describe('Cross Margin', () => {
     // userA balance should be deisolated
     expect(await margin.isolatedBalances(userA.address, marketA.market.address)).to.equal(0)
     expect(await margin.isIsolated(userA.address, marketA.market.address)).to.equal(false)
+    expectCheckpointEq(await marketA.market.checkpoints(userA.address, timestamp), {
+      ...DEFAULT_CHECKPOINT,
+      transfer: parse6decimal('-1000'),
+      collateral: parse6decimal('1000'),
+    })
+
+    // userA opens a new isolated position
+    await margin.connect(userA).isolate(userA.address, marketA.market.address, parse6decimal('600'))
+    timestamp = await changePosition(marketA, userA, parse6decimal('10'), 0)
+    await advanceToPrice(marketA, userA, timestamp, parse6decimal('100.7'))
+
+    // checkpoint records the correct amount of collateral
+    expect(await margin.isolatedBalances(userA.address, marketA.market.address)).to.equal(parse6decimal('600'))
+    expect(await margin.isIsolated(userA.address, marketA.market.address)).to.equal(true)
+    expectCheckpointEq(await marketA.market.checkpoints(userA.address, timestamp), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: parse6decimal('600'),
+    })
   })
 })

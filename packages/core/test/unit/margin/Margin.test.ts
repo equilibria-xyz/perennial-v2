@@ -7,9 +7,11 @@ import HRE from 'hardhat'
 import { impersonate } from '../../../../common/testutil'
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
 import {
+  DEFAULT_CHECKPOINT,
   DEFAULT_GUARANTEE,
   DEFAULT_LOCAL,
   DEFAULT_ORACLE_VERSION,
+  expectCheckpointEq,
   parse6decimal,
 } from '../../../../common/testutil/types'
 import {
@@ -100,9 +102,21 @@ describe('Margin', () => {
       await margin.connect(marketSigner).handleMarketUpdate(user.address, collateralDelta)
     }
 
-    async function settle(user: SignerWithAddress, market: FakeContract<IMarket>) {
+    async function settle(user: SignerWithAddress, market: FakeContract<IMarket>, version: number) {
       const marketSigner = await impersonate.impersonateWithBalance(market.address, utils.parseEther('10'))
-      await expect(margin.connect(marketSigner).handleMarketSettle(user.address)).to.not.be.reverted
+
+      // write a checkpoint prior to invoking handleMarketSettle, just as Market would do
+      const checkpoint: CheckpointStruct = {
+        ...DEFAULT_CHECKPOINT,
+        transfer: BigNumber.from(0),
+        collateral: await margin.isolatedBalances(user.address, market.address),
+      }
+      await expect(margin.connect(marketSigner).updateCheckpoint(user.address, version, checkpoint, BigNumber.from(0)))
+        .to.not.be.reverted
+
+      // invoke the settlement callback
+      await expect(margin.connect(marketSigner).handleMarketSettle(user.address, BigNumber.from(version))).to.not.be
+        .reverted
     }
 
     function fakeOraclePrice(price: BigNumber) {
@@ -301,20 +315,32 @@ describe('Margin', () => {
       await deposit(user, parse6decimal('500'))
       marketA.hasPosition.whenCalledWith(user.address).returns(true)
       marketA.stale.returns(false)
+      let latestVersion = await currentBlockTimestamp()
       await margin.isolate(user.address, marketA.address, parse6decimal('400'))
       expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('400'))
       expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
 
       // settlement with open position should not deisolate the market
-      await settle(user, marketA)
+      await settle(user, marketA, latestVersion)
       expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('400'))
       expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+      expectCheckpointEq(await margin.isolatedCheckpoints(user.address, marketA.address, latestVersion), {
+        ...DEFAULT_CHECKPOINT,
+        collateral: parse6decimal('400'),
+      })
+      latestVersion++
 
       // settlement with closed position should deisolate the market
       marketA.hasPosition.whenCalledWith(user.address).returns(false)
-      await settle(user, marketA)
+      await settle(user, marketA, latestVersion)
       expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(0)
       expect(await margin.isIsolated(user.address, marketA.address)).to.be.false
+      expectCheckpointEq(await margin.isolatedCheckpoints(user.address, marketA.address, latestVersion), {
+        ...DEFAULT_CHECKPOINT,
+        transfer: parse6decimal('-400'),
+        collateral: parse6decimal('400'),
+      })
+      latestVersion++
 
       // simulate a position while isolating through market contract
       await deposit(userB, parse6decimal('300'))
@@ -325,15 +351,25 @@ describe('Margin', () => {
       expect(await margin.isIsolated(userB.address, marketA.address)).to.be.true
 
       // settlement with open position should not deisolate the market
-      await settle(userB, marketA)
+      await settle(userB, marketA, latestVersion)
       expect(await margin.isolatedBalances(userB.address, marketA.address)).to.equal(parse6decimal('300'))
       expect(await margin.isIsolated(userB.address, marketA.address)).to.be.true
+      expectCheckpointEq(await margin.isolatedCheckpoints(userB.address, marketA.address, latestVersion), {
+        ...DEFAULT_CHECKPOINT,
+        collateral: parse6decimal('300'),
+      })
+      latestVersion++
 
       // settlement with closed position should deisolate the market
       marketA.hasPosition.whenCalledWith(userB.address).returns(false)
-      await settle(userB, marketA)
+      await settle(userB, marketA, latestVersion)
       expect(await margin.isolatedBalances(userB.address, marketA.address)).to.equal(0)
       expect(await margin.isIsolated(userB.address, marketA.address)).to.be.false
+      expectCheckpointEq(await margin.isolatedCheckpoints(userB.address, marketA.address, latestVersion), {
+        ...DEFAULT_CHECKPOINT,
+        transfer: parse6decimal('-300'),
+        collateral: parse6decimal('300'),
+      })
     })
 
     it('does not implicitly deisolate after isolating funds with no position', async () => {
@@ -342,13 +378,19 @@ describe('Margin', () => {
       // user isolates through margin contract with no position
       marketA.hasPosition.whenCalledWith(user.address).returns(false)
       await margin.isolate(user.address, marketA.address, parse6decimal('240'))
+      let latestVersion = await currentBlockTimestamp()
       expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('240'))
       expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
 
       // user settles with no position
-      await settle(user, marketA)
+      await settle(user, marketA, latestVersion)
       expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('240'))
       expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+      expectCheckpointEq(await margin.isolatedCheckpoints(user.address, marketA.address, latestVersion), {
+        ...DEFAULT_CHECKPOINT,
+        collateral: parse6decimal('240'),
+      })
+      latestVersion++
 
       // user isolates through market with no position
       await marketUpdate(user, marketA, parse6decimal('250'))
@@ -356,9 +398,13 @@ describe('Margin', () => {
       expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
 
       // user settles with no position
-      await settle(user, marketA)
+      await settle(user, marketA, latestVersion)
       expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('490'))
       expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+      expectCheckpointEq(await margin.isolatedCheckpoints(user.address, marketA.address, latestVersion), {
+        ...DEFAULT_CHECKPOINT,
+        collateral: parse6decimal('490'),
+      })
     })
 
     it('prevents unbounded number of markets from being crossed', async () => {

@@ -146,7 +146,8 @@ interface IMargin is IInstance {
 
     /// @dev Called by market when Market.settle is called, used to implicitly deisolate when positions are closed.
     /// @param account User who was settled
-    function handleMarketSettle(address account) external;
+    /// @param latestVersion Most recent version settled, used for updating checkpoint if necessary
+    function handleMarketSettle(address account, uint256 latestVersion) external;
 
     /// @dev Called by market to adjust claimable balance when fees are claimed or exposure settled
     function updateClaimable(address account, UFixed6 collateralDelta) external;

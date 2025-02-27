@@ -121,7 +121,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         _storeContext(context);
 
-        margin.handleMarketSettle(context.account);
+        margin.handleMarketSettle(context.account, context.latestPositionLocal.timestamp);
     }
 
     /// @notice Updates both the long and short positions of an intent order

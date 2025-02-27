@@ -955,6 +955,7 @@ describe('Fees', () => {
       expectCheckpointEq(await market.checkpoints(userD.address, TIMESTAMP_2), {
         ...DEFAULT_CHECKPOINT,
         tradeFee: expectedPriceImpact,
+        transfer: -COLLATERAL.sub(expectedPriceImpact), // deisolated on position close
         collateral: COLLATERAL,
       })
       expectPositionEq(await market.positions(userD.address), {
