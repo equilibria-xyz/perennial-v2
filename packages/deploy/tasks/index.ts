@@ -10,6 +10,7 @@ export * from './verifyProxies'
 export * from './checkVaultShares'
 export * from './verifyIDs'
 export * from './verifyVaultIDs'
+export * from './verifyContracts'
 
 export * from './multisig_ops/buildCreateMarket'
 
