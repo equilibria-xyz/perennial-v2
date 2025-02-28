@@ -407,6 +407,44 @@ describe('Margin', () => {
       })
     })
 
+    it('does not implicitly deisolate on position close when explicitly disabled', async () => {
+      await deposit(user, parse6decimal('200'))
+
+      // user cannot disable auto-deisolate for another user
+      fakeAuthorization(userB, user, false)
+      await expect(margin.connect(user).disableAutoDeisolate(userB.address, true)).to.be.revertedWithCustomError(
+        margin,
+        'MarginOperatorNotAllowedError',
+      )
+
+      // user disables auto-deisolate
+      await margin.connect(user).disableAutoDeisolate(user.address, true)
+
+      // user isolates through market with position and settles
+      let latestVersion = await currentBlockTimestamp()
+      await marketUpdate(user, marketA, parse6decimal('200'))
+      marketA.hasPosition.whenCalledWith(user.address).returns(true)
+      marketA.stale.returns(false)
+      await settle(user, marketA, latestVersion)
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('200'))
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+      expectCheckpointEq(await margin.isolatedCheckpoints(user.address, marketA.address, latestVersion), {
+        ...DEFAULT_CHECKPOINT,
+        collateral: parse6decimal('200'),
+      })
+      latestVersion++
+
+      // user closes their position and settles
+      marketA.hasPosition.whenCalledWith(user.address).returns(false)
+      await settle(user, marketA, latestVersion)
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('200'))
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+      expectCheckpointEq(await margin.isolatedCheckpoints(user.address, marketA.address, latestVersion), {
+        ...DEFAULT_CHECKPOINT,
+        collateral: parse6decimal('200'),
+      })
+    })
+
     it('prevents unbounded number of markets from being crossed', async () => {
       const maxCrossedMarkets = (await margin.MAX_CROSS_MARGIN_MARKETS()).toNumber()
       await deposit(user, parse6decimal('50'))

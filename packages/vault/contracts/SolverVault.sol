@@ -21,6 +21,8 @@ contract SolverVault is ISolverVault, Vault {
         return "Perennial Solver Vault";
     }
 
+    function _initialize() internal override {}
+
     function _strategy(
         Context memory context,
         UFixed6 withdrawal,

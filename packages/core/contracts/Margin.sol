@@ -45,6 +45,9 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// Cross-margin checkpoints stored as IMarket(address(0))
     mapping(address => mapping(IMarket => mapping(uint256 => CheckpointStorage))) private _checkpoints;
 
+    /// @notice Supresses default behavior of deisolating funds when a position is closed
+    mapping(address => bool) public autoDeisolateDisabled;
+
     /// @dev Prevents implicit deisolation when isolating with no position
     mapping(address => mapping(IMarket => bool)) private _hadPositionAtLastIsolate;
 
@@ -102,6 +105,11 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         emit ClaimableWithdrawn(account, receiver, feeReceived);
     }
 
+    // @inheritdoc IMargin
+    function disableAutoDeisolate(address account, bool disabled) external onlyOperator(account) {
+        autoDeisolateDisabled[account] = disabled;
+    }
+
     /// @inheritdoc IMargin
     function maintained(
         address account
@@ -141,7 +149,11 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         IMarket market = IMarket(msg.sender);
         UFixed6 isolatedBalance = UFixed6Lib.unsafeFrom(_balances[account][market]);
         // If market also had no position when isolated balance last changed, should not deisolate
-        if (!isolatedBalance.isZero() && !market.hasPosition(account) && _hadPositionAtLastIsolate[account][market]) {
+        if (!isolatedBalance.isZero()                         // account has an isolated balance
+                && !autoDeisolateDisabled[account]            // this feature is not explicitly disabled
+                && !market.hasPosition(account)               // market currently has no position
+                && _hadPositionAtLastIsolate[account][market] // market had no position when funds last isolated
+            ) {
             // If position is closed, deisolate all funds from the market
             Fixed6 amount = Fixed6Lib.from(-1, isolatedBalance);
             _isolate(account, market, amount, false);

@@ -84,9 +84,14 @@ abstract contract Vault is IVault, Instance {
         _register(initialMarket);
         _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO, UFixed6Lib.ZERO, leverageBuffer));
 
+        _initialize();
+
         // permits the vault factory to make the initial deposit to prevent inflation attacks
         allowed[msg.sender] = true;
     }
+
+    /// @dev Allows for strategy-specific initialization
+    function _initialize() internal virtual;
 
     /// @notice Returns the vault parameter set
     /// @return The vault parameter set

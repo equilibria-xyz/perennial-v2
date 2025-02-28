@@ -17,6 +17,11 @@ contract MakerVault is IMakerVault, Vault {
         return "Perennial Maker Vault";
     }
 
+    function _initialize() internal override {
+        // Prevent auto-deisolation when vault closes it's position
+        margin.disableAutoDeisolate(address(this), true);
+    }
+
     function _strategy(
         Context memory context,
         UFixed6 withdrawal,

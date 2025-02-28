@@ -123,6 +123,11 @@ interface IMargin is IInstance {
     /// @param feeReceived Amount of DSU transferred to receiver
     function claim(address account, address receiver) external returns (UFixed6 feeReceived);
 
+    /// @notice Disables auto-deisolation on close position for a user
+    /// @param account User whose auto-deisolation will be disabled
+    /// @param disabled True to disable auto-deisolation, false to enable (default)
+    function disableAutoDeisolate(address account, bool disabled) external;
+
     /// @dev Called by market to check maintenance requirements upon market update
     /// @param account User whose maintenance requirement will be checked
     /// @return isMaintained True if margin requirement met, otherwise false

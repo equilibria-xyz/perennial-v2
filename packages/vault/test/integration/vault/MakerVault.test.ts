@@ -1543,7 +1543,7 @@ describe('MakerVault', () => {
       expect(await btcPosition()).to.equal(largeDeposit.mul(leverage).div(5).div(btcOriginalOraclePrice))
     })
 
-    it.only('multiple users w/ makerFee', async () => {
+    it('multiple users w/ makerFee', async () => {
       const marketParameter = { ...(await market.parameter()) }
       await market.updateParameter({
         ...marketParameter,
@@ -1647,14 +1647,13 @@ describe('MakerVault', () => {
       await updateOracle()
       await vault.rebalance(user.address)
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
-      // FIXME: actual is over 10x higher
       expect(await vault.totalAssets()).to.equal(parse6decimal('1000').add(0))
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('1000'))
       expect(await vault.convertToAssets(parse6decimal('1000'))).to.equal(parse6decimal('1000').add(0))
       expect(await vault.convertToShares(parse6decimal('1000').add(0))).to.equal(parse6decimal('1000'))
     })
 
-    it.only('multiple users w/ makerFee + settlement fee', async () => {
+    it('multiple users w/ makerFee + settlement fee', async () => {
       const marketParameter = { ...(await market.parameter()) }
       await market.updateParameter({
         ...marketParameter,
@@ -1774,7 +1773,6 @@ describe('MakerVault', () => {
       await updateOracle()
       await vault.rebalance(user.address)
       expect((await vault.accounts(user.address)).shares).to.equal(parse6decimal('1000'))
-      // FIXME: actual is over 10x higher
       expect(await vault.totalAssets()).to.equal(parse6decimal('1000').add(0))
       expect((await vault.accounts(ethers.constants.AddressZero)).shares).to.equal(parse6decimal('1000'))
       expect(await vault.convertToAssets(parse6decimal('1000'))).to.equal(parse6decimal('1000').add(0))
