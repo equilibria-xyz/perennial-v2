@@ -667,12 +667,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // when liquidating, ensure maintenance requirements are not met
         if (newOrder.protected() && (
+            (context.pendingLocal.crossesZero() && !newOrder.isEmpty()) ||             // pending zero-cross, liquidate (lock) with no-op order
             context.pendingLocal.neg().lt(context.latestPositionLocal.magnitude()) ||  // total pending close is not equal to latest position
             margin.maintained(context.account) ||                                      // latest position is properly maintained
             !newOrder.collateral.eq(Fixed6Lib.ZERO) ||                                 // TODO: can eliminate because close method doesn't touch collateral
             !newOrder.pos().eq(UFixed6Lib.ZERO))                                       // TODO: can eliminate because close orders cannot increase position
         ) revert IMarket.MarketInvalidProtectionError();
-
 
         // TODO: This doesn't need to be done post-save; keeping adjacent to maintenance/margin checks for future refactoring.
         if (
