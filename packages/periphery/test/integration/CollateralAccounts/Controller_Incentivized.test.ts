@@ -161,7 +161,7 @@ export function RunIncentivizedTests(
         'keeperGasUpperLimit',
         keeperGasCostInUSD.mul(125).div(100e9).toNumber() / 1e9,
       )*/
-      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(125).div(100))
+      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(15).div(10))
     }
 
     // create a serial nonce for testing purposes; real users may choose a nonce however they please

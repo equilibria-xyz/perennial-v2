@@ -14,10 +14,8 @@ abstract contract OrderTester {
 
     function store(Order memory newOrder) public virtual;
 
-    function next(uint256 timestamp) external {
-        Order memory newOrder = read();
-        newOrder.next(timestamp);
-        store(newOrder);
+    function fresh(uint256 timestamp) external {
+        store(OrderLib.fresh(timestamp));
     }
 
     function invalidate(Guarantee memory guarantee) external {

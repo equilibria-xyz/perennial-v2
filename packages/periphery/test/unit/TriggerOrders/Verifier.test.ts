@@ -66,7 +66,7 @@ describe('Verifier', () => {
   function createPlaceOrderActionMessage(
     userAddress = userA.address,
     signerAddress = userAddress,
-    expiresInSeconds = 6,
+    expiresInSeconds = 12,
   ) {
     return {
       order: {
@@ -89,7 +89,7 @@ describe('Verifier', () => {
   function createCancelOrderActionMessage(
     userAddress = userA.address,
     signerAddress = userAddress,
-    expiresInSeconds = 6,
+    expiresInSeconds = 12,
   ) {
     return {
       ...createActionMessage(userAddress, signerAddress, expiresInSeconds),

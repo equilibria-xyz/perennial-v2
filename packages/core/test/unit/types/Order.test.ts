@@ -1081,6 +1081,17 @@ describe('Order', () => {
           })
         })
 
+        context('maker increase', () => {
+          it('returns true', async () => {
+            await order.store({ ...DEFAULT_ORDER, makerPos: 5 })
+            const result = await order.liquidityCheckApplicable({
+              ...VALID_MARKET_PARAMETER,
+            })
+
+            expect(result).to.be.true
+          })
+        })
+
         context('long decrease', () => {
           it('returns false', async () => {
             await order.store({ ...DEFAULT_ORDER, longNeg: 10 })
@@ -1207,6 +1218,28 @@ describe('Order', () => {
       it('doesnt cross zero (short)', async () => {
         await order.store({ ...DEFAULT_ORDER, shortPos: 7, shortNeg: 8 })
         expect(await order.crossesZero()).to.equal(false)
+      })
+    })
+
+    describe('#fresh', () => {
+      it('creates a fresh order', async () => {
+        await order.store(validStoredOrder)
+        await order.fresh(123)
+        const result = await order.read()
+
+        expect(result.timestamp).to.equal(123)
+        expect(result.orders).to.equal(0)
+        expect(result.makerPos).to.equal(0)
+        expect(result.makerNeg).to.equal(0)
+        expect(result.longPos).to.equal(0)
+        expect(result.longNeg).to.equal(0)
+        expect(result.shortPos).to.equal(0)
+        expect(result.shortNeg).to.equal(0)
+        expect(result.collateral).to.equal(0)
+        expect(result.protection).to.equal(0)
+        expect(result.invalidation).to.equal(0)
+        expect(result.makerReferral).to.equal(0)
+        expect(result.takerReferral).to.equal(0)
       })
     })
   }
