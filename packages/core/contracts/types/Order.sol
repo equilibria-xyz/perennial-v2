@@ -551,7 +551,7 @@ library OrderStorageLocalLib {
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64 - 64)) >> (256 - 64)),
             uint256(slot2 << (256 - 64 - 64 - 64 - 1)) >> (256 - 1),
-            uint256(slot2 << (256 - 64 - 64 - 64 -1 - 8)) >> (256 - 8),
+            uint256(slot2 << (256 - 64 - 64 - 64 - 1 - 8)) >> (256 - 8),
             UFixed6.wrap(uint256(slot2 << (256 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot2 << (256 - 64 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot2 << (256 - 64 - 64 - 64)) >> (256 - 64))
