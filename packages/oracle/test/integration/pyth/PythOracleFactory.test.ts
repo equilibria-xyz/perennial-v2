@@ -1,10 +1,14 @@
 import { expect } from 'chai'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { smock } from '@defi-wonderland/smock'
 import { utils } from 'ethers'
-import HRE, { network } from 'hardhat'
+import HRE from 'hardhat'
+
 import { time } from '../../../../common/testutil'
+import { parse6decimal } from '../../../../common/testutil/types'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
+
 import {
   ArbGasInfo,
   IERC20Metadata,
@@ -27,8 +31,6 @@ import {
   IMargin,
   IMargin__factory,
 } from '../../../types/generated'
-import { parse6decimal } from '../../../../common/testutil/types'
-import { smock } from '@defi-wonderland/smock'
 import { IInstance } from '../../../types/generated/@equilibria/root/attribute/interfaces'
 import { deployMarketFactory } from '../../setupHelpers'
 
@@ -42,7 +44,6 @@ const PYTH_USDC_USD_PRICE_FEED = '0xeaa020c61cc479712813461ce153894a96a6c00b21ed
 const PYTH_ARB_USD_PRICE_FEED = '0x3fa4252848f9f0a1480be62745a4629d9eb1322aebab8a791e344b3b9c1adcf5'
 const DSU_ADDRESS = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
 const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
-const DSU_HOLDER = '0x2d264EBDb6632A06A1726193D4d37FeF1E5dbDcd'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 // fork timestamp starts at 1686198911, so this gives us 70 seconds of setup time
