@@ -128,7 +128,7 @@ interface IMargin is IInstance {
     /// @return isMaintained True if margin requirement met, otherwise false
     function maintained(
         address account
-    ) external returns (bool isMaintained);
+    ) external view returns (bool isMaintained);
 
     /// @dev Called by market to check margin requirements upon market update
     /// @param account User whose margin requirement will be checked
@@ -137,7 +137,7 @@ interface IMargin is IInstance {
     function margined(
         address account,
         UFixed6 minCollateralization
-    ) external returns (bool isMargined);
+    ) external view returns (bool isMargined);
 
     /// @dev Called by market when Market.update is called, used to adjust isolated collateral balance for market.
     /// @param account User intending to adjust isolated collateral for market
