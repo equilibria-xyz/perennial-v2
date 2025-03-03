@@ -7,6 +7,7 @@ import { IMargin } from "../interfaces/IMargin.sol";
 import { IMarket } from "../interfaces/IMarket.sol";
 import { Order } from "../types/Order.sol";
 import { Guarantee } from "../types/Guarantee.sol";
+import { Position } from "../types/Position.sol";
 
 /// @title InvariantLib
 /// @dev (external-safe): this library is safe to externalize
@@ -90,19 +91,25 @@ library InvariantLib {
         ) revert IMarket.MarketInsufficientLiquidityError();
     }
 
-    function validateProtection(IMarket.Context memory context, bool maintained, Order memory newOrder) external pure returns (bool) {
+    /// @notice Validates the protection of the market
+    /// @param margin Margin contract which manages account collateral
+    /// @param context The context to use
+    /// @param newOrder The new order to validate the protection for
+    /// @return True if the protection is valid, false otherwise
+    function validateProtection(
+        IMargin margin,
+        IMarket.Context memory context,
+        Order memory newOrder
+    ) external view returns (bool) {
         if (context.pendingLocal.crossesZero()) {
             if (!newOrder.isEmpty()) return false; // pending zero-cross, liquidate (lock) with no-op order
         } else {
-            if (!context.pendingLocal.neg().eq(context.latestPositionLocal.magnitude())) return false; // no pending zero-cross, liquidate with full close
+            if (context.pendingLocal.neg().lt(context.latestPositionLocal.magnitude())) return false; // no pending zero-cross, liquidate with full close
         }
 
-        if (maintained) return false; // latest position is properly maintained
-
-        // TODO: can eliminate because close method doesn't allow increase in position and does not touch collateral
-        if (!newOrder.collateral.eq(Fixed6Lib.ZERO) || // the order is modifying collateral
-            !newOrder.pos().eq(UFixed6Lib.ZERO)        // the order is increasing position
-        ) return false;
+        if (margin.maintained(context.account)) return false;      // latest position is properly maintained
+        if (!newOrder.collateral.eq(Fixed6Lib.ZERO)) return false; // TODO: can eliminate because close method doesn't touch collateral
+        if (!newOrder.pos().eq(UFixed6Lib.ZERO)) return false;     // TODO: can eliminate because close orders cannot increase position
 
         return true;
     }

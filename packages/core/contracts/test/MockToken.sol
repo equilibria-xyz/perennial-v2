@@ -7,7 +7,7 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IMargin, IMarket } from "../interfaces/IMargin.sol";
 
 contract MockToken is ERC20 {
-    enum Function{ NONE, DEPOSIT, WITHDRAW, ISOLATE }
+    enum Function{ NONE, DEPOSIT, WITHDRAW, ISOLATE, CLAIM }
 
     Function private functionToCall;
 
@@ -33,6 +33,8 @@ contract MockToken is ERC20 {
             IMargin(msg.sender).withdraw(address(0), UFixed6Lib.from(0));
         } else if (functionToCall == Function.ISOLATE) {
             IMargin(msg.sender).isolate(address(0), IMarket(address(0)), Fixed6Lib.from(0));
+        } else if (functionToCall == Function.CLAIM) {
+            IMargin(msg.sender).claim(address(0), address(0));
         }
     }
 

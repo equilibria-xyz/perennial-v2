@@ -550,6 +550,24 @@ describe('Manager', () => {
         .withArgs(market.address, userA.address, message.action.orderId)
     })
 
+    it('unauthorized signer cannot cancel an order', async () => {
+      // place an order
+      advanceOrderId()
+      await manager.connect(userA).placeOrder(market.address, nextOrderId, MAKER_ORDER)
+
+      // create and sign a message requesting cancellation of the order
+      const message = {
+        ...createActionMessage(market.address, userB.address),
+      }
+      const signature = await signCancelOrderAction(userA, verifier, message)
+
+      // should revert when keeper attempts to process the request
+      await expect(manager.connect(keeper).cancelOrderWithSignature(message, signature)).to.be.revertedWithCustomError(
+        verifier,
+        'VerifierInvalidSignerError',
+      )
+    })
+
     it('keeper can execute short order placed from a signed message', async () => {
       // directly place and execute a maker order
       advanceOrderId()

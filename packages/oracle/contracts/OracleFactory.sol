@@ -13,15 +13,6 @@ import { IOracle } from "./interfaces/IOracle.sol";
 /// @title OracleFactory
 /// @notice Factory for creating and managing oracles
 contract OracleFactory is IOracleFactory, Factory {
-    /// @notice DEPRECATED SLOT -- previously the incentive token
-    bytes32 private __unused0__;
-
-    /// @notice DEPRECATED SLOT -- previously the max claim
-    bytes32 private __unused1__;
-
-    /// @notice  DEPRECATED SLOT -- previously the authrorized callers
-    bytes32 private __unused2__;
-
     /// @notice Mapping of oracle id to oracle instance
     mapping(bytes32 => IOracleProvider) public oracles;
 
