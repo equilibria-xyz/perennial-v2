@@ -10,6 +10,7 @@ on:
       - v2.4-mini
       - v2.5
       - britz-intent-consolidate-margin-maintenance
+      - ed/pe-2272
   workflow_dispatch:
 
 env:
