@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { RelayedTake } from "../types/RelayedTake.sol";
+import { RelayedFill } from "../types/RelayedFill.sol";
 import { RelayedNonceCancellation } from "../types/RelayedNonceCancellation.sol";
 import { RelayedGroupCancellation } from "../types/RelayedGroupCancellation.sol";
 import { RelayedOperatorUpdate } from "../types/RelayedOperatorUpdate.sol";
@@ -18,6 +19,18 @@ interface IRelayer {
         RelayedTake calldata message,
         bytes calldata outerSignature,
         bytes calldata innerSignature
+    ) external;
+
+    /// @notice Relays a message to a Market to fill an intent
+    /// @param message Request with details needed for keeper compensation
+    /// @param outerSignature Signature of the RelayedFill message
+    /// @param traderSignature Signature of the embedded intent message, signed by the trader
+    /// @param solverSignature Signature of the embedded Fill message, signed by the solver
+    function relayFill(
+        RelayedFill calldata message,
+        bytes calldata outerSignature,
+        bytes calldata traderSignature,
+        bytes calldata solverSignature
     ) external;
 
     /// @notice Relays a message to Verifier extension to invalidate a nonce
