@@ -436,7 +436,6 @@ library OrderLib {
 ///         /* slot 2 */
 ///         uint64 takerReferral;
 ///         uint64 makerReferral;
-///         uint64 additiveFee;
 ///     }
 ///
 library OrderStorageGlobalLib {
@@ -457,7 +456,7 @@ library OrderStorageGlobalLib {
             0,
             UFixed6.wrap(uint256(slot2 << (256 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot2 << (256 - 64 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot2 << (256 - 64 - 64 - 64)) >> (256 - 64))
+            UFixed6Lib.ZERO
         );
     }
 
@@ -477,8 +476,7 @@ library OrderStorageGlobalLib {
             uint256(UFixed6.unwrap(newValue.shortNeg) << (256 - 64)) >> (256 - 64 - 64 - 64 - 64);
         uint256 encoded2 =
             uint256(UFixed6.unwrap(newValue.makerReferral) << (256 - 64)) >> (256 - 64) |
-            uint256(UFixed6.unwrap(newValue.takerReferral) << (256 - 64)) >> (256 - 64 - 64) |
-            uint256(UFixed6.unwrap(newValue.additiveFee) << (256 - 64)) >> (256 - 64 - 64 - 64);
+            uint256(UFixed6.unwrap(newValue.takerReferral) << (256 - 64)) >> (256 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)
@@ -507,9 +505,9 @@ library OrderStorageGlobalLib {
 ///         /* slot 2 */
 ///         uint64 takerReferral;
 ///         uint64 makerReferral;
+///         uint64 additiveFee;
 ///         uint1 protection;
 ///         uint8 invalidation;
-///         uint64 additiveFee;
 ///     }
 ///
 library OrderStorageLocalLib {
@@ -526,11 +524,11 @@ library OrderStorageLocalLib {
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64 - 64)) >> (256 - 64)),
-            uint256(slot2 << (256 - 64 - 64 - 1)) >> (256 - 1),
-            uint256(slot2 << (256 - 64 - 64 - 1 - 8)) >> (256 - 8),
+            uint256(slot2 << (256 - 64 - 64 - 64 - 1)) >> (256 - 1),
+            uint256(slot2 << (256 - 64 - 64 - 64 -1 - 8)) >> (256 - 8),
             UFixed6.wrap(uint256(slot2 << (256 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot2 << (256 - 64 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot2 << (256 - 64 - 64 - 1 - 8 - 64)) >> (256 - 64))
+            UFixed6.wrap(uint256(slot2 << (256 - 64 - 64 - 64)) >> (256 - 64))
         );
     }
 
@@ -554,9 +552,9 @@ library OrderStorageLocalLib {
         uint256 encoded2 =
             uint256(UFixed6.unwrap(newValue.makerReferral) << (256 - 64)) >> (256 - 64) |
             uint256(UFixed6.unwrap(newValue.takerReferral) << (256 - 64)) >> (256 - 64 - 64) |
-            uint256(newValue.protection << (256 - 1)) >> (256 - 64 - 64 - 1) |
-            uint256(newValue.invalidation << (256 - 8)) >> (256 - 64 - 64 - 1 - 8) |
-            uint256(UFixed6.unwrap(newValue.additiveFee) << (256 - 64)) >> (256 - 64 - 64 - 1 - 8 - 64);
+            uint256(newValue.protection << (256 - 1)) >> (256 - 64 - 64 - 64 - 1) |
+            uint256(newValue.invalidation << (256 - 8)) >> (256 - 64 - 64 - 64 - 1 - 8) |
+            uint256(UFixed6.unwrap(newValue.additiveFee) << (256 - 64)) >> (256 - 64 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)
