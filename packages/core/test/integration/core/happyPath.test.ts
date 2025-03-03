@@ -1389,11 +1389,6 @@ describe('Happy Path', () => {
 
     const market = await createMarket(instanceVars)
 
-    await expect(market.connect(user).updateBeneficiary(user.address)).to.be.revertedWithCustomError(
-      market,
-      'InstanceNotOwnerError',
-    )
-
     await expect(market.connect(user).updateCoordinator(user.address)).to.be.revertedWithCustomError(
       market,
       'InstanceNotOwnerError',

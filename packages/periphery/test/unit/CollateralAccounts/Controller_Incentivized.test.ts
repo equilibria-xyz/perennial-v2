@@ -6,7 +6,13 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { FakeContract, smock } from '@defi-wonderland/smock'
 import { BigNumber, constants, utils } from 'ethers'
 
-import { signAccessUpdateBatch, signSignerUpdate, signTake } from '@perennial/v2-core/test/helpers/erc712'
+import {
+  signAccessUpdateBatch,
+  signFill,
+  signIntent,
+  signSignerUpdate,
+  signTake,
+} from '@perennial/v2-core/test/helpers/erc712'
 import { IMarket, IMarketFactory, IVerifier } from '@perennial/v2-core/types/generated'
 
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
@@ -16,6 +22,8 @@ import {
   expectAccessUpdateBatchEq,
   expectSignerUpdateEq,
   expectTakeEq,
+  expectFillEq,
+  Fill,
   parse6decimal,
   SignerUpdate,
   Take,
@@ -23,6 +31,7 @@ import {
 import {
   signDeployAccount,
   signRelayedAccessUpdateBatch,
+  signRelayedFill,
   signRelayedSignerUpdate,
   signRelayedTake,
 } from '../../helpers/CollateralAccounts/eip712'
@@ -42,12 +51,15 @@ import {
 import {
   RelayedTakeStruct,
   RelayedSignerUpdateStruct,
+  RelayedFillStruct,
 } from '../../../types/generated/contracts/CollateralAccounts/AccountVerifier'
 const { ethers } = HRE
 
 const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
 const KEEP_CONFIG = '(uint256,uint256,uint256,uint256)'
 const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,${COMMON_PROTOTYPE}),bytes)`
+const INTENT_PROTOTYPE = `(int256,int256,uint256,address,address,uint256,${COMMON_PROTOTYPE})`
+const MARKET_UPDATE_FILL_PROTOTYPE = `update((${INTENT_PROTOTYPE},${COMMON_PROTOTYPE}),bytes,bytes)`
 
 describe('Controller_Incentivized', () => {
   let controller: Controller_Incentivized
@@ -288,6 +300,59 @@ describe('Controller_Incentivized', () => {
         .args[0] as AccessUpdateBatch
       expectAccessUpdateBatchEq(actualAccessUpdateBatch, accessUpdateBatch)
       expect(marketFactory.updateAccessBatchWithSignature.getCall(0).args[1]).to.equal(innerSignature)
+    })
+
+    it('relays a message to fill an intent', async () => {
+      // create a collateral account for the filler to pay the relayer
+      await createCollateralAccount(userA)
+      // create a market in which taker position should be adjusted
+      const market = await smock.fake<IMarket>('IMarket')
+
+      // filler (userA) creates and signs the message
+      const fill: Fill = {
+        intent: {
+          amount: parse6decimal('100'),
+          price: parse6decimal('125'),
+          fee: parse6decimal('0.5'),
+          originator: constants.AddressZero,
+          solver: constants.AddressZero,
+          collateralization: parse6decimal('0.03'),
+          common: {
+            account: userA.address,
+            signer: userA.address,
+            domain: market.address,
+            nonce: 0,
+            group: 0,
+            expiry: (await currentBlockTimestamp()) + 12,
+          },
+        },
+        common: {
+          account: userB.address,
+          signer: userB.address,
+          domain: market.address,
+          nonce: 0,
+          group: 0,
+          expiry: (await currentBlockTimestamp()) + 12,
+        },
+      }
+
+      const traderSignature = await signIntent(userA, marketVerifier, fill.intent)
+      const solverSignature = await signFill(userB, marketVerifier, fill)
+
+      // filler wraps the message and will pay the relayer
+      const relayedFill: RelayedFillStruct = {
+        fill: fill,
+        ...(await createAction(userA.address)),
+      }
+      const outerSignature = await signRelayedFill(userA, verifier, relayedFill)
+
+      // relayer performs the action
+      expect(await controller.connect(relayer).relayFill(relayedFill, outerSignature, traderSignature, solverSignature))
+        .to.not.be.reverted
+      const actualFill = market[MARKET_UPDATE_FILL_PROTOTYPE].getCall(0).args[0] as Fill
+      expectFillEq(actualFill, fill)
+      expect(market[MARKET_UPDATE_FILL_PROTOTYPE].getCall(0).args[1]).to.equal(traderSignature)
+      expect(market[MARKET_UPDATE_FILL_PROTOTYPE].getCall(0).args[2]).to.equal(solverSignature)
     })
   })
 })

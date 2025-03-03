@@ -195,6 +195,21 @@ export interface Take {
   common: Common
 }
 
+export interface Intent {
+  amount: BigNumberish
+  price: BigNumberish
+  fee: BigNumberish
+  originator: string
+  solver: string
+  collateralization: BigNumberish
+  common: Common
+}
+
+export interface Fill {
+  intent: Intent
+  common: Common
+}
+
 export interface AccessUpdate {
   accessor: string
   approved: boolean
@@ -306,6 +321,21 @@ export function expectCommonEq(a: Common, b: Common): void {
 export function expectTakeEq(a: Take, b: Take): void {
   expect(a.amount).to.equal(b.amount, 'Take:Amount')
   expect(a.referrer).to.equal(b.referrer, 'Take:Referrer')
+  expectCommonEq(a.common, b.common)
+}
+
+export function expectFillEq(a: Fill, b: Fill): void {
+  expectIntentEq(a.intent, b.intent)
+  expectCommonEq(a.common, b.common)
+}
+
+export function expectIntentEq(a: Intent, b: Intent): void {
+  expect(a.amount).to.equal(b.amount, 'Intent:Amount')
+  expect(a.price).to.equal(b.price, 'Intent:Price')
+  expect(a.fee).to.equal(b.fee, 'Intent:Fee')
+  expect(a.originator).to.equal(b.originator, 'Intent:Originator')
+  expect(a.solver).to.equal(b.solver, 'Intent:Solver')
+  expect(a.collateralization).to.equal(b.collateralization, 'Intent:Collateralization')
   expectCommonEq(a.common, b.common)
 }
 
