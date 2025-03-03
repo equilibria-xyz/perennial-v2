@@ -1,25 +1,18 @@
 import { task } from 'hardhat/config'
-import {
-  IERC20__factory,
-  MarketFactory__factory,
-  MultiInvoker__factory,
-  VaultFactory__factory,
-} from '../types/generated'
 import { constants, utils } from 'ethers'
 
 task('approveMultiInvokerTargets', 'Approves MultiInvoker targets for markets and vaults').setAction(
   async (_, { deployments, ethers }) => {
     const { get } = deployments
-    const [deployer] = await ethers.getSigners()
 
     console.log('Approving MultiInvoker targets...')
 
     // Get contract instances
-    const multiInvoker = MultiInvoker__factory.connect((await get('MultiInvoker')).address, deployer)
-    const DSU = IERC20__factory.connect((await get('DSU')).address, deployer)
-    const marketFactory = MarketFactory__factory.connect((await get('MarketFactory')).address, deployer)
-    const vaultFactory = VaultFactory__factory.connect((await get('MakerVaultFactory')).address, deployer)
-    const solverVaultFactory = VaultFactory__factory.connect((await get('SolverVaultFactory')).address, deployer)
+    const multiInvoker = await ethers.getContractAt('MultiInvoker', (await get('MultiInvoker')).address)
+    const DSU = await ethers.getContractAt('DSU', (await get('DSU')).address)
+    const marketFactory = await ethers.getContractAt('MarketFactory', (await get('MarketFactory')).address)
+    const vaultFactory = await ethers.getContractAt('IVaultFactory', (await get('MakerVaultFactory')).address)
+    const solverVaultFactory = await ethers.getContractAt('IVaultFactory', (await get('SolverVaultFactory')).address)
 
     // Get all markets and vaults
     const markets = await marketFactory.queryFilter(marketFactory.filters.InstanceRegistered())
