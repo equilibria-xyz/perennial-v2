@@ -940,22 +940,4 @@ describe('Oracle', () => {
       )
     })
   })
-
-  describe('#updateName', async () => {
-    beforeEach(async () => {
-      await oracle.connect(oracleFactorySigner).initialize(underlying0.address, 'ETH-USD')
-    })
-
-    it('update name when owner', async () => {
-      await oracle.connect(owner).updateName('ETH-USD')
-      expect(await oracle.name()).to.be.eq('ETH-USD')
-    })
-
-    it('reverts when not owner', async () => {
-      await expect(oracle.connect(user).updateName('ETH-USD')).to.revertedWithCustomError(
-        oracle,
-        'InstanceNotOwnerError',
-      )
-    })
-  })
 })

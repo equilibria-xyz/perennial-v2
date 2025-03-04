@@ -163,30 +163,30 @@ export function RunAccountTests(
         expect(await dsu.balanceOf(account.address)).equals(constants.Zero)
       })
 
-      it('transfer fails if insufficient balance when not unwrapping', async () => {
+      it('handles balance under withdrawal amount without unwrapping', async () => {
         await dsu.connect(userA).transfer(account.address, utils.parseEther('100'))
         expect(await usdc.balanceOf(account.address)).to.equal(0)
 
         // ensure withdrawal fails when there is no unwrapped USDC
-        await expect(account.withdraw(parse6decimal('100'), false)).to.be.revertedWith(
-          'ERC20: transfer amount exceeds balance',
-        )
+        await expect(account.withdraw(parse6decimal('100'), false))
+          .to.emit(usdc, 'Transfer')
+          .withArgs(account.address, userA.address, 0)
 
         // and when there is some, but not enough to facilitate the withdrawal
         await usdc.connect(userA).transfer(account.address, parse6decimal('50'))
-        await expect(account.withdraw(parse6decimal('100'), false)).to.be.revertedWith(
-          'ERC20: transfer amount exceeds balance',
-        )
+        await expect(account.withdraw(parse6decimal('100'), false))
+          .to.emit(usdc, 'Transfer')
+          .withArgs(account.address, userA.address, parse6decimal('50'))
       })
 
-      it('transfer fails if insufficient balance when unwrapping', async () => {
+      it('handles balance under withdrawal amount when unwrapping', async () => {
         await dsu.connect(userA).transfer(account.address, utils.parseEther('100'))
         expect(await usdc.balanceOf(account.address)).to.equal(0)
 
         // ensure withdrawal fails when there is unsufficient DSU to unwrap
-        await expect(account.withdraw(parse6decimal('150'), true)).to.be.revertedWith(
-          'ERC20: transfer amount exceeds balance',
-        )
+        await expect(account.withdraw(parse6decimal('150'), true))
+          .to.emit(usdc, 'Transfer')
+          .withArgs(account.address, userA.address, parse6decimal('100'))
       })
 
       it('reverts if someone other than the owner attempts a withdrawal', async () => {

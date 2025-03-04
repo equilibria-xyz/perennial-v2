@@ -20,7 +20,7 @@ import {
   IVault__factory,
   VaultFactory,
   VaultFactory__factory,
-  Vault__factory,
+  MakerVault__factory,
   OracleFactory,
   Oracle__factory,
   OracleFactory__factory,
@@ -33,6 +33,7 @@ import {
   IEmptySetReserve,
   IBatcher__factory,
   IEmptySetReserve__factory,
+  ISolverVault,
 } from '../../../../types/generated'
 import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../../common/testutil/types'
 
@@ -186,8 +187,11 @@ export async function settle(market: IMarket, account: SignerWithAddress): Promi
 
 export async function createVault(
   instanceVars: InstanceVars,
+  vaultImpl: IVault | ISolverVault,
   initialOracleVersionEth: OracleVersionStruct,
   initialOracleVersionBtc: OracleVersionStruct,
+  ethPriceFeedId?: string,
+  btcPriceFeedId?: string,
   leverage?: BigNumber,
   maxCollateral?: BigNumber,
 ): Promise<[IVault, VaultFactory, FakeContract<IOracleProvider>, FakeContract<IOracleProvider>]> {
@@ -203,15 +207,15 @@ export async function createVault(
 
   // TODO: Do we still want to fake the sub-oracle implementation on Arbitrum?
   const ethSubOracle = await smock.fake<IOracleProvider>('IOracleProvider')
-  resetEthSubOracle(ethSubOracle, initialOracleVersionEth)
+  resetSubOracle(ethSubOracle, initialOracleVersionEth)
 
   const btcSubOracle = await smock.fake<IOracleProvider>('IOracleProvider')
-  resetBtcSubOracle(btcSubOracle, initialOracleVersionBtc)
+  resetSubOracle(btcSubOracle, initialOracleVersionBtc)
 
   vaultOracleFactory.instances.whenCalledWith(ethSubOracle.address).returns(true)
-  vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(ethSubOracle.address)
+  vaultOracleFactory.oracles.whenCalledWith(ethPriceFeedId ?? ETH_PRICE_FEE_ID).returns(ethSubOracle.address)
   vaultOracleFactory.instances.whenCalledWith(btcSubOracle.address).returns(true)
-  vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcSubOracle.address)
+  vaultOracleFactory.oracles.whenCalledWith(btcPriceFeedId ?? BTC_PRICE_FEE_ID).returns(btcSubOracle.address)
 
   const vaultFactoryProxy = await new TransparentUpgradeableProxy__factory(owner).deploy(
     instanceVars.marketFactory.address, // dummy contract
@@ -220,25 +224,29 @@ export async function createVault(
   )
 
   vaultOracleFactory.instances.whenCalledWith(ethSubOracle.address).returns(true)
-  vaultOracleFactory.oracles.whenCalledWith(ETH_PRICE_FEE_ID).returns(ethSubOracle.address)
+  vaultOracleFactory.oracles.whenCalledWith(ethPriceFeedId ?? ETH_PRICE_FEE_ID).returns(ethSubOracle.address)
   vaultOracleFactory.instances.whenCalledWith(btcSubOracle.address).returns(true)
-  vaultOracleFactory.oracles.whenCalledWith(BTC_PRICE_FEE_ID).returns(btcSubOracle.address)
+  vaultOracleFactory.oracles.whenCalledWith(btcPriceFeedId ?? BTC_PRICE_FEE_ID).returns(btcSubOracle.address)
 
   const ethOracle = IOracle__factory.connect(
     await instanceVars.oracleFactory
       .connect(owner)
-      .callStatic.create(ETH_PRICE_FEE_ID, vaultOracleFactory.address, 'ETH-USD'),
+      .callStatic.create(ethPriceFeedId ?? ETH_PRICE_FEE_ID, vaultOracleFactory.address, 'ETH-USD'),
     owner,
   )
-  await instanceVars.oracleFactory.connect(owner).create(ETH_PRICE_FEE_ID, vaultOracleFactory.address, 'ETH-USD')
+  await instanceVars.oracleFactory
+    .connect(owner)
+    .create(ethPriceFeedId ?? ETH_PRICE_FEE_ID, vaultOracleFactory.address, 'ETH-USD')
 
   const btcOracle = IOracle__factory.connect(
     await instanceVars.oracleFactory
       .connect(owner)
-      .callStatic.create(BTC_PRICE_FEE_ID, vaultOracleFactory.address, 'BTC-USD'),
+      .callStatic.create(btcPriceFeedId ?? BTC_PRICE_FEE_ID, vaultOracleFactory.address, 'BTC-USD'),
     owner,
   )
-  await instanceVars.oracleFactory.connect(owner).create(BTC_PRICE_FEE_ID, vaultOracleFactory.address, 'BTC-USD')
+  await instanceVars.oracleFactory
+    .connect(owner)
+    .create(btcPriceFeedId ?? BTC_PRICE_FEE_ID, vaultOracleFactory.address, 'BTC-USD')
 
   const ethMarket = await deployProductOnFork({
     factory: marketFactory,
@@ -278,7 +286,6 @@ export async function createVault(
       scale: parse6decimal('10'),
     },
   })
-  const vaultImpl = await new Vault__factory(owner).deploy()
   const vaultFactoryImpl = await new VaultFactory__factory(owner).deploy(
     instanceVars.marketFactory.address,
     vaultImpl.address,
@@ -305,6 +312,7 @@ export async function createVault(
   await vault.updateParameter({
     maxDeposit: maxCollateral ?? parse6decimal('500000'),
     minDeposit: 0,
+    profitShare: 0,
   })
   const asset = IERC20Metadata__factory.connect(await vault.asset(), owner)
 
@@ -364,25 +372,18 @@ export async function createVault(
   return [vault, vaultFactory, ethSubOracle, btcSubOracle]
 }
 
-export function resetEthSubOracle(ethSubOracle: FakeContract<IOracleProvider>, realVersion: OracleVersionStruct) {
-  ethSubOracle.status.returns([realVersion, realVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-  ethSubOracle.request.returns()
-  ethSubOracle.latest.returns(realVersion)
-  ethSubOracle.current.returns(realVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-  ethSubOracle.at.whenCalledWith(realVersion.timestamp).returns([realVersion, DEFAULT_ORACLE_RECEIPT])
-}
-
-export function resetBtcSubOracle(btcSubOracle: FakeContract<IOracleProvider>, realVersion: OracleVersionStruct) {
-  btcSubOracle.status.returns([realVersion, realVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
-  btcSubOracle.request.returns()
-  btcSubOracle.latest.returns(realVersion)
-  btcSubOracle.current.returns(realVersion.timestamp.add(LEGACY_ORACLE_DELAY))
-  btcSubOracle.at.whenCalledWith(realVersion.timestamp).returns([realVersion, DEFAULT_ORACLE_RECEIPT])
+export function resetSubOracle(subOracle: FakeContract<IOracleProvider>, realVersion: OracleVersionStruct) {
+  subOracle.status.returns([realVersion, realVersion.timestamp.add(LEGACY_ORACLE_DELAY)])
+  subOracle.request.returns()
+  subOracle.latest.returns(realVersion)
+  subOracle.current.returns(realVersion.timestamp.add(LEGACY_ORACLE_DELAY))
+  subOracle.at.whenCalledWith(realVersion.timestamp).returns([realVersion, DEFAULT_ORACLE_RECEIPT])
 }
 
 export async function createInvoker(
   instanceVars: InstanceVars,
-  vaultFactory?: VaultFactory,
+  makerVaultFactory?: VaultFactory,
+  solverVaultFactory?: VaultFactory,
   withBatcher = false,
 ): Promise<MultiInvoker> {
   const { owner, user, userB } = instanceVars
@@ -391,7 +392,8 @@ export async function createInvoker(
     instanceVars.usdc.address,
     instanceVars.dsu.address,
     instanceVars.marketFactory.address,
-    vaultFactory ? vaultFactory.address : constants.AddressZero,
+    makerVaultFactory ? makerVaultFactory.address : constants.AddressZero,
+    solverVaultFactory ? solverVaultFactory.address : constants.AddressZero,
     withBatcher && instanceVars.dsuBatcher ? instanceVars.dsuBatcher.address : constants.AddressZero,
     instanceVars.dsuReserve.address,
     500_000,
@@ -400,9 +402,13 @@ export async function createInvoker(
 
   await instanceVars.marketFactory.connect(user).updateOperator(multiInvoker.address, true)
   await instanceVars.marketFactory.connect(userB).updateOperator(multiInvoker.address, true)
-  if (vaultFactory) {
-    await vaultFactory.connect(user).updateOperator(multiInvoker.address, true)
-    await vaultFactory.connect(userB).updateOperator(multiInvoker.address, true)
+  if (makerVaultFactory) {
+    await makerVaultFactory.connect(user).updateOperator(multiInvoker.address, true)
+    await makerVaultFactory.connect(userB).updateOperator(multiInvoker.address, true)
+  }
+  if (solverVaultFactory) {
+    await solverVaultFactory.connect(user).updateOperator(multiInvoker.address, true)
+    await solverVaultFactory.connect(userB).updateOperator(multiInvoker.address, true)
   }
   await multiInvoker.initialize(instanceVars.chainlinkKeptFeed.address)
 

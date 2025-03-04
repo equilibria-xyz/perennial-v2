@@ -157,11 +157,10 @@ library CheckpointLib {
         // compute portion of subtractive fees that are solver fees
         solverFee = takerTotal.isZero() ?
             UFixed6Lib.ZERO :
-            takerFee.muldiv(guarantee.referral, takerTotal); // guarantee.referral is instantiated as a subset of order.takerReferral
+            takerFee.muldiv(guarantee.solverReferral, takerTotal); // guarantee.solverReferral is instantiated as a subset of order.takerReferral
 
         tradeFee = makerFee.add(takerFee);
         subtractiveFee = makerSubtractiveFee.add(takerSubtractiveFee).sub(solverFee);
-
     }
 
     /// @notice Accumulate price offset for the next position
@@ -175,7 +174,7 @@ library CheckpointLib {
         Version memory toVersion
     ) private pure returns (Fixed6) {
         (UFixed6 takerPos, UFixed6 takerNeg) =
-            (order.takerPos().sub(guarantee.takerPos), order.takerNeg().sub(guarantee.takerNeg));
+            (order.takerPos().sub(guarantee.takerPos()), order.takerNeg().sub(guarantee.takerNeg()));
 
         return Fixed6Lib.ZERO
             .sub(toVersion.makerOffset.accumulated(Accumulator6(Fixed6Lib.ZERO), order.makerTotal()))
@@ -216,7 +215,6 @@ library CheckpointLib {
         Guarantee memory guarantee,
         Version memory toVersion
     ) private pure returns (Fixed6) {
-        if (!toVersion.valid) return Fixed6Lib.ZERO;
         return guarantee.priceAdjustment(toVersion.price);
     }
 }

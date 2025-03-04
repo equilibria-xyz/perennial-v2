@@ -55,7 +55,8 @@ interface IMultiInvoker {
     function invoke(Invocation[] calldata invocations) external payable;
     function claim(address account, bool unwrap) external;
     function marketFactory() external view returns (IFactory);
-    function vaultFactory() external view returns (IFactory);
+    function makerVaultFactory() external view returns (IFactory);
+    function solverVaultFactory() external view returns (IFactory);
     function batcher() external view returns (IBatcher);
     function reserve() external view returns (IEmptySetReserve);
     function keepBufferBase() external view returns (uint256);

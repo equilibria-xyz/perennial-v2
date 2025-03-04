@@ -21,41 +21,51 @@ const config = defaultConfig({
     '@perennial/v2-oracle/contracts/OracleFactory.sol',
     '@perennial/v2-oracle/contracts/keeper/KeeperFactory.sol',
     '@perennial/v2-oracle/contracts/keeper/KeeperOracle.sol',
-    '@perennial/v2-oracle/contracts/keeper/KeeperOracle_Migration.sol',
     '@perennial/v2-oracle/contracts/pyth/PythFactory.sol',
     '@perennial/v2-oracle/contracts/metaquants/MetaQuantsFactory.sol',
+    '@perennial/v2-oracle/contracts/stork/StorkFactory.sol',
     '@perennial/v2-core/contracts/Market.sol',
     '@perennial/v2-core/contracts/MarketFactory.sol',
-    '@perennial/v2-vault/contracts/Vault.sol',
+    '@perennial/v2-core/contracts/Verifier.sol',
+    '@perennial/v2-vault/contracts/MakerVault.sol',
+    '@perennial/v2-vault/contracts/SolverVault.sol',
     '@perennial/v2-vault/contracts/VaultFactory.sol',
     '@perennial/v2-periphery/contracts/CollateralAccounts/Account.sol',
     '@perennial/v2-periphery/contracts/CollateralAccounts/AccountVerifier.sol',
     '@perennial/v2-periphery/contracts/CollateralAccounts/Controller_Arbitrum.sol',
+    '@perennial/v2-periphery/contracts/CollateralAccounts/Controller_Optimism.sol',
     '@perennial/v2-periphery/contracts/Coordinator/Coordinator.sol',
     '@perennial/v2-periphery/contracts/MultiInvoker/MultiInvoker.sol',
     '@perennial/v2-periphery/contracts/MultiInvoker/MultiInvoker_Arbitrum.sol',
     '@perennial/v2-periphery/contracts/MultiInvoker/MultiInvoker_Optimism.sol',
     '@perennial/v2-periphery/contracts/TriggerOrders/OrderVerifier.sol',
     '@perennial/v2-periphery/contracts/TriggerOrders/Manager_Arbitrum.sol',
+    '@perennial/v2-periphery/contracts/TriggerOrders/Manager_Optimism.sol',
   ],
   solidityOverrides: {
     '@perennial/v2-core/contracts/Market.sol': {
       ...coreOverrides['contracts/Market.sol'],
     },
-    '@perennial/v2-vault/contracts/Vault.sol': {
-      ...vaultOverrides['contracts/Vault.sol'],
+    '@perennial/v2-vault/contracts/MakerVault.sol': {
+      ...vaultOverrides['contracts/MakerVault.sol'],
     },
-    '@perennial/v2-periphery/contracts/MultiInvoker.sol': {
-      ...peripheryOverrides['contracts/MultiInvoker.sol'],
+    '@perennial/v2-vault/contracts/SolverVault.sol': {
+      ...vaultOverrides['contracts/SolverVault.sol'],
     },
-    '@perennial/v2-periphery/contracts/MultiInvoker_Arbitrum.sol': {
-      ...peripheryOverrides['contracts/MultiInvoker_Arbitrum.sol'],
+    '@perennial/v2-periphery/contracts/MultiInvoker/MultiInvoker.sol': {
+      ...peripheryOverrides['contracts/MultiInvoker/MultiInvoker.sol'],
     },
-    '@perennial/v2-periphery/contracts/MultiInvoker_Optimism.sol': {
-      ...peripheryOverrides['contracts/MultiInvoker_Optimism.sol'],
+    '@perennial/v2-periphery/contracts/MultiInvoker/MultiInvoker_Arbitrum.sol': {
+      ...peripheryOverrides['contracts/MultiInvoker/MultiInvoker_Arbitrum.sol'],
     },
-    '@perennial/v2-periphery/contracts/Controller_Arbitrum.sol': {
-      ...peripheryOverrides['contracts/Controller_Arbitrum.sol'],
+    '@perennial/v2-periphery/contracts/MultiInvoker/MultiInvoker_Optimism.sol': {
+      ...peripheryOverrides['contracts/MultiInvoker/MultiInvoker_Optimism.sol'],
+    },
+    '@perennial/v2-periphery/contracts/CollateralAccounts/Controller_Arbitrum.sol': {
+      ...peripheryOverrides['contracts/CollateralAccounts/Controller_Arbitrum.sol'],
+    },
+    '@perennial/v2-periphery/contracts/CollateralAccounts/Controller_Optimism.sol': {
+      ...peripheryOverrides['contracts/CollateralAccounts/Controller_Optimism.sol'],
     },
   },
 })

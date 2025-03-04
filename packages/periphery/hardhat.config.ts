@@ -5,7 +5,7 @@ const controllerOverrides = {
   settings: {
     optimizer: {
       enabled: OPTIMIZER_ENABLED,
-      runs: 80000,
+      runs: 1,
     },
     viaIR: OPTIMIZER_ENABLED,
   },
@@ -16,23 +16,24 @@ const multiInvokerOverrides = {
   settings: {
     optimizer: {
       enabled: OPTIMIZER_ENABLED,
-      runs: 27500,
+      runs: 1,
     },
     viaIR: OPTIMIZER_ENABLED,
   },
 }
 
 export const solidityOverrides = {
-  'contracts/Controller_Arbitrum.sol': controllerOverrides,
-  'contracts/MultiInvoker.sol': multiInvokerOverrides,
-  'contracts/MultiInvoker_Arbitrum.sol': multiInvokerOverrides,
-  'contracts/MultiInvoker_Optimism.sol': {
+  'contracts/CollateralAccounts/Controller_Arbitrum.sol': controllerOverrides,
+  'contracts/CollateralAccounts/Controller_Optimism.sol': controllerOverrides,
+  'contracts/MultiInvoker/MultiInvoker.sol': multiInvokerOverrides,
+  'contracts/MultiInvoker/MultiInvoker_Arbitrum.sol': multiInvokerOverrides,
+  'contracts/MultiInvoker/MultiInvoker_Optimism.sol': {
     ...multiInvokerOverrides,
     settings: {
       ...multiInvokerOverrides.settings,
       optimizer: {
         ...multiInvokerOverrides.settings.optimizer,
-        runs: 3250,
+        runs: 1,
       },
     },
   },
@@ -42,7 +43,8 @@ const config = defaultConfig({
   dependencyPaths: [
     '@perennial/v2-core/contracts/MarketFactory.sol',
     '@perennial/v2-core/contracts/Market.sol',
-    '@perennial/v2-vault/contracts/Vault.sol',
+    '@perennial/v2-vault/contracts/MakerVault.sol',
+    '@perennial/v2-vault/contracts/SolverVault.sol',
     '@perennial/v2-vault/contracts/VaultFactory.sol',
     '@perennial/v2-oracle/contracts/interfaces/IKeeperOracle.sol',
     '@perennial/v2-oracle/contracts/keeper/KeeperOracle.sol',

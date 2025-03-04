@@ -13,15 +13,6 @@ import { IOracle } from "./interfaces/IOracle.sol";
 /// @title OracleFactory
 /// @notice Factory for creating and managing oracles
 contract OracleFactory is IOracleFactory, Factory {
-    /// @notice DEPRECATED SLOT -- previously the incentive token
-    bytes32 private __unused0__;
-
-    /// @notice DEPRECATED SLOT -- previously the max claim
-    bytes32 private __unused1__;
-
-    /// @notice  DEPRECATED SLOT -- previously the authrorized callers
-    bytes32 private __unused2__;
-
     /// @notice Mapping of oracle id to oracle instance
     mapping(bytes32 => IOracleProvider) public oracles;
 
@@ -46,13 +37,6 @@ contract OracleFactory is IOracleFactory, Factory {
         _parameter.store(OracleParameter(1, UFixed6Lib.ZERO, UFixed6Lib.ZERO));
     }
 
-    /// @notice Withdraws the accrued oracle fees to the owner
-    /// @dev Part of the v2.3 migration
-    /// @param token The token to withdraw
-    function withdraw(Token18 token) external onlyOwner {
-        token.push(owner());
-    }
-
     /// @notice Returns the global oracle parameter
     /// @return The global oracle parameter
     function parameter() external view returns (OracleParameter memory) {
@@ -63,14 +47,6 @@ contract OracleFactory is IOracleFactory, Factory {
     /// @param newParameter The new oracle parameter
     function updateParameter(OracleParameter memory newParameter) external onlyOwner {
         _parameter.store(newParameter);
-    }
-
-    /// @notice Retroactively sets the mapping of the oracle id to the oracle instance
-    /// @dev Part of the v2.3 migration
-    /// @param oracleProvider The oracle instance
-    /// @param id The id of the oracle
-    function updateId(IOracleProvider oracleProvider, bytes32 id) external onlyOwner {
-        ids[oracleProvider] = id;
     }
 
     /// @notice Registers a new oracle provider factory to be used in the underlying oracle instances

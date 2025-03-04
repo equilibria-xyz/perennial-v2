@@ -24,8 +24,11 @@ import {
   PositionStorageGlobalLib__factory,
   PositionStorageLocalLib__factory,
   RiskParameterStorageLib__factory,
+  GuaranteeStorageLocalLib__factory,
+  GuaranteeStorageGlobalLib__factory,
+  OrderStorageLocalLib__factory,
+  OrderStorageGlobalLib__factory,
   VersionLib__factory,
-  MagicValueLib__factory,
   Verifier,
   Verifier__factory,
 } from '../../../types/generated'
@@ -127,7 +130,18 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
         await new RiskParameterStorageLib__factory(owner).deploy()
       ).address,
       'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
-      'contracts/libs/MagicValueLib.sol:MagicValueLib': (await new MagicValueLib__factory(owner).deploy()).address,
+      'contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': (
+        await new GuaranteeStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Guarantee.sol:GuaranteeStorageGlobalLib': (
+        await new GuaranteeStorageGlobalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Order.sol:OrderStorageLocalLib': (
+        await new OrderStorageLocalLib__factory(owner).deploy()
+      ).address,
+      'contracts/types/Order.sol:OrderStorageGlobalLib': (
+        await new OrderStorageGlobalLib__factory(owner).deploy()
+      ).address,
     },
     owner,
   ).deploy(verifierProxy.address)
@@ -282,7 +296,6 @@ export async function createMarket(
 
   const market = Market__factory.connect(marketAddress, owner)
   await market.updateRiskParameter(riskParameter)
-  await market.updateBeneficiary(beneficiaryB.address)
   await market.updateParameter(marketParameter)
   await market.updateCoordinator(coordinator.address)
 
