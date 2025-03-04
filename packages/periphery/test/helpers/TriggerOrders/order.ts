@@ -24,6 +24,7 @@ export const DEFAULT_TRIGGER_ORDER = {
   maxFee: utils.parseEther('0.77'),
   isSpent: false,
   referrer: constants.AddressZero,
+  additiveFee: 0,
   interfaceFee: {
     amount: constants.Zero,
     receiver: constants.AddressZero,
@@ -42,7 +43,7 @@ export function compareOrders(actual: TriggerOrderStruct, expected: TriggerOrder
   expect(actual.maxFee).to.equal(expected.maxFee)
   expect(actual.isSpent).to.equal(expected.isSpent)
   expect(actual.referrer).to.equal(expected.referrer)
-
+  expect(actual.additiveFee).to.equal(expected.additiveFee)
   expect(actual.interfaceFee.amount).to.equal(expected.interfaceFee.amount)
   expect(actual.interfaceFee.receiver).to.equal(expected.interfaceFee.receiver)
   expect(actual.interfaceFee.fixedFee).to.equal(expected.interfaceFee.fixedFee)
@@ -58,6 +59,7 @@ export function orderFromStructOutput(structOutput: TriggerOrderStructOutput): T
     maxFee: structOutput.maxFee,
     isSpent: structOutput.isSpent,
     referrer: structOutput.referrer,
+    additiveFee: structOutput.additiveFee,
     interfaceFee: {
       amount: structOutput.interfaceFee.amount,
       receiver: structOutput.interfaceFee.receiver,

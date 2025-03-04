@@ -316,7 +316,7 @@ describe('TriggerOrder', () => {
 
     it('reverts storing order with price overflow or underflow', async () => {
       const badOrder = { ...ORDER_SHORT }
-      badOrder.price = BigNumber.from(2).pow(64).add(1)
+      badOrder.price = BigNumber.from(2).pow(64)
       await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
         orderTester,
         'TriggerOrderStorageInvalidError',
@@ -330,7 +330,7 @@ describe('TriggerOrder', () => {
 
     it('reverts storing order with delta overflow or underflow', async () => {
       const badOrder = { ...ORDER_SHORT }
-      badOrder.delta = BigNumber.from(2).pow(64).add(1)
+      badOrder.delta = BigNumber.from(2).pow(64)
       await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
         orderTester,
         'TriggerOrderStorageInvalidError',
@@ -344,7 +344,16 @@ describe('TriggerOrder', () => {
 
     it('reverts storing order with maxFee overflow', async () => {
       const badOrder = { ...ORDER_SHORT }
-      badOrder.maxFee = BigNumber.from(2).pow(64).add(1)
+      badOrder.maxFee = BigNumber.from(2).pow(64)
+      await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
+        orderTester,
+        'TriggerOrderStorageInvalidError',
+      )
+    })
+
+    it('reverts storing order with additive fee overflow', async () => {
+      const badOrder = { ...ORDER_SHORT }
+      badOrder.additiveFee = BigNumber.from(2).pow(64)
       await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
         orderTester,
         'TriggerOrderStorageInvalidError',
@@ -354,7 +363,7 @@ describe('TriggerOrder', () => {
     it('reverts storing order with interface fee overflow', async () => {
       const [userA] = await ethers.getSigners()
       const badOrder = { ...ORDER_SHORT }
-      badOrder.interfaceFee.amount = BigNumber.from(2).pow(64).add(1)
+      badOrder.interfaceFee.amount = BigNumber.from(2).pow(64)
       badOrder.interfaceFee.receiver = userA.address
       badOrder.interfaceFee.unwrap = false
       await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(

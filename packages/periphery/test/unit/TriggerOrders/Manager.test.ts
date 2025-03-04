@@ -12,9 +12,6 @@ import { IERC20, IFactory, IMarketFactory, IMarket, IOracleProvider } from '@per
 import {
   AggregatorV3Interface,
   ArbGasInfo,
-  IAccount,
-  IAccount__factory,
-  IController,
   IEmptySetReserve,
   IMargin,
   IOrderVerifier,
@@ -25,7 +22,6 @@ import {
 import { signCancelOrderAction, signCommon, signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
 import { OracleVersionStruct } from '../../../types/generated/contracts/TriggerOrders/test/TriggerOrderTester'
 import { Compare, compareOrders, DEFAULT_TRIGGER_ORDER, Side } from '../../helpers/TriggerOrders/order'
-import { deployController } from '../../helpers/setupHelpers'
 
 const { ethers } = HRE
 

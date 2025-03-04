@@ -231,6 +231,7 @@ export function RunManagerTests(
       delta: BigNumber,
       maxFee = MAX_FEE,
       referrer = constants.AddressZero,
+      additiveFee = BigNumber.from(0),
       interfaceFee = NO_INTERFACE_FEE,
     ): Promise<BigNumber> {
       const order = {
@@ -241,6 +242,7 @@ export function RunManagerTests(
         maxFee: maxFee,
         isSpent: false,
         referrer: referrer,
+        additiveFee: additiveFee,
         ...interfaceFee,
       }
       advanceOrderId(user)
@@ -262,6 +264,7 @@ export function RunManagerTests(
       delta: BigNumber,
       maxFee = MAX_FEE,
       referrer = constants.AddressZero,
+      additiveFee = BigNumber.from(0),
       interfaceFee = NO_INTERFACE_FEE,
     ): Promise<BigNumber> {
       advanceOrderId(user)
@@ -274,6 +277,7 @@ export function RunManagerTests(
           maxFee: maxFee,
           isSpent: false,
           referrer: referrer,
+          additiveFee: additiveFee,
           ...interfaceFee,
         },
         ...createActionMessage(user.address),
@@ -580,6 +584,7 @@ export function RunManagerTests(
           positionDelta,
           MAX_FEE,
           constants.AddressZero,
+          BigNumber.from(0),
           interfaceFee,
         )
         expect(orderId).to.equal(BigNumber.from(508))
@@ -620,6 +625,7 @@ export function RunManagerTests(
           positionDelta,
           MAX_FEE,
           constants.AddressZero,
+          BigNumber.from(0),
           interfaceFee,
         )
         expect(orderId).to.equal(BigNumber.from(502))
@@ -657,6 +663,7 @@ export function RunManagerTests(
           parse6decimal('3'),
           MAX_FEE,
           constants.AddressZero,
+          BigNumber.from(0),
           interfaceFee,
         )
         expect(orderId).to.equal(BigNumber.from(503))
@@ -862,6 +869,7 @@ export function RunManagerTests(
           parse6decimal('1.5'),
           MAX_FEE,
           constants.AddressZero,
+          BigNumber.from(0),
           NO_INTERFACE_FEE,
         )
         expect(orderId).to.equal(BigNumber.from(602))
@@ -893,6 +901,7 @@ export function RunManagerTests(
           parse6decimal('-0.5'),
           MAX_FEE,
           constants.AddressZero,
+          BigNumber.from(0),
           NO_INTERFACE_FEE,
         )
         expect(orderId).to.equal(BigNumber.from(604))
@@ -944,6 +953,7 @@ export function RunManagerTests(
           MAGIC_VALUE_CLOSE_POSITION,
           MAX_FEE,
           constants.AddressZero,
+          BigNumber.from(0),
           interfaceFee,
         )
         expect(orderId).to.equal(BigNumber.from(606))
@@ -997,6 +1007,7 @@ export function RunManagerTests(
           MAGIC_VALUE_CLOSE_POSITION,
           MAX_FEE,
           constants.AddressZero,
+          BigNumber.from(0),
           interfaceFee,
         )
         expect(orderId).to.equal(BigNumber.from(607))

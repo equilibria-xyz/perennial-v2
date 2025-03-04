@@ -60,6 +60,7 @@ const triggerOrderType = {
     { name: 'maxFee', type: 'uint64' },
     { name: 'isSpent', type: 'bool' },
     { name: 'referrer', type: 'address' },
+    { name: 'additiveFee', type: 'uint64' },
     { name: 'interfaceFee', type: 'InterfaceFee' },
   ],
 }
