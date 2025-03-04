@@ -15076,7 +15076,7 @@ describe('Market', () => {
                 COLLATERAL.add(1).mul(-1),
                 constants.AddressZero,
               ),
-          ).to.be.revertedWithCustomError(margin, 'MarginInsufficientIsolatedBalance')
+          ).to.be.revertedWithCustomError(margin, 'MarginInsufficientIsolatedBalanceError')
         })
 
         it('reverts if price is stale', async () => {
@@ -15553,7 +15553,7 @@ describe('Market', () => {
                 'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
               ](userC.address, intent2, DEFAULT_SIGNATURE)
 
-            dsu.transfer.whenCalledWith(user.address, COLLATERAL.mul(1e12)).returns(true)
+            // cannot fully deisolate with a position
             await expect(
               market
                 .connect(user)
@@ -15562,6 +15562,19 @@ describe('Market', () => {
                   0,
                   0,
                   -COLLATERAL,
+                  constants.AddressZero,
+                ),
+            ).to.be.revertedWithCustomError(margin, 'MarginHasPositionError')
+
+            // cannot partially deisolate when margin requirements would be violated
+            await expect(
+              market
+                .connect(user)
+                ['update(address,int256,int256,int256,address)'](
+                  user.address,
+                  0,
+                  0,
+                  -COLLATERAL.sub(1),
                   constants.AddressZero,
                 ),
             ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
@@ -16062,8 +16075,8 @@ describe('Market', () => {
                 'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
               ](userC.address, intent2, DEFAULT_SIGNATURE)
 
-            const WITHDRAW_COLLATERAL = parse6decimal('500')
-
+            // cannot fully deisolate with a position
+            let withdrawal = parse6decimal('500')
             await expect(
               market
                 .connect(user)
@@ -16071,7 +16084,21 @@ describe('Market', () => {
                   user.address,
                   0,
                   0,
-                  -WITHDRAW_COLLATERAL,
+                  -withdrawal,
+                  constants.AddressZero,
+                ),
+            ).to.be.revertedWithCustomError(margin, 'MarginHasPositionError')
+
+            // cannot partially deisolate when margin requirements would be violated
+            withdrawal = withdrawal.sub(1)
+            await expect(
+              market
+                .connect(user)
+                ['update(address,int256,int256,int256,address)'](
+                  user.address,
+                  0,
+                  0,
+                  -withdrawal,
                   constants.AddressZero,
                 ),
             ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')

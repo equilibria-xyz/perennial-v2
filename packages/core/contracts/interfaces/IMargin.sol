@@ -53,42 +53,30 @@ interface IMargin is IInstance {
     /// @param market Market in which collateral will be isolated
     event MarketIsolated(address indexed account, IMarket indexed market);
 
-    // sig: 0x21d30123
-    /// custom:error Market is cross-margined, but user called update with a collateral amount
-    error MarginCannotUpdateCrossedMarket();
-
-    // sig: 0xac13066a
+    // sig: 0x6e6b12f6
     /// custom:error User must have no position and no unsettled orders to switch between cross-margin and isolated collateral
-    error MarginHasPosition();
+    error MarginHasPositionError();
 
-    // sig: 0x7bbdde3c
+    // sig: 0x7eafe8a5
     /// custom:error Specified amount cannot be withdrawn or isolated; ensure funds are not isolated
-    error MarginInsufficientCrossedBalance();
+    error MarginInsufficientCrossedBalanceError();
 
-    // sig: 0x918aac34
+    // sig: 0xd3607011
     /// custom:error Specified amount cannot be crossed or removed from isolated balance;
     /// check amount currently isolated for specified market
-    error MarginInsufficientIsolatedBalance();
+    error MarginInsufficientIsolatedBalanceError();
 
-    // sig: 0x8f8e8f6a
+    // sig: 0xbd9c1119
     /// custom:error A function intended only for a market to call was not called by a legitimate market
-    error MarginInvalidMarket();
-
-    // sig: 0xfbe67ca6
-    /// custom:error Market is isolated, but user is trying to isolate again
-    error MarginMarketNotCrossed();
-
-    // sig: 0x3bccc5cf
-    /// custom:error Market is crossed, but user is trying to adjust isolated balance or cross
-    error MarginMarketNotIsolated();
+    error MarginInvalidMarketError();
 
     // sig: 0x77b81473
     /// custom:error User is not authorized for the requested action
     error MarginOperatorNotAllowedError();
 
-    // sig: 0x9d4155b6
+    // sig: 0x44e4836d
     // custom:error Too many cross-margined markets
-    error MarginTooManyCrossedMarkets();
+    error MarginTooManyCrossedMarketsError();
 
     /// @dev Limits iteration through cross-margined markets
     function MAX_CROSS_MARGIN_MARKETS() external view returns (uint256);

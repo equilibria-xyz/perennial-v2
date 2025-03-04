@@ -188,7 +188,7 @@ describe('Margin', () => {
       dsu.transfer.whenCalledWith(user.address, withdrawalAmount.mul(1e12)).returns(true)
       await expect(margin.connect(user).withdraw(user.address, withdrawalAmount)).to.be.revertedWithCustomError(
         margin,
-        'MarginInsufficientCrossedBalance',
+        'MarginInsufficientCrossedBalanceError',
       )
 
       // performs partial withdrawal
@@ -461,7 +461,7 @@ describe('Margin', () => {
       const marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
       await expect(margin.connect(marketSigner).handleMarketUpdate(user.address, 0)).to.be.revertedWithCustomError(
         margin,
-        'MarginTooManyCrossedMarkets',
+        'MarginTooManyCrossedMarketsError',
       )
 
       // isolate the market instead
@@ -475,7 +475,7 @@ describe('Margin', () => {
       // but still cannot make it cross-margined
       await expect(margin.connect(marketSigner).handleMarketUpdate(user.address, 0)).to.be.revertedWithCustomError(
         margin,
-        'MarginTooManyCrossedMarkets',
+        'MarginTooManyCrossedMarketsError',
       )
     })
 
@@ -517,7 +517,7 @@ describe('Margin', () => {
       // reverts attempting to isolate more than crossed balance
       await expect(
         margin.connect(user).isolate(user.address, marketB.address, parse6decimal('1001')),
-      ).to.be.revertedWithCustomError(margin, 'MarginInsufficientCrossedBalance')
+      ).to.be.revertedWithCustomError(margin, 'MarginInsufficientCrossedBalanceError')
 
       await expect(margin.connect(user).isolate(user.address, marketA.address, parse6decimal('600')))
         .to.emit(margin, 'MarketIsolated')
@@ -551,7 +551,7 @@ describe('Margin', () => {
       // reverts attempting to deisolate more than isolated balance
       await expect(
         margin.connect(user).isolate(user.address, marketB.address, parse6decimal('-601')),
-      ).to.be.revertedWithCustomError(margin, 'MarginInsufficientIsolatedBalance')
+      ).to.be.revertedWithCustomError(margin, 'MarginInsufficientIsolatedBalanceError')
 
       // deisolate some funds
       await expect(margin.connect(user).isolate(user.address, marketB.address, parse6decimal('-325')))
@@ -767,7 +767,7 @@ describe('Margin', () => {
       // should revert if attempting to withdraw more than crossed balance
       await expect(margin.connect(user).withdraw(user.address, parse6decimal('301'))).to.be.revertedWithCustomError(
         margin,
-        'MarginInsufficientCrossedBalance',
+        'MarginInsufficientCrossedBalanceError',
       )
 
       // should allow withdrawing up to the crossed balance
@@ -840,7 +840,7 @@ describe('Margin', () => {
       // ensure cannot cross market
       await expect(
         margin.connect(user).isolate(user.address, marketA.address, parse6decimal('-500')),
-      ).to.be.revertedWithCustomError(margin, 'MarginHasPosition')
+      ).to.be.revertedWithCustomError(margin, 'MarginHasPositionError')
     })
 
     it('operator may cross and isolate a market', async () => {
@@ -928,13 +928,13 @@ describe('Margin', () => {
     it('only market can call handleMarketUpdate', async () => {
       await expect(
         margin.connect(badMarketSigner).handleMarketUpdate(user.address, parse6decimal('5')),
-      ).to.be.revertedWithCustomError(margin, 'MarginInvalidMarket')
+      ).to.be.revertedWithCustomError(margin, 'MarginInvalidMarketError')
     })
 
     it('only market can call updateClaimable', async () => {
       await expect(
         margin.connect(badMarketSigner).updateClaimable(user.address, parse6decimal('0.2')),
-      ).to.be.revertedWithCustomError(margin, 'MarginInvalidMarket')
+      ).to.be.revertedWithCustomError(margin, 'MarginInvalidMarketError')
     })
 
     it('only market can call updateCheckpoint', async () => {
@@ -949,7 +949,7 @@ describe('Margin', () => {
         margin
           .connect(badMarketSigner)
           .updateCheckpoint(user.address, BigNumber.from(await currentBlockTimestamp()), checkpoint, pnl),
-      ).to.be.revertedWithCustomError(margin, 'MarginInvalidMarket')
+      ).to.be.revertedWithCustomError(margin, 'MarginInvalidMarketError')
     })
   })
 

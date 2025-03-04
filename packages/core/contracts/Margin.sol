@@ -69,6 +69,9 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     function deposit(address account, UFixed6 amount) external nonReentrant {
         DSU.pull(msg.sender, UFixed18Lib.from(amount));
         _balances[account][CROSS_MARGIN] = _balances[account][CROSS_MARGIN].add(Fixed6Lib.from(amount));
+
+        // TODO: Write a cross-margin checkpoint.
+
         emit FundsDeposited(account, amount);
     }
 
@@ -76,11 +79,13 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @inheritdoc IMargin
     function withdraw(address account, UFixed6 amount) external nonReentrant onlyOperator(account) {
         Fixed6 balance = _balances[account][CROSS_MARGIN];
-        if (balance.lt(Fixed6Lib.from(amount))) revert MarginInsufficientCrossedBalance();
+        if (balance.lt(Fixed6Lib.from(amount))) revert MarginInsufficientCrossedBalanceError();
         _balances[account][CROSS_MARGIN] = balance.sub(Fixed6Lib.from(amount));
 
         // ensure crossed markets remain margined after withdrawal
         if (!_checkCrossMargin(account)) revert IMarket.MarketInsufficientMarginError();
+
+        // TODO: Write a cross-margin checkpoint.
 
         // withdrawal goes to sender, not account, consistent with legacy Market behavior
         DSU.push(msg.sender, UFixed18Lib.from(amount));
@@ -161,7 +166,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
                 IMarket marketToSettle = crossMarginMarkets[account][i];
                 if (market != marketToSettle) marketToSettle.settle(account);
             }
-            // TODO: Write a cross-margin checkpoint
         }
 
         // Auto-deisolate funds if position was closed
@@ -187,7 +191,9 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     /// @inheritdoc IMargin
-    function updateCheckpoint(address account, uint256 version, Checkpoint memory latest, Fixed6 pnl) external onlyMarket{
+    function updateCheckpoint(address account, uint256 version, Checkpoint memory latest, Fixed6 pnl) external onlyMarket {
+        // TODO: If market cross-margined, use this checkpoint to update cross-margin checkpoint.
+
         // Store the checkpoint
         _checkpoints[account][IMarket(msg.sender)][version].store(latest);
         // Adjust cross-margin or isolated collateral balance accordingly
@@ -261,7 +267,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     function _cross(address account, IMarket market) private {
         if (!_isCrossed(account, market)) {
             uint256 newIndex = crossMarginMarkets[account].length;
-            if (newIndex == MAX_CROSS_MARGIN_MARKETS) revert MarginTooManyCrossedMarkets();
+            if (newIndex == MAX_CROSS_MARGIN_MARKETS) revert MarginTooManyCrossedMarketsError();
             crossMarginMarkets[account].push(market);
             crossMarginMarketIndex[account][market] = newIndex;
             emit MarketCrossed(account, market);
@@ -294,16 +300,16 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     ) private {
         // Calculate new balances
         Fixed6 newCrossBalance = _balances[account][CROSS_MARGIN].sub(amount);
-        if (newCrossBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientCrossedBalance();
+        if (newCrossBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientCrossedBalanceError();
         Fixed6 oldIsolatedBalance = _balances[account][market];
         Fixed6 newIsolatedBalance = oldIsolatedBalance.add(amount);
-        if (newIsolatedBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalance();
+        if (newIsolatedBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalanceError();
 
         // Ensure no position if switching modes
         bool isolating = oldIsolatedBalance.isZero() && !newIsolatedBalance.isZero();
         bool deisolating = !oldIsolatedBalance.isZero() && newIsolatedBalance.isZero();
         // TODO: We could add logic here to support switching modes with a position.
-        if ((isolating || deisolating) && _hasPosition(account, market)) revert MarginHasPosition();
+        if ((isolating || deisolating) && _hasPosition(account, market)) revert MarginHasPositionError();
         bool decreasingIsolatedBalance = newIsolatedBalance.lt(oldIsolatedBalance);
 
         // If switching mode to isolated, remove from cross-margin collections
@@ -373,7 +379,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @dev Only if caller is a market from the same Perennial deployment
     modifier onlyMarket {
         IMarket market = IMarket(msg.sender);
-        if (market.factory() != marketFactory) revert MarginInvalidMarket();
+        if (market.factory() != marketFactory) revert MarginInvalidMarketError();
         _;
     }
 

@@ -176,7 +176,7 @@ describe('Liquidate', () => {
           userBCollateral.mul(-1).sub(1),
           constants.AddressZero,
         ),
-    ).to.be.revertedWithCustomError(margin, 'MarginInsufficientIsolatedBalance') // under margin
+    ).to.be.revertedWithCustomError(margin, 'MarginInsufficientIsolatedBalanceError') // under margin
 
     await market.connect(userB).close(user.address, true, constants.AddressZero) // liquidate
 
@@ -235,7 +235,7 @@ describe('Liquidate', () => {
           userBCollateral.mul(-1).sub(1),
           constants.AddressZero,
         ),
-    ).to.be.revertedWithCustomError(margin, 'MarginInsufficientIsolatedBalance') // underflow
+    ).to.be.revertedWithCustomError(margin, 'MarginInsufficientIsolatedBalanceError') // underflow
 
     await market.connect(userB).close(user.address, true, constants.AddressZero) // liquidate
 
