@@ -199,6 +199,7 @@ export interface Intent {
   amount: BigNumberish
   price: BigNumberish
   fee: BigNumberish
+  additiveFee: BigNumberish
   originator: string
   solver: string
   collateralization: BigNumberish
