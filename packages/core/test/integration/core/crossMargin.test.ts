@@ -41,8 +41,10 @@ import {
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import {
   DEFAULT_CHECKPOINT,
+  DEFAULT_ORDER,
   DEFAULT_POSITION,
   expectCheckpointEq,
+  expectOrderEq,
   expectPositionEq,
   parse6decimal,
 } from '../../../../common/testutil/types'
@@ -148,7 +150,10 @@ describe('Cross Margin', () => {
     await marketFactory.create(oracle.address)
 
     const market = Market__factory.connect(marketAddress, owner)
-    await market.updateRiskParameter(STANDARD_RISK_PARAMETER)
+    await market.updateRiskParameter({
+      ...STANDARD_RISK_PARAMETER,
+      staleAfter: 30 * 60, // prices stale after 30 minutes
+    })
     await market.updateParameter(STANDARD_MARKET_PARAMETER)
 
     await oracle.register(market.address)
@@ -236,6 +241,41 @@ describe('Cross Margin', () => {
     // confirm funds were deposited into margin contract
     expect(await margin.crossMarginBalances(userA.address)).to.equal(parse6decimal('200000'))
     expect(await margin.crossMarginBalances(userB.address)).to.equal(parse6decimal('200000'))
+  })
+
+  it('prevent withdrawal if price is stale in a cross-margined market', async () => {
+    const timestampA = await changePosition(marketA, userA, parse6decimal('700'), 0)
+    expect(await margin.isCrossed(userA.address, marketA.market.address)).to.equal(true)
+    const timestampB = await changePosition(marketB, userA, parse6decimal('100'), 0)
+    expect(await margin.isCrossed(userA.address, marketB.market.address)).to.equal(true)
+
+    // at prices 100 and 500, userA's margin requirements are 700*100*0.3 + 100*500*0.3 = 21k + 15k = 36k
+    // user has 200k cross-margined, so could remove 164k at these prices
+    let marginRequiredA = await marketA.market.marginRequired(userA.address, 0)
+    const marginRequiredB = await marketB.market.marginRequired(userA.address, 0)
+    expect(marginRequiredA).to.equal(parse6decimal('21000'))
+    expect(marginRequiredB).to.equal(parse6decimal('15000'))
+    expect(marginRequiredA.add(marginRequiredB)).to.equal(parse6decimal('36000'))
+
+    // marketA price moons from 100 to 777, impacting userA's margin requirements
+    // 700*777*0.3 + 15k = 163170 + 15k = 178170
+    await advanceToPrice(marketA, userA, timestampA, parse6decimal('777'))
+    marginRequiredA = await marketA.market.marginRequired(userA.address, 0)
+    expect(marginRequiredA.add(marginRequiredB)).to.equal(parse6decimal('178170'))
+
+    // user can no longer withdraw 30k
+    await expect(margin.connect(userA).withdraw(userA.address, parse6decimal('30000'))).to.be.revertedWithCustomError(
+      margin,
+      'MarketInsufficientMarginError',
+    )
+
+    // cannot withdraw 20k because marketB price is stale
+    await increaseTo(timestampB + 3600)
+    expect(await marketB.market.stale()).to.equal(true)
+    await expect(margin.connect(userA).withdraw(userA.address, parse6decimal('20000'))).to.be.revertedWithCustomError(
+      margin,
+      'MarketStalePriceError',
+    )
   })
 
   it('maintains margin requirements', async () => {

@@ -80,7 +80,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         _balances[account][CROSS_MARGIN] = balance.sub(Fixed6Lib.from(amount));
 
         // ensure crossed markets remain margined after withdrawal
-        if (!_crossMargined(account)) revert IMarket.MarketInsufficientMarginError();
+        if (!_checkCrossMargin(account)) revert IMarket.MarketInsufficientMarginError();
 
         // withdrawal goes to sender, not account, consistent with legacy Market behavior
         DSU.push(msg.sender, UFixed18Lib.from(amount));
@@ -125,13 +125,19 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     /// @inheritdoc IMargin
-    function margined(
+    function checkMargin(
         address account,
         UFixed6 minCollateralization
-    ) external onlyMarket view returns (bool isMargined) {
-        return _margined(account, IMarket(msg.sender), minCollateralization);
+    ) external onlyMarket returns (bool isMargined) {
+        IMarket market = IMarket(msg.sender);
+        if (_isIsolated(account, market)) {
+            // Market in isolated mode; only need to check against isolated balance
+            return _checkIsolatedMargin(account, market, minCollateralization);
+        } else {
+            // Market in cross-margin mode; check all cross-margined markets
+            return _checkCrossMargin(account);
+        }
     }
-
 
     /// @inheritdoc IMargin
     function handleMarketUpdate(address account, Fixed6 collateralDelta) external onlyMarket {
@@ -148,7 +154,17 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     function handleMarketSettle(address account, uint256 latestVersion) external onlyMarket {
         IMarket market = IMarket(msg.sender);
         UFixed6 isolatedBalance = UFixed6Lib.unsafeFrom(_balances[account][market]);
-        // If market also had no position when isolated balance last changed, should not deisolate
+
+        // Settle all cross-margined markets and write a checkpoint
+        if (_isCrossed(account, market)) {
+            for (uint256 i; i < crossMarginMarkets[account].length; i++) {
+                IMarket marketToSettle = crossMarginMarkets[account][i];
+                if (market != marketToSettle) marketToSettle.settle(account);
+            }
+            // TODO: Write a cross-margin checkpoint
+        }
+
+        // Auto-deisolate funds if position was closed
         if (!isolatedBalance.isZero()                         // account has an isolated balance
                 && !autoDeisolateDisabled[account]            // this feature is not explicitly disabled
                 && !market.hasPosition(account)               // market currently has no position
@@ -198,29 +214,19 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         return _isIsolated(account, market);
     }
 
-    // TODO: crossMarginCheckpoints accessor view
+    /// @inheritdoc IMargin
+    function crossMarginCheckpoints(address account, uint256 version) external view returns (Checkpoint memory) {
+        return _checkpoints[account][CROSS_MARGIN][version].read();
+    }
 
     /// @inheritdoc IMargin
     function isolatedCheckpoints(address account, IMarket market, uint256 version) external view returns (Checkpoint memory) {
         return _checkpoints[account][market][version].read();
     }
 
-    /// @dev Shares logic for margin checks initiated internally and from a Market
-    function _margined(
-        address account,
-        IMarket market,
-        UFixed6 minCollateralization
-    ) private view returns (bool isMargined) {
-        if (_isIsolated(account, market)) {
-            // Market in isolated mode; only need to check against isolated balance
-            return _isolatedMargined(account, market, minCollateralization);
-        } else {
-            // Market in cross-margin mode; check all cross-margined markets
-            return _crossMargined(account);
-        }
-    }
-
-    function _isolatedMargined(
+    // TODO: Should we move the price request from Market to Margin, so we can just call checkMarginAndRequestPrice here?
+    // Then we may be able to eliminate IMarket::marginRequired view.
+    function _checkIsolatedMargin(
         address account,
         IMarket market,
         UFixed6 minCollateralization
@@ -231,12 +237,12 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     // TODO: handle minCollateralization for cross-margined markets
-    function _crossMargined(address account) private view returns (bool isMargined) {
+    function _checkCrossMargin(address account) private returns (bool isMargined) {
         IMarket market;
         UFixed6 requirement;
         for (uint256 i; i < crossMarginMarkets[account].length; i++) {
             market = crossMarginMarkets[account][i];
-            requirement = requirement.add(market.marginRequired(account, UFixed6Lib.ZERO));
+            requirement = requirement.add(market.checkMarginAndRequestPrice(account, UFixed6Lib.ZERO));
         }
         return UFixed6Lib.unsafeFrom(_balances[account][CROSS_MARGIN]).gte(requirement);
     }
@@ -318,11 +324,11 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         // TODO: Reduce storage reads by moving margin checks above storage updates, passing new balances into margin check methods
 
         // If reducing isolated balance (but not deisolating), ensure sufficient margin still exists for the market
-        if ((isolating || decreasingIsolatedBalance) && !_isolatedMargined(account, market, UFixed6Lib.ZERO)) {
+        if ((isolating || decreasingIsolatedBalance) && !_checkIsolatedMargin(account, market, UFixed6Lib.ZERO)) {
             revert IMarket.MarketInsufficientMarginError();
         }
         // Ensure decreased cross-margin balance remains sufficient for crossed markets
-        if (newIsolatedBalance.gt(oldIsolatedBalance) && !_crossMargined(account)) {
+        if (newIsolatedBalance.gt(oldIsolatedBalance) && !_checkCrossMargin(account)) {
             revert IMarket.MarketInsufficientMarginError();
         }
         // If decreasing an existing isolated balance with position, ensure price is not stale
@@ -346,9 +352,9 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         }
     }
 
-    /// @dev Determines whether user has a position in a specific market
+    /// @dev Determines whether user has a position or pending order in a specific market
     function _hasPosition(address account, IMarket market) private view returns (bool) {
-        return !market.positions(account).magnitude().isZero();
+        return !market.positions(account).magnitude().isZero() || !market.pendings(account).isEmpty();
     }
 
     /// @dev Determines whether a market update occurred for a non-isolated market

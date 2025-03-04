@@ -121,7 +121,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         _storeContext(context);
 
-        margin.handleMarketSettle(context.account, context.latestPositionLocal.timestamp);
+        if (msg.sender != address(margin)) {
+            margin.handleMarketSettle(context.account, context.latestPositionLocal.timestamp);
+        }
     }
 
     /// @notice Updates both the long and short positions of an intent order
@@ -305,6 +307,21 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         emit RiskParameterUpdated(newRiskParameter);
     }
 
+    /// @inheritdoc IMarket
+    function checkMarginAndRequestPrice(
+        address account,
+        UFixed6 minCollateralization
+    ) external onlyMargin returns (UFixed6 requirement) {
+        // Ensure margin requirements are measured against a non-stale price
+        OracleVersion memory latestOracleVersion;
+        uint256 currentTimestamp;
+        (latestOracleVersion, currentTimestamp, requirement) = _marginRequired(account, minCollateralization);
+        if (_stale(latestOracleVersion, currentTimestamp, _riskParameter.read().staleAfter)) revert IMarket.MarketStalePriceError();
+
+        // Request a new price for settlement
+        oracle.request(IMarket(this), account);
+    }
+
     /// @notice Transfers a fee that the sender has accrued to the Margin contract
     /// @dev Applicable fees include: protocol, oracle, and risk
     /// @return feeReceived The amount of the fee claimed
@@ -438,19 +455,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     }
 
     /// @inheritdoc IMarket
-    function marginRequired(
-        address account,
+    function marginRequired(address account,
         UFixed6 minCollateralization
     ) external view returns (UFixed6 requirement) {
-        (OracleVersion memory latestOracleVersion, ) = oracle.status();
-        (Fixed6 collateralAdjustment, UFixed6 maxPendingMagnitude) = _calculateAdjustments(account, latestOracleVersion);
-
-        UFixed6 worstCasePending = _worstCasePendingLocal(_positions[account].read(), _pendings[account].read(), maxPendingMagnitude);
-        requirement = PositionLib.margin(worstCasePending, latestOracleVersion, _riskParameter.read(), minCollateralization);
-        requirement = UFixed6Lib.unsafeFrom(Fixed6Lib.from(requirement).sub(collateralAdjustment));
+        (,, requirement) = _marginRequired(account, minCollateralization);
     }
 
-    // TODO: move down alongside private views
     /// @dev Aggregates collateral and price adjustments from guarantees and orders for a user
     function _calculateAdjustments(address account, OracleVersion memory latestOracleVersion) private view returns (
         Fixed6 collateralAdjustment,
@@ -474,6 +484,18 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         }
     }
 
+    function _marginRequired(
+        address account,
+        UFixed6 minCollateralization
+    ) private view returns (OracleVersion memory latestOracleVersion, uint256 currentTimestamp, UFixed6 requirement) {
+        (latestOracleVersion, currentTimestamp) = oracle.status();
+        (Fixed6 collateralAdjustment, UFixed6 maxPendingMagnitude) = _calculateAdjustments(account, latestOracleVersion);
+
+        UFixed6 worstCasePending = _worstCasePendingLocal(_positions[account].read(), _pendings[account].read(), maxPendingMagnitude);
+        requirement = PositionLib.margin(worstCasePending, latestOracleVersion, _riskParameter.read(), minCollateralization);
+        requirement = UFixed6Lib.unsafeFrom(Fixed6Lib.from(requirement).sub(collateralAdjustment));
+    }
+
     /// @notice Returns the worst case pending position magnitude
     /// @dev For AMM pending orders, this is calculated by assuming all closing orders will be invalidated
     ///      For intent pending orders, this is the maximum position magnitude at any pending version
@@ -495,7 +517,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
 
     /// @inheritdoc IMarket
-    function stale() external view returns (bool isStale) {
+    function stale() public view returns (bool isStale) {
         (OracleVersion memory latest, uint256 currentTimestamp) = oracle.status();
         isStale = _stale(latest, currentTimestamp, _riskParameter.read().staleAfter);
     }
@@ -684,7 +706,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ) revert IMarket.MarketStalePriceError();
 
         // check margin
-        if (!newOrder.protected() && !margin.margined(context.account, updateContext.collateralization))
+        if (!newOrder.protected() && !margin.checkMargin(context.account, updateContext.collateralization))
             revert IMarket.MarketInsufficientMarginError();
     }
 
@@ -1007,6 +1029,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @notice Only the coordinator or the owner can call
     modifier onlyCoordinator {
         if (msg.sender != coordinator && msg.sender != factory().owner()) revert MarketNotCoordinatorError();
+        _;
+    }
+
+    /// @notice Only the Margin contract can call
+    modifier onlyMargin {
+        if (msg.sender != address(margin)) revert MarketNotMarginError();
         _;
     }
 

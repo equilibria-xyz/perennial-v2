@@ -58,7 +58,7 @@ interface IMargin is IInstance {
     error MarginCannotUpdateCrossedMarket();
 
     // sig: 0xac13066a
-    /// custom:error User must have no position to switch between cross-margin and isolated collateral
+    /// custom:error User must have no position and no unsettled orders to switch between cross-margin and isolated collateral
     error MarginHasPosition();
 
     // sig: 0x7bbdde3c
@@ -139,7 +139,7 @@ interface IMargin is IInstance {
     /// @param account User whose margin requirement will be checked
     /// @param minCollateralization Minimum collateralization specified on an intent, 0 if none
     /// @return isMargined True if margin requirement met, otherwise false
-    function margined(
+    function checkMargin(
         address account,
         UFixed6 minCollateralization
     ) external returns (bool isMargined);
@@ -180,7 +180,12 @@ interface IMargin is IInstance {
     /// @notice True if market has a non-zero isolated balance for the user
     function isIsolated(address, IMarket) external view returns (bool);
 
-    /// @notice Returns information about an account's collateral for a specific version
+    /// @notice Retrieves information about an account's cross-margin collateral for a specific version
+    /// @param account User for whom the checkpoint is desired
+    /// @param version Identifies a point in time where market was settled
+    function crossMarginCheckpoints(address account, uint256 version) external view returns (Checkpoint memory);
+
+    /// @notice Returns information about an account's isolated collateral for a specific version
     /// @param account User for whom the checkpoint is desired
     /// @param market Market for which user has collateral isolated
     /// @param version Identifies a point in time where market was settled

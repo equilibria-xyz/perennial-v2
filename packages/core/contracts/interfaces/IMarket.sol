@@ -98,6 +98,9 @@ interface IMarket is IInstance {
     error MarketExceedsPendingIdLimitError();
     // sig: 0x9bca0625
     error MarketNotCoordinatorError();
+    // sig: 0x42235819
+    /// @custom:error Only Margin contract can call this function
+    error MarketNotMarginError();
     // sig: 0x3222db45
     /// @custom:error Sender is not authorized to interact with markets on behalf of the account
     error MarketNotOperatorError();
@@ -157,10 +160,12 @@ interface IMarket is IInstance {
     /// @notice Retrieves the maintenance requirement for an account
     /// @param account User for whom maintenance requirement will be checked
     function maintenanceRequired(address account) external view returns (UFixed6 requirement);
-    /// @notice Retrieves the margin requirement for an account
+    /// @notice Calculates margin requirement for an account at the current price
+    function marginRequired(address account, UFixed6 minCollateralization) external view returns (UFixed6 requirement);
+    /// @notice Called by margin contract to ensures price not stale, calculate margin requirement, and request a new price
     /// @param account User for whom margin requirement will be checked
     /// @param minCollateralization Minimum collateralization specified on an intent, 0 if none
-    function marginRequired(address account, UFixed6 minCollateralization) external view returns (UFixed6 requirement);
+    function checkMarginAndRequestPrice(address account, UFixed6 minCollateralization) external returns (UFixed6 requirement);
     /// @notice Returns true if oracle price is older than the period configured in risk parameters
     function stale() external view returns (bool isStale);
     function settle(address account) external;
