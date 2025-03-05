@@ -13,10 +13,10 @@ struct Local {
     /// @dev The latest position id
     uint256 latestId;
 
-    /// @dev DEPRECATED The collateral balance, used for 2.3 -> 2.4 migration only
+    /// @dev DEPRECATED The collateral balance, used for 2.4 -> 2.5 migration only
     Fixed6 collateral;
 
-    /// @dev DEPRECATED The claimable balance, used for 2.3 -> 2.4 migration only
+    /// @dev DEPRECATED The claimable balance, used for 2.4 -> 2.5 migration only
     UFixed6 claimable;
 }
 using LocalLib for Local global;

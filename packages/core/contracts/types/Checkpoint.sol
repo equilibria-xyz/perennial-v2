@@ -12,7 +12,8 @@ struct Checkpoint {
     // @dev The settlement and liquidation fee that the order incurred at the checkpoint settlement
     UFixed6 settlementFee;
 
-    /// @dev The amount deposited or withdrawn at the checkpoint settlement
+    /// @dev The amount deposited or withdrawn at the checkpoint settlement; will impact collateral
+    /// on the next checkpoint accumulation
     Fixed6 transfer;
 
     /// @dev The collateral at the time of the checkpoint settlement

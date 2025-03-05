@@ -97,6 +97,18 @@ library CheckpointLib {
         return (next, _response(result));
     }
 
+    /// @dev Used by Margin contract to update cross-margin checkpoints from locals produced by markets
+    /// @param self The checkpoint to update
+    /// @param local The local checkpoint produced by a market
+    function add(
+        Checkpoint memory self,
+        Checkpoint memory local
+    ) internal pure {
+        self.collateral = self.collateral.add(local.collateral);
+        self.tradeFee = self.tradeFee.add(local.tradeFee);
+        self.settlementFee = self.settlementFee.add(local.settlementFee);
+    }
+
     /// @dev Used by Margin contract to update the checkpoint when collateral is
     /// implicitly deisolated upon position close
     /// @param self The checkpoint to update

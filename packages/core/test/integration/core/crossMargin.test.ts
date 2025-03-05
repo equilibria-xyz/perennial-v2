@@ -262,6 +262,10 @@ describe('Cross Margin', () => {
     await advanceToPrice(marketA, userA, timestampA, parse6decimal('777'))
     marginRequiredA = await marketA.market.marginRequired(userA.address, 0)
     expect(marginRequiredA.add(marginRequiredB)).to.equal(parse6decimal('178170'))
+    expectCheckpointEq(await margin.crossMarginCheckpoints(userA.address, timestampA), {
+      ...DEFAULT_CHECKPOINT,
+      transfer: parse6decimal('200000'),
+    })
 
     // user can no longer withdraw 30k
     await expect(margin.connect(userA).withdraw(userA.address, parse6decimal('30000'))).to.be.revertedWithCustomError(
@@ -335,6 +339,10 @@ describe('Cross Margin', () => {
     await advanceToPrice(marketA, userA, timestamp1, parse6decimal('105'))
     await advanceToPrice(marketB, userA, timestamp1, parse6decimal('510'))
     expect(await margin.crossMarginBalances(userA.address)).to.equal(parse6decimal('200000'))
+    expectCheckpointEq(await margin.crossMarginCheckpoints(userA.address, timestamp1), {
+      ...DEFAULT_CHECKPOINT,
+      transfer: parse6decimal('200000'),
+    })
 
     // userB shorts both markets, such that userA has long exposure
     const timestamp2 = timestamp1 + 60
@@ -345,6 +353,14 @@ describe('Cross Margin', () => {
     await advanceToPrice(marketA, userB, timestamp2, parse6decimal('110'))
     await advanceToPrice(marketB, userB, timestamp2, parse6decimal('525'))
     expect(await margin.crossMarginBalances(userB.address)).to.equal(parse6decimal('200000'))
+    expectCheckpointEq(await margin.crossMarginCheckpoints(userA.address, timestamp1), {
+      ...DEFAULT_CHECKPOINT,
+      transfer: parse6decimal('200000'),
+    })
+    expectCheckpointEq(await margin.crossMarginCheckpoints(userB.address, timestamp2), {
+      ...DEFAULT_CHECKPOINT,
+      transfer: parse6decimal('200000'),
+    })
 
     // prices went up; commit unrequested prices and settle
     const timestamp3 = timestamp2 + 3600
@@ -357,6 +373,15 @@ describe('Cross Margin', () => {
     // userA collateral should have increased; userB collateral should have decreased
     expect(await margin.crossMarginBalances(userA.address)).to.equal(parse6decimal('286274.6216'))
     expect(await margin.crossMarginBalances(userB.address)).to.equal(parse6decimal('113722.64075'))
+    // FIXME: explore why these checkpoints do not match collateral balance
+    expectCheckpointEq(await margin.crossMarginCheckpoints(userA.address, timestamp2), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: parse6decimal('286274.6216'),
+    })
+    expectCheckpointEq(await margin.crossMarginCheckpoints(userB.address, timestamp2), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: parse6decimal('113722.64075'),
+    })
   })
 
   it('implicitly deisolates when closing position', async () => {

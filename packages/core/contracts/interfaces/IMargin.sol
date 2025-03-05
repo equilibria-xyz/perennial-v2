@@ -146,12 +146,12 @@ interface IMargin is IInstance {
     function updateClaimable(address account, UFixed6 collateralDelta) external;
 
     /// @dev Called by market upon settlement, updates the account’s balance by a collateral delta,
-    /// and credits claimable accounts for fees
+    /// and writes checkpoints.
     /// @param account User whose collateral balance will be updated
     /// @param version Timestamp of the snapshot
     /// @param latest Checkpoint prepared by the market
-    /// @param pnl Collateral delta for the account prepared by the Local
-    function updateCheckpoint(address account, uint256 version, Checkpoint memory latest, Fixed6 pnl) external;
+    /// @param collateral Collateral delta (pnl, funding, and interest) calculated by the Local
+    function updateCheckpoint(address account, uint256 version, Checkpoint memory latest, Fixed6 collateral) external;
 
     /// @notice Retrieves the claimable balance for a user
     function claimables(address) external view returns (UFixed6);
