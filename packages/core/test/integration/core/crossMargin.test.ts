@@ -49,6 +49,7 @@ import {
   parse6decimal,
 } from '../../../../common/testutil/types'
 
+const INITIAL_DEPOSIT = parse6decimal('200000')
 const MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE = 'update(address,int256,int256,int256,address)'
 
 describe('Cross Margin', () => {
@@ -116,8 +117,8 @@ describe('Cross Margin', () => {
     await fundWallet(dsu, userB)
     await dsu.connect(userA).approve(margin.address, constants.MaxUint256)
     await dsu.connect(userB).approve(margin.address, constants.MaxUint256)
-    await margin.connect(userA).deposit(userA.address, parse6decimal('200000'))
-    await margin.connect(userB).deposit(userB.address, parse6decimal('200000'))
+    await margin.connect(userA).deposit(userA.address, INITIAL_DEPOSIT)
+    await margin.connect(userB).deposit(userB.address, INITIAL_DEPOSIT)
   }
 
   async function createOracle(id: string, name: string): Promise<[IOracle, KeeperOracle]> {
@@ -239,8 +240,8 @@ describe('Cross Margin', () => {
     expect(await getPrice(marketC.market)).to.equal(parse6decimal('30000'))
 
     // confirm funds were deposited into margin contract
-    expect(await margin.crossMarginBalances(userA.address)).to.equal(parse6decimal('200000'))
-    expect(await margin.crossMarginBalances(userB.address)).to.equal(parse6decimal('200000'))
+    expect(await margin.crossMarginBalances(userA.address)).to.equal(INITIAL_DEPOSIT)
+    expect(await margin.crossMarginBalances(userB.address)).to.equal(INITIAL_DEPOSIT)
   })
 
   it('prevent withdrawal if price is stale in a cross-margined market', async () => {
@@ -312,7 +313,7 @@ describe('Cross Margin', () => {
     expect(marginB).to.equal(parse6decimal('44910'))
 
     // cannot remove more collateral than is needed to maintain margin requirements
-    const maxWithdrawl = parse6decimal('200000').sub(marginA).sub(marginB)
+    const maxWithdrawl = INITIAL_DEPOSIT.sub(marginA).sub(marginB)
     await expect(margin.connect(userA).withdraw(userA.address, maxWithdrawl.add(1))).to.be.revertedWithCustomError(
       margin,
       'MarketInsufficientMarginError',
@@ -338,10 +339,10 @@ describe('Cross Margin', () => {
     }, timestamp1)
     await advanceToPrice(marketA, userA, timestamp1, parse6decimal('105'))
     await advanceToPrice(marketB, userA, timestamp1, parse6decimal('510'))
-    expect(await margin.crossMarginBalances(userA.address)).to.equal(parse6decimal('200000'))
+    expect(await margin.crossMarginBalances(userA.address)).to.equal(INITIAL_DEPOSIT)
     expectCheckpointEq(await margin.crossMarginCheckpoints(userA.address, timestamp1), {
       ...DEFAULT_CHECKPOINT,
-      transfer: parse6decimal('200000'),
+      transfer: INITIAL_DEPOSIT,
     })
 
     // userB shorts both markets, such that userA has long exposure
@@ -352,35 +353,48 @@ describe('Cross Margin', () => {
     }, timestamp2)
     await advanceToPrice(marketA, userB, timestamp2, parse6decimal('110'))
     await advanceToPrice(marketB, userB, timestamp2, parse6decimal('525'))
-    expect(await margin.crossMarginBalances(userB.address)).to.equal(parse6decimal('200000'))
-    expectCheckpointEq(await margin.crossMarginCheckpoints(userA.address, timestamp1), {
-      ...DEFAULT_CHECKPOINT,
-      transfer: parse6decimal('200000'),
-    })
+    let balanceB = await margin.crossMarginBalances(userB.address)
+    expect(balanceB).to.equal(INITIAL_DEPOSIT)
     expectCheckpointEq(await margin.crossMarginCheckpoints(userB.address, timestamp2), {
       ...DEFAULT_CHECKPOINT,
-      transfer: parse6decimal('200000'),
+      transfer: INITIAL_DEPOSIT,
     })
 
-    // prices went up; commit unrequested prices and settle
+    // prices went up; commit unrequested prices and settle userB
     const timestamp3 = timestamp2 + 3600
     await increaseTo(timestamp3)
-    await advanceToPrice(marketA, userA, timestamp3 - 3, parse6decimal('150'))
-    await advanceToPrice(marketB, userA, timestamp3 - 3, parse6decimal('650'))
-    await marketA.market.settle(userB.address)
-    await marketB.market.settle(userB.address)
-
-    // userA collateral should have increased; userB collateral should have decreased
-    expect(await margin.crossMarginBalances(userA.address)).to.equal(parse6decimal('286274.6216'))
-    expect(await margin.crossMarginBalances(userB.address)).to.equal(parse6decimal('113722.64075'))
-    // FIXME: explore why these checkpoints do not match collateral balance
+    await advanceToPrice(marketA, userB, timestamp3, parse6decimal('150'))
+    await advanceToPrice(marketB, userB, timestamp3, parse6decimal('650'))
+    // userA did not settle at timestamp2 and should have no checkpoint written
     expectCheckpointEq(await margin.crossMarginCheckpoints(userA.address, timestamp2), {
       ...DEFAULT_CHECKPOINT,
-      collateral: parse6decimal('286274.6216'),
     })
+    // userB checkpoint at timestamp2 should not have changed
     expectCheckpointEq(await margin.crossMarginCheckpoints(userB.address, timestamp2), {
       ...DEFAULT_CHECKPOINT,
-      collateral: parse6decimal('113722.64075'),
+      transfer: INITIAL_DEPOSIT,
+    })
+    // userB checkpoint at timestamp3 should reflect loss
+    balanceB = await margin.crossMarginBalances(userB.address)
+    expect(balanceB).to.equal(parse6decimal('113722.6181'))
+    expectCheckpointEq(await margin.crossMarginCheckpoints(userB.address, timestamp3), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: balanceB,
+    })
+
+    // settle userA
+    await marketA.market.settle(userA.address)
+    await marketB.market.settle(userA.address)
+    // again, userA did not settle at timestamp2 and should have no checkpoint written
+    expectCheckpointEq(await margin.crossMarginCheckpoints(userA.address, timestamp2), {
+      ...DEFAULT_CHECKPOINT,
+    })
+    // userA collateral should have increased at timestamp3
+    const balanceA = await margin.crossMarginBalances(userA.address)
+    expect(balanceA).to.equal(parse6decimal('286274.6426'))
+    expectCheckpointEq(await margin.crossMarginCheckpoints(userA.address, timestamp3), {
+      ...DEFAULT_CHECKPOINT,
+      collateral: balanceA,
     })
   })
 

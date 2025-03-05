@@ -259,8 +259,8 @@ describe('Margin', () => {
       expect(dsu.transfer).to.have.been.calledWith(userB.address, feeEarned.mul(1e12))
     })
 
-    it('stores and reads checkpoints', async () => {
-      const balanceBefore = await margin.crossMarginBalances(user.address)
+    it('stores and reads isolated checkpoints', async () => {
+      const balanceBefore = await margin.isolatedBalances(user.address, marketA.address)
 
       const version = BigNumber.from(await currentBlockTimestamp())
       const latestCheckpoint: CheckpointStruct = {
@@ -273,14 +273,46 @@ describe('Margin', () => {
 
       // can store
       const marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
-      await expect(margin.connect(marketSigner).updateCheckpoint(user.address, version, latestCheckpoint, pnl)).to.not
-        .be.reverted
+      await expect(margin.connect(marketSigner).updateCheckpoint(user.address, version, latestCheckpoint, pnl))
+        .to.emit(margin, 'IsolatedFundsChanged')
+        .withArgs(user.address, marketA.address, pnl)
 
       // can read
       const checkpoint: CheckpointStruct = await margin.isolatedCheckpoints(user.address, marketA.address, version)
       expect(checkpoint.tradeFee).to.equal(latestCheckpoint.tradeFee)
       expect(checkpoint.settlementFee).to.equal(latestCheckpoint.settlementFee)
       expect(checkpoint.transfer).to.equal(latestCheckpoint.transfer)
+      expect(checkpoint.collateral).to.equal(latestCheckpoint.collateral)
+
+      // confirm PnL has been added to collateral balance
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(balanceBefore.add(pnl))
+    })
+
+    it('stores and reads cross-margin checkpoints', async () => {
+      const balanceBefore = await margin.crossMarginBalances(user.address)
+      // fake a market update such that margin contract records this market as cross-margined
+      await marketUpdate(user, marketA, constants.Zero)
+
+      const version = BigNumber.from(await currentBlockTimestamp())
+      const latestCheckpoint: CheckpointStruct = {
+        tradeFee: parse6decimal('0.12'),
+        settlementFee: parse6decimal('0.42'),
+        transfer: 0, // market would only populate transfer for change in isolated collateral
+        collateral: parse6decimal('5.5'),
+      }
+      const pnl = parse6decimal('0.63')
+
+      // can store
+      const marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
+      await expect(margin.connect(marketSigner).updateCheckpoint(user.address, version, latestCheckpoint, pnl))
+        .to.emit(margin, 'FundsChanged')
+        .withArgs(user.address, pnl)
+
+      // can read
+      const checkpoint: CheckpointStruct = await margin.crossMarginCheckpoints(user.address, version)
+      expect(checkpoint.tradeFee).to.equal(latestCheckpoint.tradeFee)
+      expect(checkpoint.settlementFee).to.equal(latestCheckpoint.settlementFee)
+      // checking transfer would requirea settlement flow, beyond scope of this test
       expect(checkpoint.collateral).to.equal(latestCheckpoint.collateral)
 
       // confirm PnL has been added to collateral balance

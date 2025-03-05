@@ -15,7 +15,6 @@ import { Position } from "./types/Position.sol";
 import { RiskParameter } from "./types/RiskParameter.sol";
 import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
 import { IMarket, IMarketFactory } from "./interfaces/IMarketFactory.sol";
-import "hardhat/console.sol";
 
 contract Margin is IMargin, Instance, ReentrancyGuard {
     IMarket private constant CROSS_MARGIN = IMarket(address(0));
@@ -223,13 +222,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
             }
 
             // Aggregate the market checkpoint into the cross-margin checkpoint
-            // console.log("  %s local checkpoint collateral ", account);
-            // console.logInt(Fixed6.unwrap(latest.collateral));
-            // console.log(" updateCheckpoint collateral ");
-            // console.logInt(Fixed6.unwrap(collateral));
             CheckpointLib.add(checkpoint, latestMarketCheckpoint);
-            // console.log("  cross-margin checkpoint collateral after aggregation ");
-            // console.logInt(Fixed6.unwrap(checkpoint.collateral));
             _checkpoints[account][CROSS_MARGIN][version].store(checkpoint);
 
             // Update balance
