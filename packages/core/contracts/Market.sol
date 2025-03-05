@@ -120,6 +120,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _settle(context);
 
         _storeContext(context);
+
+        margin.handleMarketSettle(context.account, context.latestPositionLocal.timestamp);
     }
 
     /// @notice Updates both the long and short positions of an intent order
@@ -330,7 +332,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _global.store(newGlobal);
 
         if (!feeReceived.isZero()) {
-            margin.updateClaimable(msg.sender, Fixed6Lib.from(feeReceived));
+            margin.updateClaimable(msg.sender, feeReceived);
             emit FeeClaimed(account, msg.sender, feeReceived);
         }
     }
@@ -989,7 +991,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param amount The amount to credit
     function _credit(address receiver, UFixed6 amount) private {
         if (amount.isZero()) return;
-        margin.updateClaimable(receiver, Fixed6Lib.from(amount));
+        margin.updateClaimable(receiver, amount);
     }
 
     /// @dev Returns true if the oracle price is stale, which should prevent position change and deisolation of collateral

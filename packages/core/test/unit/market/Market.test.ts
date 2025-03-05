@@ -2322,7 +2322,7 @@ describe('Market', () => {
                 currentId: 2,
                 latestId: 2,
               })
-              expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
+              expect(await margin.crossMarginBalances(user.address)).to.equal(COLLATERAL)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
@@ -2492,7 +2492,7 @@ describe('Market', () => {
                 currentId: 2,
                 latestId: 2,
               })
-              expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
+              expect(await margin.crossMarginBalances(user.address)).to.equal(COLLATERAL)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_3.timestamp,
@@ -2673,7 +2673,7 @@ describe('Market', () => {
                 currentId: 3,
                 latestId: 3,
               })
-              expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
+              expect(await margin.crossMarginBalances(user.address)).to.equal(COLLATERAL)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
@@ -2754,7 +2754,7 @@ describe('Market', () => {
                 currentId: 2,
                 latestId: 2,
               })
-              expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
+              expect(await margin.crossMarginBalances(user.address)).to.equal(COLLATERAL)
               expectPositionEq(await market.positions(user.address), {
                 ...DEFAULT_POSITION,
                 timestamp: ORACLE_VERSION_4.timestamp,
@@ -2845,7 +2845,7 @@ describe('Market', () => {
                 currentId: 2,
                 latestId: 2,
               })
-              expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+              expect(await margin.crossMarginBalances(user.address)).to.equal(
                 COLLATERAL.sub(MAKER_FEE).sub(MAKER_OFFSET).add(MAKER_OFFSET).sub(SETTLEMENT_FEE),
               )
               expectPositionEq(await market.positions(user.address), {
@@ -3960,7 +3960,7 @@ describe('Market', () => {
                   currentId: 2,
                   latestId: 2,
                 })
-                expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+                expect(await margin.crossMarginBalances(user.address)).to.equal(
                   COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                 )
                 expectPositionEq(await market.positions(user.address), {
@@ -4163,7 +4163,7 @@ describe('Market', () => {
                   currentId: 2,
                   latestId: 2,
                 })
-                expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+                expect(await margin.crossMarginBalances(user.address)).to.equal(
                   COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                 )
                 expectPositionEq(await market.positions(user.address), {
@@ -4422,7 +4422,7 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 3,
                 })
-                expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+                expect(await margin.crossMarginBalances(user.address)).to.equal(
                   COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                     .sub(EXPECTED_FUNDING_WITH_FEE_2_25_123)
                     .sub(EXPECTED_INTEREST_5_123)
@@ -4565,7 +4565,7 @@ describe('Market', () => {
                   currentId: 2,
                   latestId: 2,
                 })
-                expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+                expect(await margin.crossMarginBalances(user.address)).to.equal(
                   COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                 )
                 expectPositionEq(await market.positions(user.address), {
@@ -4692,7 +4692,7 @@ describe('Market', () => {
                   currentId: 2,
                   latestId: 2,
                 })
-                expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+                expect(await margin.crossMarginBalances(user.address)).to.equal(
                   COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                     .sub(EXPECTED_INTEREST_5_123)
                     .sub(TAKER_FEE)
@@ -7573,7 +7573,7 @@ describe('Market', () => {
                   currentId: 2,
                   latestId: 2,
                 })
-                expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+                expect(await margin.crossMarginBalances(user.address)).to.equal(
                   COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                 )
                 expectPositionEq(await market.positions(user.address), {
@@ -7757,7 +7757,7 @@ describe('Market', () => {
                   currentId: 2,
                   latestId: 2,
                 })
-                expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+                expect(await margin.crossMarginBalances(user.address)).to.equal(
                   COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                 )
                 expectPositionEq(await market.positions(user.address), {
@@ -7997,7 +7997,7 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 3,
                 })
-                expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+                expect(await margin.crossMarginBalances(user.address)).to.equal(
                   COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                     .sub(EXPECTED_FUNDING_WITH_FEE_2_25_123)
                     .sub(EXPECTED_INTEREST_5_123)
@@ -8137,7 +8137,7 @@ describe('Market', () => {
                   currentId: 2,
                   latestId: 2,
                 })
-                expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+                expect(await margin.crossMarginBalances(user.address)).to.equal(
                   COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
                 )
                 expectPositionEq(await market.positions(user.address), {
@@ -8260,7 +8260,7 @@ describe('Market', () => {
                   currentId: 2,
                   latestId: 2,
                 })
-                expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+                expect(await margin.crossMarginBalances(user.address)).to.equal(
                   COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
                     .sub(EXPECTED_INTEREST_5_123)
                     .sub(PRICE_IMPACT)
@@ -11705,7 +11705,7 @@ describe('Market', () => {
                   currentId: 2,
                   latestId: 2,
                 })
-                expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+                expect(await margin.crossMarginBalances(user.address)).to.equal(
                   COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(2), // loss of precision
@@ -11926,7 +11926,7 @@ describe('Market', () => {
                   currentId: 2,
                   latestId: 2,
                 })
-                expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+                expect(await margin.crossMarginBalances(user.address)).to.equal(
                   COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(2), // loss of precision
@@ -12212,7 +12212,7 @@ describe('Market', () => {
                   currentId: 3,
                   latestId: 3,
                 })
-                expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+                expect(await margin.crossMarginBalances(user.address)).to.equal(
                   COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .add(EXPECTED_FUNDING_WITHOUT_FEE_2_10_123_ALL.div(4))
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
@@ -12387,7 +12387,7 @@ describe('Market', () => {
                   currentId: 2,
                   latestId: 2,
                 })
-                expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+                expect(await margin.crossMarginBalances(user.address)).to.equal(
                   COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(2), // loss of precision
@@ -12496,7 +12496,7 @@ describe('Market', () => {
                   currentId: 2,
                   latestId: 2,
                 })
-                expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+                expect(await margin.crossMarginBalances(user.address)).to.equal(
                   COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_10_123_ALL.div(2))
                     .sub(EXPECTED_INTEREST_10_67_123_ALL.div(3))
                     .sub(EXPECTED_TAKER_FEE)
@@ -17625,9 +17625,7 @@ describe('Market', () => {
             currentId: 2,
             latestId: 2,
           })
-          expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
-            COLLATERAL.sub(SETTLEMENT_FEE.mul(2)),
-          )
+          expect(await margin.crossMarginBalances(user.address)).to.equal(COLLATERAL.sub(SETTLEMENT_FEE.mul(2)))
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp + 1,
@@ -17800,7 +17798,7 @@ describe('Market', () => {
             currentId: 2,
             latestId: 2,
           })
-          expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.sub(SETTLEMENT_FEE)) // does not charge fee if both were pending at once
+          expect(await margin.crossMarginBalances(user.address)).to.equal(COLLATERAL.sub(SETTLEMENT_FEE)) // does not charge fee if both were pending at once
           expectPositionEq(await market.positions(user.address), {
             ...DEFAULT_POSITION,
             timestamp: ORACLE_VERSION_4.timestamp,
@@ -17823,6 +17821,7 @@ describe('Market', () => {
           })
           expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
             ...DEFAULT_CHECKPOINT,
+            transfer: -COLLATERAL.sub(SETTLEMENT_FEE), // deisolated on position close
             collateral: COLLATERAL.sub(SETTLEMENT_FEE),
           })
           expectLocalEq(await market.locals(userB.address), {
@@ -18571,7 +18570,7 @@ describe('Market', () => {
             currentId: 2,
             latestId: 2,
           })
-          expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+          expect(await margin.crossMarginBalances(user.address)).to.equal(
             COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
           )
           expectPositionEq(await market.positions(user.address), {
@@ -18720,7 +18719,7 @@ describe('Market', () => {
             currentId: 2,
             latestId: 2,
           })
-          expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+          expect(await margin.crossMarginBalances(user.address)).to.equal(
             COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123).sub(EXPECTED_INTEREST_5_123),
           )
           expectPositionEq(await market.positions(user.address), {
@@ -25809,7 +25808,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
             })
-            expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+            expect(await margin.crossMarginBalances(user.address)).to.equal(
               COLLATERAL.sub(TAKER_FEE)
                 .sub(SETTLEMENT_FEE.div(2)) // open
                 .sub(EXPECTED_INTEREST_5_123)
@@ -26069,7 +26068,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
             })
-            expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+            expect(await margin.crossMarginBalances(user.address)).to.equal(
               COLLATERAL.sub(TAKER_FEE)
                 .sub(SETTLEMENT_FEE.div(2)) // open
                 .sub(EXPECTED_INTEREST_5_123)
@@ -26379,7 +26378,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
             })
-            expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(
+            expect(await margin.crossMarginBalances(userC.address)).to.equal(
               COLLATERAL.sub(TAKER_FEE)
                 .sub(SETTLEMENT_FEE.div(2)) // open
                 .sub(EXPECTED_INTEREST_5_123)
@@ -26640,7 +26639,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
             })
-            expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(
+            expect(await margin.crossMarginBalances(userC.address)).to.equal(
               COLLATERAL.sub(TAKER_FEE)
                 .sub(SETTLEMENT_FEE.div(2)) // open
                 .sub(EXPECTED_INTEREST_5_123)
@@ -26856,7 +26855,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
             })
-            expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+            expect(await margin.crossMarginBalances(user.address)).to.equal(
               COLLATERAL.sub(TAKER_FEE)
                 .sub(SETTLEMENT_FEE.div(3).add(1)) // open
                 .sub(EXPECTED_INTEREST_10_123_EFF.div(2)) // while open
@@ -26907,7 +26906,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
             })
-            expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(
+            expect(await margin.crossMarginBalances(userC.address)).to.equal(
               COLLATERAL.sub(SETTLEMENT_FEE.div(3).add(1))
                 .sub(TAKER_FEE) // open
                 .sub(EXPECTED_INTEREST_10_123_EFF.div(2)) // while open
@@ -27043,7 +27042,6 @@ describe('Market', () => {
 
             await settle(market, user)
 
-            const riskParameter = { ...(await market.riskParameter()) }
             await updateSynBook(market, DEFAULT_SYN_BOOK)
 
             verifier.verifyIntent.returns()
@@ -27123,7 +27121,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
             })
-            expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+            expect(await margin.crossMarginBalances(user.address)).to.equal(
               COLLATERAL.sub(TAKER_FEE)
                 .sub(SETTLEMENT_FEE.div(3).add(1)) // open
                 .sub(EXPECTED_INTEREST_10_123_EFF.div(2)) // while open
@@ -27174,7 +27172,7 @@ describe('Market', () => {
               currentId: 2,
               latestId: 2,
             })
-            expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(
+            expect(await margin.crossMarginBalances(userC.address)).to.equal(
               COLLATERAL.sub(SETTLEMENT_FEE.div(3).add(1))
                 .sub(TAKER_FEE) // open
                 .sub(EXPECTED_INTEREST_10_123_EFF.div(2)) // while open

@@ -19,7 +19,6 @@ import {
   IVaultFactory__factory,
   MakerVault__factory,
   VaultFactory__factory,
-  IMargin,
 } from '../../../types/generated'
 import { BigNumber, constants, utils } from 'ethers'
 import { deployProtocol, fundWallet, settle } from '@perennial/v2-core/test/integration/helpers/setupHelpers'
@@ -120,6 +119,7 @@ describe('MakerVault', () => {
   async function totalCollateralInVault() {
     return (await collateralInVault())
       .add(await btcCollateralInVault())
+      .add(await margin.crossMarginBalances(vault.address))
       .mul(1e12)
       .add(await asset.balanceOf(vault.address))
   }

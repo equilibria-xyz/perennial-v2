@@ -118,6 +118,7 @@ describe('SolverVault', () => {
   async function totalCollateralInVault() {
     return (await collateralInVault())
       .add(await btcCollateralInVault())
+      .add(await margin.crossMarginBalances(vault.address))
       .mul(1e12)
       .add(await asset.balanceOf(vault.address))
   }
@@ -742,7 +743,6 @@ describe('SolverVault', () => {
       )
 
       await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
-      return
 
       expect(await totalCollateralInVault()).to.equal(0)
       expect(await asset.balanceOf(user.address)).to.equal(
