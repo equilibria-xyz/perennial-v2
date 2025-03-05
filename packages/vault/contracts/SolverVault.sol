@@ -21,15 +21,15 @@ contract SolverVault is ISolverVault, Vault {
         return "Perennial Solver Vault";
     }
 
-    function _initialize() internal override {}
-
     function _strategy(
         Context memory context,
+        UFixed6 deposit,
         UFixed6 withdrawal,
         UFixed6 ineligible
     ) internal override view returns (Target[] memory targets) {
         return SolverStrategyLib.allocate(
             context.registrations,
+            deposit,
             withdrawal,
             ineligible,
             context.parameter.leverageBuffer

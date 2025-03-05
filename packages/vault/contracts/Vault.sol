@@ -84,14 +84,12 @@ abstract contract Vault is IVault, Instance {
         _register(initialMarket);
         _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO, UFixed6Lib.ZERO, leverageBuffer));
 
-        _initialize();
+        // Prevent auto-deisolation when vault closes it's position
+        margin.disableAutoDeisolate(address(this), true);
 
         // permits the vault factory to make the initial deposit to prevent inflation attacks
         allowed[msg.sender] = true;
     }
-
-    /// @dev Allows for strategy-specific initialization
-    function _initialize() internal virtual;
 
     /// @notice Returns the vault parameter set
     /// @return The vault parameter set
@@ -467,6 +465,7 @@ abstract contract Vault is IVault, Instance {
 
         Target[] memory targets = _strategy(
             context,
+            deposit,
             withdrawal,
             _ineligible(context, deposit, withdrawal)
         );
@@ -481,11 +480,13 @@ abstract contract Vault is IVault, Instance {
 
     /// @dev Determines how the vault allocates capital and manages positions
     /// @param context The context to use
+    /// @param deposit The amount of assets that are being deposited into the vault
     /// @param withdrawal The amount of assets that need to be withdrawn from the markets into the vault
     /// @param ineligible The amount of assets that are ineligible for allocation due to pending claims
     /// @return targets Target allocations for each market; must have single entry for each registered market
     function _strategy(
         Context memory context,
+        UFixed6 deposit,
         UFixed6 withdrawal,
         UFixed6 ineligible
     ) internal virtual view returns (Target[] memory targets);

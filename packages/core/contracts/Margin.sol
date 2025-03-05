@@ -45,6 +45,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// Cross-margin checkpoints stored as IMarket(address(0))
     mapping(address => mapping(IMarket => mapping(uint256 => CheckpointStorage))) private _checkpoints;
 
+    // TODO: Remove if no longer needed for isolated Vault support
     /// @notice Supresses default behavior of deisolating funds when a position is closed
     mapping(address => bool) public autoDeisolateDisabled;
 
