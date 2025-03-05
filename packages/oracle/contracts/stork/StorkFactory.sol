@@ -8,11 +8,19 @@ import { KeeperFactory } from "../keeper/KeeperFactory.sol";
 import { IStork } from "../interfaces/IStork.sol";
 import { IStorkFactory } from "../interfaces/IStorkFactory.sol";
 
+/// @title StorkFactory
+/// @notice Factory contract for creating and managing Stork oracles
 contract StorkFactory is IStorkFactory, KeeperFactory {
     string public constant factoryType = "StorkFactory";
 
+    /// @dev Stork contract
     IStork public immutable stork;
 
+    /// @notice Initializes the immutable contract state
+    /// @param stork_ Stork contract
+    /// @param commitmentGasOracle_ Commitment gas oracle contract
+    /// @param settlementGasOracle_ Settlement gas oracle contract
+    /// @param implementation_ IStorkOracle implementation contract
     constructor(
         IStork stork_,
         IGasOracle commitmentGasOracle_,
@@ -23,7 +31,7 @@ contract StorkFactory is IStorkFactory, KeeperFactory {
     }
 
     /// @notice Validates and parses the update data payload against the specified version
-    /// @param ids The list of price feed ids validate against
+    /// @param ids The list of price feed ids to validate against
     /// @param data The update data to validate
     /// @return prices The parsed price list if valid
     function _parsePrices(
@@ -57,4 +65,3 @@ contract StorkFactory is IStorkFactory, KeeperFactory {
         }
     }
 }
-
