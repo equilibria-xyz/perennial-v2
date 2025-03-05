@@ -167,23 +167,4 @@ describe('StorkOracleFactory', () => {
       )
     expect((await keeperOracle.callStatic.latest()).price).to.equal(ethers.utils.parseUnits('2', 6))
   })
-
-  describe('#updateId', async () => {
-    it('updates max claim', async () => {
-      expect(await storkOracleFactory.ids(keeperOracle.address)).to.equal(STORK_ETH_USD_PRICE_FEED)
-      await storkOracleFactory.updateId(
-        keeperOracle.address,
-        '0x0000000000000000000000000000000000000000000000000000000000000000',
-      )
-      expect(await storkOracleFactory.ids(keeperOracle.address)).to.equal(
-        '0x0000000000000000000000000000000000000000000000000000000000000000',
-      )
-    })
-
-    it('reverts if not owner', async () => {
-      await expect(
-        storkOracleFactory.connect(user).updateId(keeperOracle.address, STORK_ETH_USD_PRICE_FEED),
-      ).to.be.revertedWithCustomError(storkOracleFactory, 'OwnableNotOwnerError')
-    })
-  })
 })
