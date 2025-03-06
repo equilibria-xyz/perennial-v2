@@ -30,15 +30,6 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
 const MAX_FEE = utils.parseEther('0.88')
 
-const NO_INTERFACE_FEE = {
-  interfaceFee: {
-    amount: constants.Zero,
-    receiver: constants.AddressZero,
-    fixedFee: false,
-    unwrap: false,
-  },
-}
-
 // because we called hardhat_setNextBlockBaseFeePerGas, need this when running tests under coverage
 const TX_OVERRIDES = { maxPriorityFeePerGas: 0, maxFeePerGas: 150_000_000 }
 
@@ -77,7 +68,6 @@ export function RunManagerTests(
     }
 
     async function checkCompensation(priceCommitments = 0) {
-      await expect(manager.connect(keeper).claim(keeper.address, false, TX_OVERRIDES))
       const keeperFeesPaid = (await dsu.balanceOf(keeper.address)).sub(keeperBalanceBefore)
       let keeperEthSpentOnGas = keeperEthBalanceBefore.sub(await keeper.getBalance())
 
@@ -146,11 +136,7 @@ export function RunManagerTests(
     }
 
     // executes an order as keeper
-    async function executeOrder(
-      user: SignerWithAddress,
-      orderId: BigNumberish,
-      expectedInterfaceFee: BigNumber | undefined = undefined,
-    ): Promise<BigNumber> {
+    async function executeOrder(user: SignerWithAddress, orderId: BigNumberish): Promise<BigNumber> {
       // ensure order is executable
       const [order, canExecute] = await manager.checkOrder(market.address, user.address, orderId)
       expect(canExecute).to.be.true
@@ -164,26 +150,7 @@ export function RunManagerTests(
         .withArgs(market.address, user.address, spentOrder, orderId)
         .to.emit(market, 'OrderCreated')
         .withArgs(user.address, anyValue, anyValue, constants.AddressZero, order.referrer, constants.AddressZero)
-      if (order.interfaceFee.amount.gt(0)) {
-        if (!expectedInterfaceFee && order.interfaceFee.fixedFee) {
-          expectedInterfaceFee = order.interfaceFee.amount
-        }
-        if (expectedInterfaceFee) {
-          await expect(tx)
-            .to.emit(manager, 'TriggerOrderInterfaceFeeCharged')
-            .withArgs(user.address, market.address, order.interfaceFee)
-          const collateralAccountAddress = await controller.getAccountAddress(user.address)
-          if (order.interfaceFee.unwrap) {
-            await expect(tx)
-              .to.emit(dsu, 'Transfer')
-              .withArgs(margin.address, manager.address, expectedInterfaceFee.mul(1e12))
-          } else {
-            await expect(tx)
-              .to.emit(dsu, 'Transfer')
-              .withArgs(margin.address, manager.address, expectedInterfaceFee.mul(1e12))
-          }
-        }
-      }
+
       const timestamp = await getTimestamp(tx)
       // ensure trigger order was marked as spent
       const deletedOrder = await manager.orders(market.address, user.address, orderId)
@@ -232,7 +199,6 @@ export function RunManagerTests(
       maxFee = MAX_FEE,
       referrer = constants.AddressZero,
       additiveFee = BigNumber.from(0),
-      interfaceFee = NO_INTERFACE_FEE,
     ): Promise<BigNumber> {
       const order = {
         side: side,
@@ -243,7 +209,6 @@ export function RunManagerTests(
         isSpent: false,
         referrer: referrer,
         additiveFee: additiveFee,
-        ...interfaceFee,
       }
       advanceOrderId(user)
       const orderId = nextOrderId[user.address]
@@ -265,7 +230,6 @@ export function RunManagerTests(
       maxFee = MAX_FEE,
       referrer = constants.AddressZero,
       additiveFee = BigNumber.from(0),
-      interfaceFee = NO_INTERFACE_FEE,
     ): Promise<BigNumber> {
       advanceOrderId(user)
       const message: PlaceOrderActionStruct = {
@@ -278,7 +242,6 @@ export function RunManagerTests(
           isSpent: false,
           referrer: referrer,
           additiveFee: additiveFee,
-          ...interfaceFee,
         },
         ...createActionMessage(user.address),
       }
@@ -561,133 +524,10 @@ export function RunManagerTests(
         await checkCompensation(0)
       })
 
-      it('charges flat interface fee upon execution', async () => {
-        const positionBefore = await getPendingPosition(userA, Side.MAKER)
-        const interfaceBalanceBefore = await dsu.balanceOf(userC.address)
-
-        // user A reduces their maker position through a GUI which charges an interface fee
-        const feeAmount = parse6decimal('3.5')
-        const interfaceFee = {
-          interfaceFee: {
-            amount: feeAmount,
-            receiver: userC.address,
-            fixedFee: true,
-            unwrap: false,
-          },
-        }
-        const positionDelta = parse6decimal('-5')
-        const orderId = await placeOrder(
-          userA,
-          Side.MAKER,
-          Compare.LTE,
-          parse6decimal('2828.28'),
-          positionDelta,
-          MAX_FEE,
-          constants.AddressZero,
-          BigNumber.from(0),
-          interfaceFee,
-        )
-        expect(orderId).to.equal(BigNumber.from(508))
-
-        // keeper executes the order and user settles themselves
-        await executeOrder(userA, orderId)
-        expect(await getPendingPosition(userA, Side.MAKER)).to.equal(positionBefore.add(positionDelta))
-        await commitPrice()
-        await market.connect(userA).settle(userA.address, TX_OVERRIDES)
-
-        // validate positions
-        expect(await getPendingPosition(userA, Side.MAKER)).to.equal(parse6decimal('85'))
-        expect(await getPendingPosition(userB, Side.LONG)).to.equal(parse6decimal('2.5'))
-
-        // ensure fees were paid
-        await manager.connect(userC).claim(userC.address, false, TX_OVERRIDES)
-        expect(await dsu.balanceOf(userC.address)).to.equal(interfaceBalanceBefore.add(feeAmount.mul(1e12)))
-        await checkCompensation(1)
-      })
-
-      it('unwraps flat interface fee upon execution', async () => {
-        // user B increases their long position through a GUI which charges an interface fee
-        const feeAmount = parse6decimal('2.75')
-        const interfaceFee = {
-          interfaceFee: {
-            amount: feeAmount,
-            receiver: userC.address,
-            fixedFee: true,
-            unwrap: true,
-          },
-        }
-        const positionDelta = parse6decimal('1.5')
-        const orderId = await placeOrder(
-          userB,
-          Side.LONG,
-          Compare.GTE,
-          parse6decimal('1900'),
-          positionDelta,
-          MAX_FEE,
-          constants.AddressZero,
-          BigNumber.from(0),
-          interfaceFee,
-        )
-        expect(orderId).to.equal(BigNumber.from(502))
-
-        // keeper executes the order and interface settles
-        await executeOrder(userB, orderId)
-        expect(await getPendingPosition(userA, Side.MAKER)).to.equal(parse6decimal('85'))
-        expect(await getPendingPosition(userB, Side.LONG)).to.equal(parse6decimal('4')) // 2.5 + 1.5
-        await commitPrice()
-        await market.connect(userC).settle(userB.address, TX_OVERRIDES)
-
-        // ensure fees were paid
-        await manager.connect(userC).claim(userC.address, true, TX_OVERRIDES)
-        expect(await usdc.balanceOf(userC.address)).to.equal(feeAmount)
-        await checkCompensation(1)
-      })
-
-      it('unwraps notional interface fee upon execution', async () => {
-        const interfaceBalanceBefore = await usdc.balanceOf(userC.address)
-
-        // userB increases their long position through a GUI which charges a notional interface fee
-        const interfaceFee = {
-          interfaceFee: {
-            amount: parse6decimal('0.0055'),
-            receiver: userC.address,
-            fixedFee: false,
-            unwrap: true,
-          },
-        }
-        const orderId = await placeOrder(
-          userB,
-          Side.LONG,
-          Compare.GTE,
-          parse6decimal('0.01'),
-          parse6decimal('3'),
-          MAX_FEE,
-          constants.AddressZero,
-          BigNumber.from(0),
-          interfaceFee,
-        )
-        expect(orderId).to.equal(BigNumber.from(503))
-
-        // keeper executes the order and user settles
-        expect((await oracle.latest()).price).to.equal(parse6decimal('2801'))
-        // delta * price * fee amount = 3 * 2801 * 0.0055
-        const expectedInterfaceFee = parse6decimal('46.2165')
-        await executeOrder(userB, orderId, expectedInterfaceFee)
-        expect(await getPendingPosition(userA, Side.MAKER)).to.equal(parse6decimal('85'))
-        expect(await getPendingPosition(userB, Side.LONG)).to.equal(parse6decimal('7')) // 4 + 3
-        await commitPrice()
-        await market.connect(userB).settle(userB.address, TX_OVERRIDES)
-
-        // ensure fees were paid
-        await manager.connect(userC).claim(userC.address, true, TX_OVERRIDES)
-        expect(await usdc.balanceOf(userC.address)).to.equal(interfaceBalanceBefore.add(expectedInterfaceFee))
-        await checkCompensation(1)
-      })
-
       it('users can close positions', async () => {
         // can close directly
         let orderId = await placeOrder(userA, Side.MAKER, Compare.GTE, constants.Zero, MAGIC_VALUE_CLOSE_POSITION)
-        expect(orderId).to.equal(BigNumber.from(509))
+        expect(orderId).to.equal(BigNumber.from(508))
 
         // can close using a signed message
         orderId = await placeOrderWithSignature(
@@ -697,12 +537,12 @@ export function RunManagerTests(
           parse6decimal('4000'),
           MAGIC_VALUE_CLOSE_POSITION,
         )
-        expect(orderId).to.equal(BigNumber.from(504))
+        expect(orderId).to.equal(BigNumber.from(502))
 
         // keeper closes the taker position before removing liquidity
-        await executeOrder(userB, 504)
+        await executeOrder(userB, 502)
         await commitPrice()
-        await executeOrder(userA, 509)
+        await executeOrder(userA, 508)
         await commitPrice()
 
         // settle and confirm positions are closed
@@ -870,7 +710,6 @@ export function RunManagerTests(
           MAX_FEE,
           constants.AddressZero,
           BigNumber.from(0),
-          NO_INTERFACE_FEE,
         )
         expect(orderId).to.equal(BigNumber.from(602))
         const longOrderTimestamp = await executeOrder(userD, orderId)
@@ -902,7 +741,6 @@ export function RunManagerTests(
           MAX_FEE,
           constants.AddressZero,
           BigNumber.from(0),
-          NO_INTERFACE_FEE,
         )
         expect(orderId).to.equal(BigNumber.from(604))
         const reduceOrderTimestamp = await executeOrder(userD, orderId)
@@ -921,111 +759,6 @@ export function RunManagerTests(
 
         // keeper commits another price, settles the close order
         await commitPrice(parse6decimal('2000.32'), closeOrderTimestamp)
-        await market.settle(userD.address, TX_OVERRIDES)
-        expect((await market.positions(userD.address)).long).to.equal(parse6decimal('0'))
-      })
-
-      // FIXME: This test is failing in checkCompensation
-      it('charges notional interface fee on whole position when closing', async () => {
-        const interfaceBalanceBefore = await dsu.balanceOf(userB.address)
-
-        // userD starts with a long 3 position
-        await updatePosition(userD, BigNumber.from(0), parse6decimal('3'), BigNumber.from(0))
-        await commitPrice(parse6decimal('2000.4'))
-        await market.settle(userD.address, TX_OVERRIDES)
-        expect((await market.positions(userD.address)).long).to.equal(parse6decimal('3'))
-        expect(await getPendingPosition(userD, Side.LONG)).to.equal(parse6decimal('3'))
-
-        // userD closes their long position
-        const interfaceFee = {
-          interfaceFee: {
-            amount: parse6decimal('0.00654'),
-            receiver: userB.address,
-            fixedFee: false,
-            unwrap: false,
-          },
-        }
-        const orderId = await placeOrder(
-          userD,
-          Side.LONG,
-          Compare.LTE,
-          parse6decimal('9999'),
-          MAGIC_VALUE_CLOSE_POSITION,
-          MAX_FEE,
-          constants.AddressZero,
-          BigNumber.from(0),
-          interfaceFee,
-        )
-        expect(orderId).to.equal(BigNumber.from(606))
-
-        const expectedInterfaceFee = parse6decimal('39.247848') // position * price * fee
-        const closeOrderTimestamp = await executeOrder(userD, orderId, expectedInterfaceFee)
-        expect(await getPendingPosition(userD, Side.LONG)).to.equal(constants.Zero)
-
-        // ensure fees were paid
-        await manager.connect(userB).claim(userB.address, false, TX_OVERRIDES)
-        expect(await dsu.balanceOf(userB.address)).to.equal(interfaceBalanceBefore.add(expectedInterfaceFee.mul(1e12)))
-
-        // settle before next test
-        await commitPrice(parse6decimal('2000.4'), closeOrderTimestamp)
-        await market.settle(userD.address, TX_OVERRIDES)
-        expect((await market.positions(userD.address)).long).to.equal(parse6decimal('0'))
-      })
-
-      it('charges notional interface fee when closing with a pending negative position', async () => {
-        const interfaceBalanceBefore = await dsu.balanceOf(userB.address)
-
-        // userD starts with a short 2 position
-        await updatePosition(userD, BigNumber.from(0), BigNumber.from(0), parse6decimal('2'))
-        await commitPrice(parse6decimal('2000.5'))
-        await market.settle(userD.address, TX_OVERRIDES)
-        expect((await market.positions(userD.address)).short).to.equal(parse6decimal('2'))
-
-        // userD reduces their position by 0.35 but does not settle
-        const negOrderTimestamp = await updatePosition(
-          userD,
-          BigNumber.from(0),
-          BigNumber.from(0),
-          parse6decimal('0.35').mul(-1),
-        )
-        expect(await getPendingPosition(userD, Side.SHORT)).to.equal(parse6decimal('1.65'))
-
-        // userD closes their short position
-        const interfaceFee = {
-          interfaceFee: {
-            amount: parse6decimal('0.0051'),
-            receiver: userB.address,
-            fixedFee: false,
-            unwrap: false,
-          },
-        }
-        const orderId = await placeOrder(
-          userD,
-          Side.SHORT,
-          Compare.LTE,
-          parse6decimal('9999'),
-          MAGIC_VALUE_CLOSE_POSITION,
-          MAX_FEE,
-          constants.AddressZero,
-          BigNumber.from(0),
-          interfaceFee,
-        )
-        expect(orderId).to.equal(BigNumber.from(607))
-
-        // position * price * fee = 1.65 * 2000.5 * 0.0051
-        const expectedInterfaceFee = parse6decimal('16.8342075')
-        await setNextBlockBaseFee()
-        const closeOrderTimestamp = await executeOrder(userD, orderId, expectedInterfaceFee)
-        expect(await getPendingPosition(userD, Side.SHORT)).to.equal(constants.Zero)
-
-        // ensure fees were paid
-        await manager.connect(userB).claim(userB.address, false, TX_OVERRIDES)
-        expect(await dsu.balanceOf(userB.address)).to.equal(interfaceBalanceBefore.add(expectedInterfaceFee.mul(1e12)))
-
-        // settle before next test
-        await commitPrice(parse6decimal('2000.4'), negOrderTimestamp)
-        await commitPrice(parse6decimal('2000.4'), closeOrderTimestamp)
-        await setNextBlockBaseFee()
         await market.settle(userD.address, TX_OVERRIDES)
         expect((await market.positions(userD.address)).long).to.equal(parse6decimal('0'))
       })

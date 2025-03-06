@@ -69,12 +69,6 @@ describe('Verifier', () => {
         maxFee: parse6decimal('0.67'),
         referrer: userB.address,
         additiveFee: parse6decimal('0.001'),
-        interfaceFee: {
-          amount: parse6decimal('0.0053'),
-          receiver: userC.address,
-          fixedFee: false,
-          unwrap: true,
-        },
       },
       ...createActionMessage(userAddress, signerAddress, expiresInSeconds),
     }

@@ -25,12 +25,6 @@ export const DEFAULT_TRIGGER_ORDER = {
   isSpent: false,
   referrer: constants.AddressZero,
   additiveFee: 0,
-  interfaceFee: {
-    amount: constants.Zero,
-    receiver: constants.AddressZero,
-    fixedFee: true,
-    unwrap: false,
-  },
 }
 
 export const MAGIC_VALUE_CLOSE_POSITION = BigNumber.from(2).pow(63).mul(-1)
@@ -44,10 +38,6 @@ export function compareOrders(actual: TriggerOrderStruct, expected: TriggerOrder
   expect(actual.isSpent).to.equal(expected.isSpent)
   expect(actual.referrer).to.equal(expected.referrer)
   expect(actual.additiveFee).to.equal(expected.additiveFee)
-  expect(actual.interfaceFee.amount).to.equal(expected.interfaceFee.amount)
-  expect(actual.interfaceFee.receiver).to.equal(expected.interfaceFee.receiver)
-  expect(actual.interfaceFee.fixedFee).to.equal(expected.interfaceFee.fixedFee)
-  expect(actual.interfaceFee.unwrap).to.equal(expected.interfaceFee.unwrap)
 }
 
 export function orderFromStructOutput(structOutput: TriggerOrderStructOutput): TriggerOrderStruct {
@@ -60,11 +50,5 @@ export function orderFromStructOutput(structOutput: TriggerOrderStructOutput): T
     isSpent: structOutput.isSpent,
     referrer: structOutput.referrer,
     additiveFee: structOutput.additiveFee,
-    interfaceFee: {
-      amount: structOutput.interfaceFee.amount,
-      receiver: structOutput.interfaceFee.receiver,
-      fixedFee: structOutput.interfaceFee.fixedFee,
-      unwrap: structOutput.interfaceFee.unwrap,
-    },
   }
 }

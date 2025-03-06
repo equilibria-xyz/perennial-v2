@@ -182,12 +182,6 @@ describe('TriggerOrder', () => {
       const order = {
         ...ORDER_MAKER,
         delta: MAGIC_VALUE_CLOSE_POSITION,
-        interfaceFee: {
-          amount: parse6decimal('0.0111'),
-          receiver: recipient.address,
-          fixedFee: false,
-          unwrap: true,
-        },
       }
       const expectedNotional = parse6decimal('24400') // price * position
 
@@ -200,12 +194,6 @@ describe('TriggerOrder', () => {
       const order = {
         ...ORDER_MAKER,
         delta: MAGIC_VALUE_CLOSE_POSITION,
-        interfaceFee: {
-          amount: parse6decimal('0.0111'),
-          receiver: recipient.address,
-          fixedFee: false,
-          unwrap: true,
-        },
       }
       const expectedNotional = parse6decimal('25000') // price * position
       expect(await orderTester.notionalValue(order, market.address, user.address)).to.equal(expectedNotional)
@@ -217,12 +205,6 @@ describe('TriggerOrder', () => {
       const order = {
         ...ORDER_MAKER,
         delta: MAGIC_VALUE_CLOSE_POSITION,
-        interfaceFee: {
-          amount: parse6decimal('0.0111'),
-          receiver: recipient.address,
-          fixedFee: false,
-          unwrap: true,
-        },
       }
       const expectedNotional = parse6decimal('24000') // price * position
       expect(await orderTester.notionalValue(order, market.address, user.address)).to.equal(expectedNotional)
@@ -235,12 +217,6 @@ describe('TriggerOrder', () => {
         ...DEFAULT_TRIGGER_ORDER,
         side: 3,
         delta: MAGIC_VALUE_CLOSE_POSITION,
-        interfaceFee: {
-          amount: parse6decimal('0.004747'),
-          receiver: recipient.address,
-          fixedFee: false,
-          unwrap: false,
-        },
       }
       await expect(orderTester.notionalValue(order, market.address, user.address)).to.be.revertedWithCustomError(
         orderTester,
@@ -250,47 +226,11 @@ describe('TriggerOrder', () => {
   })
 
   describe('#storage', () => {
-    it('stores and loads an order without fees', async () => {
+    it('stores and loads an order with no fees', async () => {
       await expect(orderTester.connect(owner).store(ORDER_LONG)).to.not.be.reverted
 
       const readOrder = await orderTester.read()
       compareOrders(readOrder, ORDER_LONG)
-    })
-
-    it('stores and loads an order with flat fee', async () => {
-      const [userA, userB] = await ethers.getSigners()
-      const writeOrder = {
-        ...ORDER_LONG,
-        referrer: userA.address,
-        interfaceFee: {
-          amount: parse6decimal('0.44'),
-          receiver: userB.address,
-          fixedFee: true,
-          unwrap: false,
-        },
-      }
-      await expect(orderTester.connect(owner).store(writeOrder)).to.not.be.reverted
-
-      const readOrder = await orderTester.read()
-      compareOrders(readOrder, writeOrder)
-    })
-
-    it('stores and loads an order with unwrap', async () => {
-      const [userA, userB] = await ethers.getSigners()
-      const writeOrder = {
-        ...ORDER_LONG,
-        referrer: userB.address,
-        interfaceFee: {
-          amount: parse6decimal('0.005555'),
-          receiver: userA.address,
-          fixedFee: false,
-          unwrap: true,
-        },
-      }
-      await expect(orderTester.connect(owner).store(writeOrder)).to.not.be.reverted
-
-      const readOrder = await orderTester.read()
-      compareOrders(readOrder, writeOrder)
     })
 
     it('reverts storing order with invalid side', async () => {
@@ -354,18 +294,6 @@ describe('TriggerOrder', () => {
     it('reverts storing order with additive fee overflow', async () => {
       const badOrder = { ...ORDER_SHORT }
       badOrder.additiveFee = BigNumber.from(2).pow(64)
-      await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
-        orderTester,
-        'TriggerOrderStorageInvalidError',
-      )
-    })
-
-    it('reverts storing order with interface fee overflow', async () => {
-      const [userA] = await ethers.getSigners()
-      const badOrder = { ...ORDER_SHORT }
-      badOrder.interfaceFee.amount = BigNumber.from(2).pow(64)
-      badOrder.interfaceFee.receiver = userA.address
-      badOrder.interfaceFee.unwrap = false
       await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
         orderTester,
         'TriggerOrderStorageInvalidError',
