@@ -483,8 +483,10 @@ jobs:
       [
         oracle-integration-test,
         oracle-integrationSepolia-test,
+        oracle-integrationPerennial-test,
         vault-integration-test,
         periphery-integration-test,
+        periphery-integrationL2-test
       ]
     steps:
       - uses: actions/setup-node@v3
