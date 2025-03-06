@@ -9,7 +9,7 @@ task('approveMultiInvokerTargets', 'Approves MultiInvoker targets for markets an
 
     // Get contract instances
     const multiInvoker = await ethers.getContractAt('MultiInvoker', (await get('MultiInvoker')).address)
-    const DSU = await ethers.getContractAt('DSU', (await get('DSU')).address)
+    const DSU = await ethers.getContractAt('IERC20', (await get('DSU')).address)
     const marketFactory = await ethers.getContractAt('MarketFactory', (await get('MarketFactory')).address)
     const vaultFactory = await ethers.getContractAt('IVaultFactory', (await get('MakerVaultFactory')).address)
     const solverVaultFactory = await ethers.getContractAt('IVaultFactory', (await get('SolverVaultFactory')).address)
