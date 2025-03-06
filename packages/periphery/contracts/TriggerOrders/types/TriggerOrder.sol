@@ -24,8 +24,6 @@ struct TriggerOrder {
     address referrer;
     /// @dev Passed to market for awarding additive fee to referrer
     UFixed6 additiveFee;
-    /// @dev Additive fee optionally awarded to GUIs upon execution
-    InterfaceFee interfaceFee;
 }
 using TriggerOrderLib for TriggerOrder global;
 
@@ -136,14 +134,8 @@ struct StoredTriggerOrder {
     bytes5 __unallocated0__;      // padding for 32-byte alignment
     /* slot 1 */
     address referrer;
-    uint64 additiveFee;           // < 18.45t
-    bytes4 __unallocated1__;     // padding for 32-byte alignment
-    /* slot 2 */
-    address interfaceFeeReceiver;
-    uint64 interfaceFeeAmount;    // < 18.45t
-    bool interfaceFeeFlat;
-    bool interfaceFeeUnwrap;
-    // 2 bytes left over (no need to pad trailing bytes)
+    uint24 additiveFee;           // <= 1677%
+    bytes9 __unallocated1__;     // 9 bytes left over (no need to pad trailing bytes)
 }
 struct TriggerOrderStorage { StoredTriggerOrder value; }
 using TriggerOrderStorageLib for TriggerOrderStorage global;
@@ -154,8 +146,7 @@ using TriggerOrderStorageLib for TriggerOrderStorage global;
 library TriggerOrderStorageLib {
     /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
-        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 maxFee,bool isSpent,address referrer,uint64 additiveFee,InterfaceFee interfaceFee)"
-        "InterfaceFee(uint64 amount,address receiver,bool fixedFee,bool unwrap)"
+        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 maxFee,bool isSpent,address referrer,uint24 additiveFee)"
     );
 
     // sig: 0xf3469aa7
@@ -173,13 +164,7 @@ library TriggerOrderStorageLib {
             UFixed6.wrap(uint256(storedValue.maxFee)),
             storedValue.isSpent,
             storedValue.referrer,
-            UFixed6.wrap(uint256(storedValue.additiveFee)),
-            InterfaceFee(
-                UFixed6.wrap(uint256(storedValue.interfaceFeeAmount)),
-                storedValue.interfaceFeeReceiver,
-                storedValue.interfaceFeeFlat,
-                storedValue.interfaceFeeUnwrap
-            )
+            UFixed6.wrap(uint256(storedValue.additiveFee))
         );
     }
 
@@ -191,8 +176,7 @@ library TriggerOrderStorageLib {
         if (newValue.delta.gt(Fixed6.wrap(type(int64).max))) revert TriggerOrderStorageInvalidError();
         if (newValue.delta.lt(Fixed6.wrap(type(int64).min))) revert TriggerOrderStorageInvalidError();
         if (newValue.maxFee.gt(UFixed6.wrap(type(uint64).max))) revert TriggerOrderStorageInvalidError();
-        if (newValue.additiveFee.gt(UFixed6.wrap(type(uint64).max))) revert TriggerOrderStorageInvalidError();
-        if (newValue.interfaceFee.amount.gt(UFixed6.wrap(type(uint64).max))) revert TriggerOrderStorageInvalidError();
+        if (newValue.additiveFee.gt(UFixed6.wrap(type(uint24).max))) revert TriggerOrderStorageInvalidError();
 
         self.value = StoredTriggerOrder(
             uint8(newValue.side),
@@ -203,12 +187,8 @@ library TriggerOrderStorageLib {
             newValue.isSpent,
             0,
             newValue.referrer,
-            uint64(UFixed6.unwrap(newValue.additiveFee)),
-            0,
-            newValue.interfaceFee.receiver,
-            uint64(UFixed6.unwrap(newValue.interfaceFee.amount)),
-            newValue.interfaceFee.fixedFee,
-            newValue.interfaceFee.unwrap
+            uint24(UFixed6.unwrap(newValue.additiveFee)),
+            0
         );
     }
 
@@ -223,8 +203,7 @@ library TriggerOrderStorageLib {
             self.maxFee,
             self.isSpent,
             self.referrer,
-            self.additiveFee,
-            InterfaceFeeLib.hash(self.interfaceFee)
+            self.additiveFee
         ));
     }
 }

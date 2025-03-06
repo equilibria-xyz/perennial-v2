@@ -131,6 +131,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param signature The signature of the intent that is being filled
     function update(address account, Intent calldata intent, bytes memory signature) external nonReentrant whenNotPaused {
         if (intent.fee.gt(UFixed6Lib.ONE)) revert MarketInvalidIntentFeeError();
+        if (intent.additiveFee.gt(IMarketFactory(address(factory())).parameter().maxFee)) revert MarketInvalidAdditiveFeeError();
 
         verifier.verifyIntent(intent, signature);
 
@@ -170,6 +171,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         bytes memory solverSignature
     ) external nonReentrant whenNotPaused {
         if (fill.intent.fee.gt(UFixed6Lib.ONE)) revert MarketInvalidIntentFeeError();
+        if (fill.intent.additiveFee.gt(IMarketFactory(address(factory())).parameter().maxFee)) revert MarketInvalidAdditiveFeeError();
 
         verifier.verifyIntent(fill.intent, traderSignature);
         verifier.verifyFill(fill, solverSignature);
@@ -255,6 +257,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address referrer,
         UFixed6 additiveFee
     ) external nonReentrant whenNotPaused {
+        if (additiveFee.gt(IMarketFactory(address(factory())).parameter().maxFee)) revert MarketInvalidAdditiveFeeError();
         _updateMarket(account, address(0), makerAmount, takerAmount, collateral, referrer, additiveFee);
     }
 

@@ -119,6 +119,8 @@ interface IMarket is IInstance {
     error MarketInvalidIntentFeeError();
     // sig: 0xaf5dfc8f
     error MarketIntentPriceDeviationError();
+    // sig: 0x350aa830
+    error MarketInvalidAdditiveFeeError();
 
     // sig: 0x2142bc27
     error GlobalStorageInvalidError();
