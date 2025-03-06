@@ -4,7 +4,6 @@ import { expect } from 'chai'
 import HRE from 'hardhat'
 
 import {
-  AggregatorV3Interface,
   IERC20Metadata,
   IMarket,
   Oracle,
@@ -20,14 +19,14 @@ import {
   IStork,
 } from '../../../types/generated'
 import { FakeContract, smock } from '@defi-wonderland/smock'
-import { utils, BigNumber, BigNumberish } from 'ethers'
+import { utils, BigNumberish } from 'ethers'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 
 const { ethers } = HRE
 
 const STORK_ETH_USD_PRICE_FEED = '0x59102b37de83bdda9f38ac8254e596f0d9ac61d2035c07936675e87342817160'
 
-const getVaa = (timestampNs: BigNumberish, quantizedValue: BigNumberish) => {
+const getUpdatePriceData = (timestampNs: BigNumberish, quantizedValue: BigNumberish) => {
   const temporalNumericValue = {
     timestampNs: timestampNs,
     quantizedValue: quantizedValue,
@@ -147,7 +146,10 @@ describe('StorkOracleFactory', () => {
       .commit(
         [STORK_ETH_USD_PRICE_FEED],
         await keeperOracle.callStatic.next(),
-        getVaa((await keeperOracle.callStatic.next()).add(minDelay).mul(1e9), ethers.utils.parseUnits('1', 18)),
+        getUpdatePriceData(
+          (await keeperOracle.callStatic.next()).add(minDelay).mul(1e9),
+          ethers.utils.parseUnits('1', 18),
+        ),
         {
           value: 1,
         },
@@ -160,7 +162,10 @@ describe('StorkOracleFactory', () => {
       .commit(
         [STORK_ETH_USD_PRICE_FEED],
         await keeperOracle.callStatic.next(),
-        getVaa((await keeperOracle.callStatic.next()).add(minDelay).mul(1e9), ethers.utils.parseUnits('2', 18)),
+        getUpdatePriceData(
+          (await keeperOracle.callStatic.next()).add(minDelay).mul(1e9),
+          ethers.utils.parseUnits('2', 18),
+        ),
         {
           value: 1,
         },

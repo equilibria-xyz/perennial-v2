@@ -53,7 +53,7 @@ const DSU_ADDRESS = '0x7b4Adf64B0d60fF97D672E473420203D52562A84'
 const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
 const DSU_MINTER = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
 
-const getMultipleVaa = (
+const getMultipleUpdatePriceData = (
   temporalInputs: {
     timestampNs: BigNumberish
     quantizedValue: BigNumberish
@@ -93,8 +93,8 @@ const getMultipleVaa = (
   return encodedData
 }
 
-// This VAA has timestamp 1739221984
-const VAA = getMultipleVaa([
+// This update price data has timestamp 1739221984
+const UPDATE_DATA = getMultipleUpdatePriceData([
   {
     timestampNs: BigNumber.from('1739221742898136978'),
     quantizedValue: BigNumber.from('2678332376156249500000'),
@@ -107,8 +107,8 @@ const VAA = getMultipleVaa([
   },
 ])
 
-// This VAA has timestamp 1739222194
-const otherVAA = getMultipleVaa([
+// This update price data has timestamp 1739222194
+const OTHER_UPDATE_DATA = getMultipleUpdatePriceData([
   {
     timestampNs: BigNumber.from('1739222192882752485'),
     quantizedValue: BigNumber.from('2674940471500000000000'),
@@ -121,7 +121,7 @@ const otherVAA = getMultipleVaa([
   },
 ])
 
-const MULTIPLE_VAA = getMultipleVaa([
+const MULTIPLE_UPDATE_DATA = getMultipleUpdatePriceData([
   {
     timestampNs: BigNumber.from('1741107056905895000'),
     quantizedValue: BigNumber.from('2057801527024999500000'),
@@ -411,7 +411,7 @@ testOracles.forEach(testOracle => {
           async () =>
             await storkOracleFactory
               .connect(user)
-              .commit([STORK_ETH_USD_PRICE_FEED], BATCHED_TIMESTAMP - MIN_DELAY, VAA),
+              .commit([STORK_ETH_USD_PRICE_FEED], BATCHED_TIMESTAMP - MIN_DELAY, UPDATE_DATA),
           BATCHED_TIMESTAMP + 60,
         )
 
@@ -423,7 +423,9 @@ testOracles.forEach(testOracle => {
         await time.increaseTo(BATCHED_TIMESTAMP + 60)
 
         await expect(
-          storkOracleFactory.connect(user).commit([STORK_ETH_USD_PRICE_FEED], BATCHED_TIMESTAMP - MIN_DELAY, VAA),
+          storkOracleFactory
+            .connect(user)
+            .commit([STORK_ETH_USD_PRICE_FEED], BATCHED_TIMESTAMP - MIN_DELAY, UPDATE_DATA),
         ).to.be.revertedWithCustomError(
           { interface: new ethers.utils.Interface(['error KeeperFactoryVersionOutsideRangeError()']) },
           'KeeperFactoryVersionOutsideRangeError',
@@ -439,7 +441,7 @@ testOracles.forEach(testOracle => {
             .commit(
               [STORK_ETH_USD_PRICE_FEED, '0x0000000000000000000000000000000000000000000000000000000000000000'],
               BATCHED_TIMESTAMP - MIN_DELAY,
-              VAA,
+              UPDATE_DATA,
             ),
         ).to.be.revertedWithCustomError(
           { interface: new ethers.utils.Interface(['error KeeperFactoryNotCreatedError()']) },
@@ -453,7 +455,7 @@ testOracles.forEach(testOracle => {
         await expect(
           storkOracleFactory
             .connect(user)
-            .commit([STORK_ETH_USD_PRICE_FEED, STORK_ETH_USD_PRICE_FEED], BATCHED_TIMESTAMP - MIN_DELAY, VAA),
+            .commit([STORK_ETH_USD_PRICE_FEED, STORK_ETH_USD_PRICE_FEED], BATCHED_TIMESTAMP - MIN_DELAY, UPDATE_DATA),
         ).to.be.revertedWithCustomError(storkOracleFactory, 'KeeperFactoryVersionOutsideRangeError')
       })
     })
@@ -466,7 +468,7 @@ testOracles.forEach(testOracle => {
 
         await time.includeAt(async () => {
           await storkOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
-          await storkOracleFactory.commit([STORK_ETH_USD_PRICE_FEED], BATCHED_TIMESTAMP - 4, VAA)
+          await storkOracleFactory.commit([STORK_ETH_USD_PRICE_FEED], BATCHED_TIMESTAMP - 4, UPDATE_DATA)
         }, BATCHED_TIMESTAMP)
       })
 
@@ -577,9 +579,11 @@ testOracles.forEach(testOracle => {
           expect(await keeperOracle.requests(1)).to.be.equal(OTHER_BATCHED_TIMESTAMP)
           expect(await keeperOracle.next()).to.be.equal(OTHER_BATCHED_TIMESTAMP)
           await expect(
-            storkOracleFactory.connect(user).commit([STORK_ETH_USD_PRICE_FEED], OTHER_BATCHED_TIMESTAMP - 4, otherVAA, {
-              maxFeePerGas: 100000000,
-            }),
+            storkOracleFactory
+              .connect(user)
+              .commit([STORK_ETH_USD_PRICE_FEED], OTHER_BATCHED_TIMESTAMP - 4, OTHER_UPDATE_DATA, {
+                maxFeePerGas: 100000000,
+              }),
           )
             .to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
             .withArgs({ timestamp: OTHER_BATCHED_TIMESTAMP - 4, price: '2674940471', valid: true })
@@ -607,17 +611,21 @@ testOracles.forEach(testOracle => {
           expect(await keeperOracle.requests(1)).to.be.equal(OTHER_BATCHED_TIMESTAMP)
           expect(await keeperOracle.next()).to.be.equal(OTHER_BATCHED_TIMESTAMP)
           await expect(
-            storkOracleFactory.connect(user).commit([STORK_ETH_USD_PRICE_FEED], OTHER_BATCHED_TIMESTAMP - 4, otherVAA, {
-              maxFeePerGas: 100000000,
-            }),
+            storkOracleFactory
+              .connect(user)
+              .commit([STORK_ETH_USD_PRICE_FEED], OTHER_BATCHED_TIMESTAMP - 4, OTHER_UPDATE_DATA, {
+                maxFeePerGas: 100000000,
+              }),
           )
             .to.emit(keeperOracle, 'OracleProviderVersionFulfilled')
             .withArgs({ timestamp: OTHER_BATCHED_TIMESTAMP - 4, price: '2674940471', valid: true })
 
           await expect(
-            storkOracleFactory.connect(user).commit([STORK_ETH_USD_PRICE_FEED], OTHER_BATCHED_TIMESTAMP - 4, otherVAA, {
-              maxFeePerGas: 100000000,
-            }),
+            storkOracleFactory
+              .connect(user)
+              .commit([STORK_ETH_USD_PRICE_FEED], OTHER_BATCHED_TIMESTAMP - 4, OTHER_UPDATE_DATA, {
+                maxFeePerGas: 100000000,
+              }),
           ).to.be.revertedWithCustomError(keeperOracle, 'KeeperOracleVersionOutsideRangeError')
         })
 
@@ -644,12 +652,12 @@ testOracles.forEach(testOracle => {
         })
 
         it('reverts if feeds ids length different from price commitment', async () => {
-          const MULTIPLE_VAA_TIMESTAMP = 1741107060
-          await time.increaseTo(MULTIPLE_VAA_TIMESTAMP - 2)
+          const MULTIPLE_UPDATE_DATA_TIMESTAMP = 1741107060
+          await time.increaseTo(MULTIPLE_UPDATE_DATA_TIMESTAMP - 2)
           await expect(
             storkOracleFactory
               .connect(user)
-              .commit([STORK_ETH_USD_PRICE_FEED], MULTIPLE_VAA_TIMESTAMP - 4, MULTIPLE_VAA, {
+              .commit([STORK_ETH_USD_PRICE_FEED], MULTIPLE_UPDATE_DATA_TIMESTAMP - 4, MULTIPLE_UPDATE_DATA, {
                 maxFeePerGas: 100000000,
               }),
           ).to.be.revertedWithCustomError(storkOracleFactory, 'StorkFactoryInputLengthMismatchError')
@@ -660,12 +668,16 @@ testOracles.forEach(testOracle => {
             provider: ethers.constants.AddressZero,
             decimals: 0,
           })
-          const MULTIPLE_VAA_TIMESTAMP = 1741107060
-          await time.increaseTo(MULTIPLE_VAA_TIMESTAMP - 2)
+          const MULTIPLE_UPDATE_DATA_TIMESTAMP = 1741107060
+          await time.increaseTo(MULTIPLE_UPDATE_DATA_TIMESTAMP - 2)
           await expect(
             storkOracleFactory
               .connect(user)
-              .commit([STORK_BTC_USD_PRICE_FEED, STORK_ETH_USD_PRICE_FEED], MULTIPLE_VAA_TIMESTAMP - 4, MULTIPLE_VAA),
+              .commit(
+                [STORK_BTC_USD_PRICE_FEED, STORK_ETH_USD_PRICE_FEED],
+                MULTIPLE_UPDATE_DATA_TIMESTAMP - 4,
+                MULTIPLE_UPDATE_DATA,
+              ),
           ).to.be.revertedWithCustomError(storkOracleFactory, 'StorkFactoryInvalidIdError')
         })
       })
@@ -680,7 +692,7 @@ testOracles.forEach(testOracle => {
             ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, parse6decimal('10'), false) // make request to oracle (new price)
           await storkOracleFactory
             .connect(user)
-            .commit([STORK_ETH_USD_PRICE_FEED], OTHER_BATCHED_TIMESTAMP - 4, otherVAA, {
+            .commit([STORK_ETH_USD_PRICE_FEED], OTHER_BATCHED_TIMESTAMP - 4, OTHER_UPDATE_DATA, {
               value: 1,
             })
           const [latestIndex, currentIndex] = await keeperOracle.status()
@@ -788,7 +800,7 @@ testOracles.forEach(testOracle => {
           )
           await storkOracleFactory
             .connect(user)
-            .commit([STORK_ETH_USD_PRICE_FEED], OTHER_BATCHED_TIMESTAMP - 4, otherVAA, {
+            .commit([STORK_ETH_USD_PRICE_FEED], OTHER_BATCHED_TIMESTAMP - 4, OTHER_UPDATE_DATA, {
               value: 1,
             })
           const latestValue = await keeperOracle.connect(user).latest()
@@ -947,7 +959,7 @@ testOracles.forEach(testOracle => {
 
           await storkOracleFactory
             .connect(user)
-            .commit([STORK_ETH_USD_PRICE_FEED], OTHER_BATCHED_TIMESTAMP - 4, otherVAA, {
+            .commit([STORK_ETH_USD_PRICE_FEED], OTHER_BATCHED_TIMESTAMP - 4, OTHER_UPDATE_DATA, {
               value: 1,
             })
           const version = await keeperOracle.connect(user).at(OTHER_BATCHED_TIMESTAMP - 4)
