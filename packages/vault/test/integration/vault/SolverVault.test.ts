@@ -118,6 +118,7 @@ describe('SolverVault', () => {
   async function totalCollateralInVault() {
     return (await collateralInVault())
       .add(await btcCollateralInVault())
+      .add(await margin.crossMarginBalances(vault.address))
       .mul(1e12)
       .add(await asset.balanceOf(vault.address))
   }
@@ -742,7 +743,6 @@ describe('SolverVault', () => {
       )
 
       await vault.connect(user).update(user.address, 0, 0, ethers.constants.MaxUint256)
-      return
 
       expect(await totalCollateralInVault()).to.equal(0)
       expect(await asset.balanceOf(user.address)).to.equal(
@@ -1198,6 +1198,64 @@ describe('SolverVault', () => {
       await vault.connect(user).update(user.address, oddDepositAmount, 0, 0)
       await updateOracle()
       await vault['rebalance(address)'](user.address)
+    })
+
+    it('credits profit shares when account is coordinator', async () => {
+      await fundWallet(asset, coordinator)
+      asset.connect(coordinator).approve(vault.address, ethers.constants.MaxUint256),
+        await vault.updateParameter({
+          maxDeposit: maxCollateral,
+          minDeposit: 0,
+          profitShare: parse6decimal('0.3'),
+          leverageBuffer: parse6decimal('10'),
+        })
+      await vault.updateCoordinator(coordinator.address)
+
+      expect(await vault.convertToAssets(parse6decimal('1'))).to.equal(parse6decimal('1'))
+      expect(await vault.convertToShares(parse6decimal('1'))).to.equal(parse6decimal('1'))
+
+      const deposit = parse6decimal('10000')
+      await vault.connect(user).update(user.address, deposit.div(4), 0, 0)
+      await updateOracle()
+      await vault['rebalance(address)'](user.address)
+      await vault['rebalance(address)'](coordinator.address)
+
+      // Solver opens positions via signature
+      await placeIntentOrder(
+        vault,
+        user2,
+        coordinator,
+        market,
+        parse6decimal('1'),
+        originalOraclePrice.add(parse6decimal('10')),
+        1,
+      )
+      await placeIntentOrder(
+        vault,
+        btcUser2,
+        coordinator,
+        btcMarket,
+        parse6decimal('0.1'),
+        btcOriginalOraclePrice.add(parse6decimal('100')),
+        2,
+      )
+      await updateOracle()
+      await vault['rebalance(address)'](user.address)
+      await vault['rebalance(address)'](user2.address)
+
+      // Confirm positions were opened
+      expect(await position()).to.equal(parse6decimal('-1'))
+      expect(await btcPosition()).to.equal(parse6decimal('-0.1'))
+
+      await vault.connect(coordinator).update(coordinator.address, deposit.mul(3).div(4), 0, 0)
+      await updateOracle()
+      await vault['rebalance(address)'](coordinator.address)
+
+      const shares1 = deposit.div(4)
+      expect((await vault.accounts(user.address)).shares).to.equal(shares1)
+      const shares2 = parse6decimal('7458.114680')
+      const profitShares = BigNumber.from('5983616')
+      expect((await vault.accounts(coordinator.address)).shares).to.equal(shares2.add(profitShares))
     })
 
     it('profit shares', async () => {

@@ -1389,11 +1389,6 @@ describe('Happy Path', () => {
 
     const market = await createMarket(instanceVars)
 
-    await expect(market.connect(user).updateBeneficiary(user.address)).to.be.revertedWithCustomError(
-      market,
-      'InstanceNotOwnerError',
-    )
-
     await expect(market.connect(user).updateCoordinator(user.address)).to.be.revertedWithCustomError(
       market,
       'InstanceNotOwnerError',
@@ -2718,9 +2713,10 @@ describe('Happy Path', () => {
       currentId: 4,
       latestId: 4,
     })
-    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(collateral4)
+    expect(await margin.crossMarginBalances(userB.address)).to.equal(COLLATERAL.add(collateral4))
     expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_4), {
       ...DEFAULT_CHECKPOINT,
+      transfer: -collateral4, // deisolated on position close
       collateral: collateral4,
     })
     expectPositionEq(await market.positions(userB.address), {

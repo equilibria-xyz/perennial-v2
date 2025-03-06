@@ -28,7 +28,7 @@ interface IAccount {
     function marketTransfer(IMarket market, Fixed6 amount) external;
 
     /// @notice Transfer USDC collateral from this account to the owner
-    /// @param amount Quantity of tokens to transfer in 6-decimal precision; set to UFixed6.MAX for full withdrawal
+    /// @param amount Maximum quantity of tokens to transfer in 6-decimal precision; set to UFixed6.MAX for full withdrawal
     /// @param shouldUnwrap If amount exceeds USDC balance and this is true, DSU will be unwrapped as necessary to facilitate withdrawal
     function withdraw(UFixed6 amount, bool shouldUnwrap) external;
 

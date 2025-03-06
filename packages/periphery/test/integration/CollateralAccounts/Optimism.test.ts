@@ -78,7 +78,7 @@ async function deployController(
   }
   const keepConfigBuffered = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 1_375_000, // for price commitment
+    bufferBase: 1_500_000, // for price commitment
     multiplierCalldata: ethers.utils.parseEther('1'),
     bufferCalldata: 500,
   }

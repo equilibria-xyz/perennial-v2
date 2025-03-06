@@ -12,33 +12,33 @@ import { IMarket, IMarketFactory } from "./IMarketFactory.sol";
 
 interface IMargin is IInstance {
     /// @notice Emitted when claimable balance is updated by Market
-    /// @param account Account whose claimable balance has changed
-    /// @param amount Quantity of DSU credited (positive) or debited (negative, for exposure only)
-    event ClaimableChanged(address indexed account, Fixed6 amount);
+    /// @param account User whose claimable balance has changed
+    /// @param amount Quantity of DSU credited to the user
+    event ClaimableChanged(address indexed account, UFixed6 amount);
 
     /// @notice Emitted when user withdraws claimable balance
-    /// @param account Account from which claimable balance is withdrawn
+    /// @param account User from which claimable balance is withdrawn
     /// @param receiver Address to which DSU is transferred
     /// @param amount Quantity of DSU withdrawn
     event ClaimableWithdrawn(address indexed account, address indexed receiver, UFixed6 amount);
 
     /// @notice Emitted when DSU is transferred into the margin contract, increasing the cross-margin balance
-    /// @param account Account credited
+    /// @param account User credited
     /// @param amount Quantity of DSU deposited
     event FundsDeposited(address indexed account, UFixed6 amount);
 
     /// @notice Emitted when DSU is transferred out of the margin contract, decreasing the cross-margin balance
-    /// @param account Account debited
+    /// @param account User debited
     /// @param amount Quantity of DSU withdrawn
     event FundsWithdrawn(address indexed account, UFixed6 amount);
 
     /// @notice Emitted when cross-margin (non-isolated) balance has been adjusted
-    /// @param account Account whose cross-margin balance has changed
+    /// @param account User whose cross-margin balance has changed
     /// @param amount Quantity of DSU added (positive) or removed (negative)
     event FundsChanged(address indexed account, Fixed6 amount);
 
     /// @notice Emitted when DSU funds are isolated to (positive) or deisolated from (negative) a market
-    /// @param account Account from which DSU is isolated/deisolated
+    /// @param account User from which DSU is isolated/deisolated
     /// @param market Market to which DSU is isolated/deisolated
     /// @param amount Quantity of DSU isolated/deisolated (change)
     event IsolatedFundsChanged(address indexed account, IMarket indexed market, Fixed6 amount);
@@ -123,32 +123,39 @@ interface IMargin is IInstance {
     /// @param feeReceived Amount of DSU transferred to receiver
     function claim(address account, address receiver) external returns (UFixed6 feeReceived);
 
+    /// @notice Disables auto-deisolation on close position for a user
+    /// @param account User whose auto-deisolation will be disabled
+    /// @param disabled True to disable auto-deisolation, false to enable (default)
+    function disableAutoDeisolate(address account, bool disabled) external;
+
     /// @dev Called by market to check maintenance requirements upon market update
     /// @param account User whose maintenance requirement will be checked
     /// @return isMaintained True if margin requirement met, otherwise false
     function maintained(
         address account
-    ) external returns (bool isMaintained);
+    ) external view returns (bool isMaintained);
 
     /// @dev Called by market to check margin requirements upon market update
     /// @param account User whose margin requirement will be checked
     /// @param minCollateralization Minimum collateralization specified on an intent, 0 if none
-    /// @param guaranteePriceAdjustment Collateral adjustment between an intent's price and the oracle price, 0 if none
     /// @return isMargined True if margin requirement met, otherwise false
     function margined(
         address account,
-        UFixed6 minCollateralization,
-        Fixed6 guaranteePriceAdjustment
-    ) external returns (bool isMargined);
+        UFixed6 minCollateralization
+    ) external view returns (bool isMargined);
 
-    /// @dev Called by market when Market.update is called, used to adjust isolated collateral balance for market.
+    /// @dev Called by market when Market.update is called, used to adjust isolated collateral balance for market
     /// @param account User intending to adjust isolated collateral for market
     /// @param collateralDelta Change in collateral requested by order prepared by market
     function handleMarketUpdate(address account, Fixed6 collateralDelta) external;
 
-    // TODO: Once Market.claimExposure has been eliminated, make collateralDelta a UFixed6
+    /// @dev Called by market when Market.settle is called, used to implicitly deisolate when positions are closed.
+    /// @param account User who was settled
+    /// @param latestVersion Most recent version settled, used for updating checkpoint if necessary
+    function handleMarketSettle(address account, uint256 latestVersion) external;
+
     /// @dev Called by market to adjust claimable balance when fees are claimed or exposure settled
-    function updateClaimable(address account, Fixed6 collateralDelta) external;
+    function updateClaimable(address account, UFixed6 collateralDelta) external;
 
     /// @dev Called by market upon settlement, updates the account’s balance by a collateral delta,
     /// and credits claimable accounts for fees
@@ -159,7 +166,7 @@ interface IMargin is IInstance {
     function updateCheckpoint(address account, uint256 version, Checkpoint memory latest, Fixed6 pnl) external;
 
     /// @notice Retrieves the claimable balance for a user
-    function claimables(address) external view returns (Fixed6);
+    function claimables(address) external view returns (UFixed6);
 
     /// @notice Retrieves the cross-margin balance for a user
     function crossMarginBalances(address) external view returns (Fixed6);

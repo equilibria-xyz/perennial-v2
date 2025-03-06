@@ -7,6 +7,7 @@ import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { Token18, UFixed18, UFixed18Lib } from "@equilibria/root/token/types/Token18.sol";
 
+import { CheckpointLib } from "./libs/CheckpointLib.sol";
 import { Checkpoint, CheckpointStorage } from "./types/Checkpoint.sol";
 import { Guarantee } from "./types/Guarantee.sol";
 import { Local } from "./types/Local.sol";
@@ -33,9 +34,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @dev Looks up index of the cross-margined market (account => market => index)
     mapping(address => mapping(IMarket => uint256)) private crossMarginMarketIndex;
 
-    // TODO: Once exposure is eliminated, make this unsigned
     /// @notice Storage for claimable balances: user -> market -> balance
-    mapping(address => Fixed6) public claimables;
+    mapping(address => UFixed6) public claimables;
 
     /// @notice Storage for account balances: user -> market -> balance
     /// Cross-margin balances stored under IMarket(address(0))
@@ -44,6 +44,13 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @dev Storage for account checkpoints: user -> market -> version -> checkpoint
     /// Cross-margin checkpoints stored as IMarket(address(0))
     mapping(address => mapping(IMarket => mapping(uint256 => CheckpointStorage))) private _checkpoints;
+
+    // TODO: Remove if no longer needed for isolated Vault support
+    /// @notice Supresses default behavior of deisolating funds when a position is closed
+    mapping(address => bool) public autoDeisolateDisabled;
+
+    /// @dev Prevents implicit deisolation when isolating with no position
+    mapping(address => mapping(IMarket => bool)) private _hadPositionAtLastIsolate;
 
     /// @dev Creates instance
     /// @param dsu Digital Standard Unit stablecoin used as collateral
@@ -93,10 +100,15 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     /// @inheritdoc IMargin
     function claim(address account, address receiver) external nonReentrant onlyOperator(account) returns (UFixed6 feeReceived) {
-        feeReceived = UFixed6Lib.from(claimables[account]);
-        claimables[account] = Fixed6Lib.ZERO;
+        feeReceived = claimables[account];
+        claimables[account] = UFixed6Lib.ZERO;
         DSU.push(receiver, UFixed18Lib.from(feeReceived));
         emit ClaimableWithdrawn(account, receiver, feeReceived);
+    }
+
+    // @inheritdoc IMargin
+    function disableAutoDeisolate(address account, bool disabled) external onlyOperator(account) {
+        autoDeisolateDisabled[account] = disabled;
     }
 
     /// @inheritdoc IMargin
@@ -116,25 +128,45 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @inheritdoc IMargin
     function margined(
         address account,
-        UFixed6 minCollateralization,
-        Fixed6 guaranteePriceAdjustment
+        UFixed6 minCollateralization
     ) external onlyMarket view returns (bool isMargined) {
-        return _margined(account, IMarket(msg.sender), minCollateralization, guaranteePriceAdjustment);
+        return _margined(account, IMarket(msg.sender), minCollateralization);
     }
 
 
     /// @inheritdoc IMargin
     function handleMarketUpdate(address account, Fixed6 collateralDelta) external onlyMarket {
-        if (!collateralDelta.isZero() || _isIsolated(account, IMarket(msg.sender)))
+        IMarket market = IMarket(msg.sender);
+        if (!collateralDelta.isZero() || _isIsolated(account, market))
             // Account's isolated collateral is changing, or market is already isolated
-            _isolate(account, IMarket(msg.sender), collateralDelta, false);
+            _isolate(account, market, collateralDelta, false);
         else
             // Ensure market is tracked as cross-margined
-            _cross(account, IMarket(msg.sender));
+            _cross(account, market);
     }
 
     /// @inheritdoc IMargin
-    function updateClaimable(address account, Fixed6 collateralDelta) external onlyMarket {
+    function handleMarketSettle(address account, uint256 latestVersion) external onlyMarket {
+        IMarket market = IMarket(msg.sender);
+        UFixed6 isolatedBalance = UFixed6Lib.unsafeFrom(_balances[account][market]);
+        // If market also had no position when isolated balance last changed, should not deisolate
+        if (!isolatedBalance.isZero()                         // account has an isolated balance
+                && !autoDeisolateDisabled[account]            // this feature is not explicitly disabled
+                && !market.hasPosition(account)               // market currently has no position
+                && _hadPositionAtLastIsolate[account][market] // market had no position when funds last isolated
+            ) {
+            // If position is closed, deisolate all funds from the market
+            Fixed6 amount = Fixed6Lib.from(-1, isolatedBalance);
+            _isolate(account, market, amount, false);
+            // Update the checkpoint which closed the position to record the deisolation
+            Checkpoint memory checkpoint = _checkpoints[account][market][latestVersion].read();
+            CheckpointLib.deisolate(checkpoint, amount);
+            _checkpoints[account][market][latestVersion].store(checkpoint);
+        }
+    }
+
+    /// @inheritdoc IMargin
+    function updateClaimable(address account, UFixed6 collateralDelta) external onlyMarket {
         claimables[account] = claimables[account].add(collateralDelta);
         emit ClaimableChanged(account, collateralDelta);
     }
@@ -178,42 +210,36 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     function _margined(
         address account,
         IMarket market,
-        UFixed6 minCollateralization,
-        Fixed6 guaranteePriceAdjustment
+        UFixed6 minCollateralization
     ) private view returns (bool isMargined) {
-        Fixed6 collateral = _balances[account][market].add(guaranteePriceAdjustment);
         if (_isIsolated(account, market)) {
             // Market in isolated mode; only need to check against isolated balance
-            UFixed6 requirement = market.marginRequired(account, minCollateralization);
-            return UFixed6Lib.unsafeFrom(collateral).gte(requirement);
+            return _isolatedMargined(account, market, minCollateralization);
         } else {
             // Market in cross-margin mode; check all cross-margined markets
             return _crossMargined(account);
         }
     }
 
+    function _isolatedMargined(
+        address account,
+        IMarket market,
+        UFixed6 minCollateralization
+    ) private view returns (bool isMargined) {
+        Fixed6 isolatedCollateral = _balances[account][market];
+        UFixed6 requirement = market.marginRequired(account, minCollateralization);
+        return UFixed6Lib.unsafeFrom(isolatedCollateral).gte(requirement);
+    }
+
     // TODO: handle minCollateralization for cross-margined markets
     function _crossMargined(address account) private view returns (bool isMargined) {
         IMarket market;
         UFixed6 requirement;
-        Fixed6 guaranteePriceAdjustment;
         for (uint256 i; i < crossMarginMarkets[account].length; i++) {
             market = crossMarginMarkets[account][i];
             requirement = requirement.add(market.marginRequired(account, UFixed6Lib.ZERO));
-            guaranteePriceAdjustment = guaranteePriceAdjustment.add(_guaranteePriceAdjustment(market, account));
         }
-        return UFixed6Lib.unsafeFrom(_balances[account][CROSS_MARGIN].add(guaranteePriceAdjustment)).gte(requirement);
-    }
-
-    /// @dev Aggregates price adjustments from guarantees for a user in a market
-    function _guaranteePriceAdjustment(IMarket market, address account) private view returns (Fixed6 guaranteePriceAdjustment) {
-        Local memory local = market.locals(account);
-        for (uint256 id = local.latestId + 1; id <= local.currentId; id++) {
-            Guarantee memory guarantee = market.guarantees(account, id);
-            (OracleVersion memory latestOracleVersion, ) = market.oracle().status();
-            guaranteePriceAdjustment = guaranteePriceAdjustment.add(guarantee.priceAdjustment(latestOracleVersion.price));
-        }
-        return guaranteePriceAdjustment;
+        return UFixed6Lib.unsafeFrom(_balances[account][CROSS_MARGIN]).gte(requirement);
     }
 
     function _crossMaintained(address account) private view returns (bool isMaintained) {
@@ -279,6 +305,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         if (isolating) _uncross(account, market);
 
         // Update storage
+        bool hasPosition = market.hasPosition(account);
+        _hadPositionAtLastIsolate[account][market] = hasPosition;
         _balances[account][CROSS_MARGIN] = newCrossBalance;
         _balances[account][market] = newIsolatedBalance;
         if (updateCheckpoint_) {
@@ -291,16 +319,15 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         // TODO: Reduce storage reads by moving margin checks above storage updates, passing new balances into margin check methods
 
         // If reducing isolated balance (but not deisolating), ensure sufficient margin still exists for the market
-        if ((isolating || decreasingIsolatedBalance) && !_margined(account, market, UFixed6Lib.ZERO, Fixed6Lib.ZERO)) {
+        if ((isolating || decreasingIsolatedBalance) && !_isolatedMargined(account, market, UFixed6Lib.ZERO)) {
             revert IMarket.MarketInsufficientMarginError();
         }
         // Ensure decreased cross-margin balance remains sufficient for crossed markets
         if (newIsolatedBalance.gt(oldIsolatedBalance) && !_crossMargined(account)) {
             revert IMarket.MarketInsufficientMarginError();
         }
-
         // If decreasing an existing isolated balance with position, ensure price is not stale
-        if (market.hasPosition(account) && decreasingIsolatedBalance && market.stale()) {
+        if (hasPosition && decreasingIsolatedBalance && market.stale()) {
             revert IMarket.MarketStalePriceError();
         }
 

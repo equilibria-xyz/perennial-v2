@@ -7,9 +7,11 @@ import HRE from 'hardhat'
 import { impersonate } from '../../../../common/testutil'
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
 import {
+  DEFAULT_CHECKPOINT,
   DEFAULT_GUARANTEE,
   DEFAULT_LOCAL,
   DEFAULT_ORACLE_VERSION,
+  expectCheckpointEq,
   parse6decimal,
 } from '../../../../common/testutil/types'
 import {
@@ -93,6 +95,28 @@ describe('Margin', () => {
         .withArgs(target.address, amount)
 
       expect(await margin.crossMarginBalances(target.address)).to.equal(balanceBefore.add(amount))
+    }
+
+    async function marketUpdate(user: SignerWithAddress, market: FakeContract<IMarket>, collateralDelta: BigNumber) {
+      const marketSigner = await impersonate.impersonateWithBalance(market.address, utils.parseEther('10'))
+      await margin.connect(marketSigner).handleMarketUpdate(user.address, collateralDelta)
+    }
+
+    async function settle(user: SignerWithAddress, market: FakeContract<IMarket>, version: number) {
+      const marketSigner = await impersonate.impersonateWithBalance(market.address, utils.parseEther('10'))
+
+      // write a checkpoint prior to invoking handleMarketSettle, just as Market would do
+      const checkpoint: CheckpointStruct = {
+        ...DEFAULT_CHECKPOINT,
+        transfer: BigNumber.from(0),
+        collateral: await margin.isolatedBalances(user.address, market.address),
+      }
+      await expect(margin.connect(marketSigner).updateCheckpoint(user.address, version, checkpoint, BigNumber.from(0)))
+        .to.not.be.reverted
+
+      // invoke the settlement callback
+      await expect(margin.connect(marketSigner).handleMarketSettle(user.address, BigNumber.from(version))).to.not.be
+        .reverted
     }
 
     function fakeOraclePrice(price: BigNumber) {
@@ -220,18 +244,6 @@ describe('Margin', () => {
       expect(dsu.transfer).to.have.been.calledWith(user.address, feeEarned.mul(1e12))
     })
 
-    it('user cannot withdraw negative claimable balance from exposure', async () => {
-      const deficit = parse6decimal('-0.3')
-      const marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
-      await expect(margin.connect(marketSigner).updateClaimable(user.address, deficit)).to.not.be.reverted
-      expect(await margin.claimables(user.address)).to.equal(deficit)
-
-      await expect(margin.connect(user).claim(user.address, user.address)).to.be.revertedWithCustomError(
-        margin,
-        'UFixed6UnderflowError',
-      )
-    })
-
     it('user can withdraw claimable funds to another address', async () => {
       const feeEarned = parse6decimal('0.4')
       const marketSigner = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
@@ -296,6 +308,141 @@ describe('Margin', () => {
 
       expect(await margin.crossMarginBalances(user.address)).to.equal(parse6decimal('500'))
       expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(0)
+    })
+
+    it('markets implicitly deisolated after closing position', async () => {
+      // simulate a position while isolating through margin contract
+      await deposit(user, parse6decimal('500'))
+      marketA.hasPosition.whenCalledWith(user.address).returns(true)
+      marketA.stale.returns(false)
+      let latestVersion = await currentBlockTimestamp()
+      await margin.isolate(user.address, marketA.address, parse6decimal('400'))
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('400'))
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+
+      // settlement with open position should not deisolate the market
+      await settle(user, marketA, latestVersion)
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('400'))
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+      expectCheckpointEq(await margin.isolatedCheckpoints(user.address, marketA.address, latestVersion), {
+        ...DEFAULT_CHECKPOINT,
+        collateral: parse6decimal('400'),
+      })
+      latestVersion++
+
+      // settlement with closed position should deisolate the market
+      marketA.hasPosition.whenCalledWith(user.address).returns(false)
+      await settle(user, marketA, latestVersion)
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(0)
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.false
+      expectCheckpointEq(await margin.isolatedCheckpoints(user.address, marketA.address, latestVersion), {
+        ...DEFAULT_CHECKPOINT,
+        transfer: parse6decimal('-400'),
+        collateral: parse6decimal('400'),
+      })
+      latestVersion++
+
+      // simulate a position while isolating through market contract
+      await deposit(userB, parse6decimal('300'))
+      marketA.hasPosition.whenCalledWith(userB.address).returns(true)
+      marketA.stale.returns(false)
+      await marketUpdate(userB, marketA, parse6decimal('300'))
+      expect(await margin.isolatedBalances(userB.address, marketA.address)).to.equal(parse6decimal('300'))
+      expect(await margin.isIsolated(userB.address, marketA.address)).to.be.true
+
+      // settlement with open position should not deisolate the market
+      await settle(userB, marketA, latestVersion)
+      expect(await margin.isolatedBalances(userB.address, marketA.address)).to.equal(parse6decimal('300'))
+      expect(await margin.isIsolated(userB.address, marketA.address)).to.be.true
+      expectCheckpointEq(await margin.isolatedCheckpoints(userB.address, marketA.address, latestVersion), {
+        ...DEFAULT_CHECKPOINT,
+        collateral: parse6decimal('300'),
+      })
+      latestVersion++
+
+      // settlement with closed position should deisolate the market
+      marketA.hasPosition.whenCalledWith(userB.address).returns(false)
+      await settle(userB, marketA, latestVersion)
+      expect(await margin.isolatedBalances(userB.address, marketA.address)).to.equal(0)
+      expect(await margin.isIsolated(userB.address, marketA.address)).to.be.false
+      expectCheckpointEq(await margin.isolatedCheckpoints(userB.address, marketA.address, latestVersion), {
+        ...DEFAULT_CHECKPOINT,
+        transfer: parse6decimal('-300'),
+        collateral: parse6decimal('300'),
+      })
+    })
+
+    it('does not implicitly deisolate after isolating funds with no position', async () => {
+      await deposit(user, parse6decimal('500'))
+
+      // user isolates through margin contract with no position
+      marketA.hasPosition.whenCalledWith(user.address).returns(false)
+      await margin.isolate(user.address, marketA.address, parse6decimal('240'))
+      let latestVersion = await currentBlockTimestamp()
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('240'))
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+
+      // user settles with no position
+      await settle(user, marketA, latestVersion)
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('240'))
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+      expectCheckpointEq(await margin.isolatedCheckpoints(user.address, marketA.address, latestVersion), {
+        ...DEFAULT_CHECKPOINT,
+        collateral: parse6decimal('240'),
+      })
+      latestVersion++
+
+      // user isolates through market with no position
+      await marketUpdate(user, marketA, parse6decimal('250'))
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('490'))
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+
+      // user settles with no position
+      await settle(user, marketA, latestVersion)
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('490'))
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+      expectCheckpointEq(await margin.isolatedCheckpoints(user.address, marketA.address, latestVersion), {
+        ...DEFAULT_CHECKPOINT,
+        collateral: parse6decimal('490'),
+      })
+    })
+
+    it('does not implicitly deisolate on position close when explicitly disabled', async () => {
+      await deposit(user, parse6decimal('200'))
+
+      // user cannot disable auto-deisolate for another user
+      fakeAuthorization(userB, user, false)
+      await expect(margin.connect(user).disableAutoDeisolate(userB.address, true)).to.be.revertedWithCustomError(
+        margin,
+        'MarginOperatorNotAllowedError',
+      )
+
+      // user disables auto-deisolate
+      await margin.connect(user).disableAutoDeisolate(user.address, true)
+
+      // user isolates through market with position and settles
+      let latestVersion = await currentBlockTimestamp()
+      await marketUpdate(user, marketA, parse6decimal('200'))
+      marketA.hasPosition.whenCalledWith(user.address).returns(true)
+      marketA.stale.returns(false)
+      await settle(user, marketA, latestVersion)
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('200'))
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+      expectCheckpointEq(await margin.isolatedCheckpoints(user.address, marketA.address, latestVersion), {
+        ...DEFAULT_CHECKPOINT,
+        collateral: parse6decimal('200'),
+      })
+      latestVersion++
+
+      // user closes their position and settles
+      marketA.hasPosition.whenCalledWith(user.address).returns(false)
+      await settle(user, marketA, latestVersion)
+      expect(await margin.isolatedBalances(user.address, marketA.address)).to.equal(parse6decimal('200'))
+      expect(await margin.isIsolated(user.address, marketA.address)).to.be.true
+      expectCheckpointEq(await margin.isolatedCheckpoints(user.address, marketA.address, latestVersion), {
+        ...DEFAULT_CHECKPOINT,
+        collateral: parse6decimal('200'),
+      })
     })
 
     it('prevents unbounded number of markets from being crossed', async () => {
@@ -489,11 +636,11 @@ describe('Margin', () => {
       const marketSignerA = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
       // 300 > 200, should return true
       marketA.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('200'))
-      expect(await margin.connect(marketSignerA).margined(user.address, constants.Zero, constants.Zero)).to.be.true
+      expect(await margin.connect(marketSignerA).margined(user.address, constants.Zero)).to.be.true
       expect(marketA.marginRequired).to.have.been.calledWith(user.address, constants.Zero)
       // 300 < 400, should return false
       marketA.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('400'))
-      expect(await margin.connect(marketSignerA).margined(user.address, constants.Zero, constants.Zero)).to.be.false
+      expect(await margin.connect(marketSignerA).margined(user.address, constants.Zero)).to.be.false
       expect(marketB.marginRequired).to.not.have.been.called
       expect(marketC.marginRequired).to.not.have.been.called
 
@@ -503,30 +650,15 @@ describe('Margin', () => {
       const marketSignerC = await impersonate.impersonateWithBalance(marketC.address, utils.parseEther('10'))
       marketB.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('370'))
       marketC.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('380'))
-      expect(await margin.connect(marketSignerB).margined(user.address, constants.Zero, constants.Zero)).to.be.false
+      expect(await margin.connect(marketSignerB).margined(user.address, constants.Zero)).to.be.false
       expect(marketB.marginRequired).to.have.been.calledWith(user.address, constants.Zero)
       expect(marketC.marginRequired).to.have.been.calledWith(user.address, constants.Zero)
-      expect(await margin.connect(marketSignerC).margined(user.address, constants.Zero, constants.Zero)).to.be.false
+      expect(await margin.connect(marketSignerC).margined(user.address, constants.Zero)).to.be.false
       // 475 < 700, should return true
       marketB.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('250'))
       marketC.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('225'))
-      expect(await margin.connect(marketSignerB).margined(user.address, constants.Zero, constants.Zero)).to.be.true
-      expect(await margin.connect(marketSignerC).margined(user.address, constants.Zero, constants.Zero)).to.be.true
-    })
-
-    it('honors guaranteePriceAdjustment on isolated margin check', async () => {
-      // HACK: recreate marketA as an impersonateWithBalance from a previous test breaks the fake contract
-      marketA = await fakeMarket()
-      // user isolates all funds to marketA
-      await deposit(user, parse6decimal('200'))
-      await margin.isolate(user.address, marketA.address, parse6decimal('200'))
-
-      // with 200 isolated, 198 margin required, but priceAdjustment of -3, should not be margined
-      const marketSignerA = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
-      marketA.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('198'))
-      expect(await margin.connect(marketSignerA).margined(user.address, constants.Zero, parse6decimal('-3'))).to.be
-        .false
-      expect(marketA.marginRequired).to.have.been.calledWith(user.address, constants.Zero)
+      expect(await margin.connect(marketSignerB).margined(user.address, constants.Zero)).to.be.true
+      expect(await margin.connect(marketSignerC).margined(user.address, constants.Zero)).to.be.true
     })
 
     it('honors minCollateralization on isolated margin check', async () => {
@@ -542,33 +674,8 @@ describe('Margin', () => {
       marketA.marginRequired
         .whenCalledWith(user.address, minCollateralization)
         .returns(parse6decimal('190').mul(11).div(10))
-      expect(await margin.connect(marketSignerA).margined(user.address, minCollateralization, constants.Zero)).to.be
-        .false
+      expect(await margin.connect(marketSignerA).margined(user.address, minCollateralization)).to.be.false
       expect(marketA.marginRequired).to.have.been.calledWith(user.address, minCollateralization)
-    })
-
-    it('honors guaranteePriceAdjustment on cross-margined markets', async () => {
-      // user crosses funds across two markets
-      await deposit(user, parse6decimal('200'))
-      await cross(user, marketA)
-      await cross(user, marketB)
-
-      // assume each market requires 100 margin
-      const marketSignerA = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
-      marketA.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('100'))
-      marketB.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('100'))
-      // but marketA has a 5 price adjustments of -1, and marketB has 3 price adjustments of 1
-      fakeOraclePrice(parse6decimal('100'))
-      fakeGuarantees(user, marketA, 5, parse6decimal('101')) //  5 adjustments of (1*100-101) = -5
-      fakeGuarantees(user, marketB, 3, parse6decimal('99')) // 3 adjustments of (1*100-99) = 3
-      // so collateral is adjusted to 200-5+3=198, and margined should return false
-      expect(await margin.connect(marketSignerA).margined(user.address, constants.Zero, parse6decimal('1'))).to.be.false
-
-      // but if we bump up the oracle price to 105, adjustments would be 5*(1*105-101) = 20, and 3*(1*105-99) = 18
-      fakeOraclePrice(parse6decimal('105'))
-      const marketSignerB = await impersonate.impersonateWithBalance(marketB.address, utils.parseEther('10'))
-      // so collateral is adjusted to 200+20+18=238, and margined should return true
-      expect(await margin.connect(marketSignerB).margined(user.address, constants.Zero, parse6decimal('1'))).to.be.true
     })
 
     it('handles maintenance checks from market', async () => {
@@ -927,6 +1034,13 @@ describe('Margin', () => {
       )
     })
 
-    // TODO: test coverage for Margin.claim
+    it('double claim', async () => {
+      await mockToken.setFunctionToCall(3)
+
+      await expect(margin.connect(user).claim(user.address, user.address)).to.be.revertedWithCustomError(
+        margin,
+        'ReentrancyGuardReentrantCallError',
+      )
+    })
   })
 })

@@ -17,12 +17,15 @@ import {
   signRelayedNonceCancellation,
   signRelayedOperatorUpdate,
   signRelayedSignerUpdate,
+  signRelayedFill,
   signRelayedTake,
   signWithdrawal,
 } from '../../helpers/CollateralAccounts/eip712'
 import {
   signAccessUpdateBatch,
+  signFill,
   signGroupCancellation,
+  signIntent,
   signCommon as signNonceCancellation,
   signOperatorUpdate,
   signSignerUpdate,
@@ -30,7 +33,7 @@ import {
 } from '@perennial/v2-core/test/helpers/erc712'
 import { impersonate } from '../../../../common/testutil'
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
-import { parse6decimal } from '../../../../common/testutil/types'
+import { Intent, parse6decimal } from '../../../../common/testutil/types'
 import { Verifier, Verifier__factory } from '@perennial/v2-core/types/generated'
 import {
   AccountVerifier,
@@ -40,9 +43,11 @@ import {
   IMarketFactory,
 } from '../../../types/generated'
 import {
+  RelayedFillStruct,
   RelayedTakeStruct,
   TakeStruct,
 } from '../../../types/generated/contracts/CollateralAccounts/interfaces/IRelayVerifier'
+import { FillStruct } from '@perennial/v2-core/types/generated/contracts/Market'
 
 const { ethers } = HRE
 
@@ -490,6 +495,46 @@ describe('Verifier', () => {
       )
         .to.emit(accountVerifier, 'NonceCancelled')
         .withArgs(userA.address, relayedAccessUpdateBatchMessage.action.common.nonce)
+    })
+
+    it('verifies relayedFill messages', async () => {
+      const intentMessage: Intent = {
+        amount: parse6decimal('15'),
+        price: parse6decimal('3110'),
+        fee: parse6decimal('0.5'),
+        originator: constants.AddressZero,
+        solver: constants.AddressZero,
+        collateralization: parse6decimal('0.03'),
+        ...createCommon(),
+      }
+      const traderSignature = await signIntent(userA, downstreamVerifier, intentMessage)
+      // ensure downstream verification will succeed
+      await expect(downstreamVerifier.connect(userA).verifyIntent(intentMessage, traderSignature))
+        .to.emit(downstreamVerifier, 'NonceCancelled')
+        .withArgs(userA.address, intentMessage.common.nonce)
+
+      const fillMessage: FillStruct = {
+        intent: intentMessage,
+        ...createCommon(),
+      }
+
+      const solverSignature = await signFill(userA, downstreamVerifier, fillMessage)
+
+      // ensure downstream verification will succeed
+      await expect(downstreamVerifier.connect(userA).verifyFill(fillMessage, solverSignature))
+        .to.emit(downstreamVerifier, 'NonceCancelled')
+        .withArgs(userA.address, fillMessage.common.nonce)
+
+      // create and sign the outer message
+      const relayedFillMessage: RelayedFillStruct = {
+        fill: fillMessage,
+        ...createAction(userA.address),
+      }
+      const outerSignature = await signRelayedFill(userA, accountVerifier, relayedFillMessage)
+      // ensure outer message verification succeeds
+      await expect(accountVerifier.connect(controllerSigner).verifyRelayedFill(relayedFillMessage, outerSignature))
+        .to.emit(accountVerifier, 'NonceCancelled')
+        .withArgs(userA.address, relayedFillMessage.action.common.nonce)
     })
 
     it('prevents verification of expired messages', async () => {

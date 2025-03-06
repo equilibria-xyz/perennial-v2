@@ -938,8 +938,8 @@ describe('Guarantee', () => {
       })
     })
 
-    describe('#next', () => {
-      it('calculates taker', async () => {
+    describe('#fresh', () => {
+      it('creates a fresh guarantee', async () => {
         await guarantee.store({
           orders: 1,
           longPos: 2,
@@ -952,7 +952,7 @@ describe('Guarantee', () => {
           solverReferral: 9,
         })
 
-        await guarantee.next()
+        await guarantee.fresh()
         const result = await guarantee.read()
 
         expect(result.orders).to.equal(0)
