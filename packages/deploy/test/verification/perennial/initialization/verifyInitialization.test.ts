@@ -19,7 +19,7 @@ import {
   Manager__factory,
 } from '../../../../types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { constants } from 'ethers'
+import { constants, utils } from 'ethers'
 import { DEFAULT_PROTOCOL_PARAMETER, KeeperFactoryParameter } from '../../../../util/constants'
 
 describe('Verify Initialization', () => {
@@ -41,23 +41,16 @@ describe('Verify Initialization', () => {
     expect(await marketFactory.callStatic.verifier()).to.equal((await HRE.deployments.get('Verifier')).address)
 
     // check parameter
-    expect((await marketFactory.callStatic.parameter()).minScale).to.equal(DEFAULT_PROTOCOL_PARAMETER.minScale)
-    expect((await marketFactory.callStatic.parameter()).maxFee).to.equal(DEFAULT_PROTOCOL_PARAMETER.maxFee)
-    expect((await marketFactory.callStatic.parameter()).maxLiquidationFee).to.equal(
-      DEFAULT_PROTOCOL_PARAMETER.maxLiquidationFee,
-    )
-    expect((await marketFactory.callStatic.parameter()).maxCut).to.equal(DEFAULT_PROTOCOL_PARAMETER.maxCut)
-    expect((await marketFactory.callStatic.parameter()).maxRate).to.equal(DEFAULT_PROTOCOL_PARAMETER.maxRate)
-    expect((await marketFactory.callStatic.parameter()).minMaintenance).to.equal(
-      DEFAULT_PROTOCOL_PARAMETER.minMaintenance,
-    )
-    expect((await marketFactory.callStatic.parameter()).minEfficiency).to.equal(
-      DEFAULT_PROTOCOL_PARAMETER.minEfficiency,
-    )
-    expect((await marketFactory.callStatic.parameter()).referralFee).to.equal(DEFAULT_PROTOCOL_PARAMETER.referralFee)
-    expect((await marketFactory.callStatic.parameter()).maxStaleAfter).to.equal(
-      DEFAULT_PROTOCOL_PARAMETER.maxStaleAfter,
-    )
+    const parameter = await marketFactory.callStatic.parameter()
+    expect(parameter.minScale).to.equal(utils.parseUnits('0.04', 6))
+    expect(parameter.maxFee).to.equal(utils.parseUnits('0.03', 6))
+    expect(parameter.maxLiquidationFee).to.equal(utils.parseUnits('50', 6))
+    expect(parameter.maxCut).to.equal(utils.parseUnits('0.13', 6))
+    expect(parameter.maxRate).to.equal(utils.parseUnits('15', 6))
+    expect(parameter.minMaintenance).to.equal(4000)
+    expect(parameter.minEfficiency).to.equal(utils.parseUnits('0.25', 6))
+    expect(parameter.referralFee).to.equal(utils.parseUnits('0.6', 6))
+    expect(parameter.maxStaleAfter).to.equal(3600)
 
     await expect(marketFactory.initialize()).to.be.reverted
   })
@@ -262,12 +255,12 @@ describe('Verify Initialization', () => {
     expect(await storkFactory.callStatic.oracleFactory()).to.equal((await HRE.deployments.get('OracleFactory')).address)
 
     const storkFactoryParameter = await storkFactory.callStatic.parameter()
-    expect(storkFactoryParameter.latestGranularity).to.equal(1)
-    expect(storkFactoryParameter.currentGranularity).to.equal(KeeperFactoryParameter.granularity)
-    expect(storkFactoryParameter.effectiveAfter).to.equal(1739397577)
-    expect(storkFactoryParameter.oracleFee).to.equal(KeeperFactoryParameter.oracleFee)
-    expect(storkFactoryParameter.validFrom).to.equal(KeeperFactoryParameter.validFrom)
-    expect(storkFactoryParameter.validTo).to.equal(KeeperFactoryParameter.validTo)
+    expect(storkFactoryParameter.latestGranularity).to.equal(5)
+    expect(storkFactoryParameter.currentGranularity).to.equal(1)
+    expect(storkFactoryParameter.effectiveAfter).to.equal(1740597245)
+    expect(storkFactoryParameter.oracleFee).to.equal(0)
+    expect(storkFactoryParameter.validFrom).to.equal(1)
+    expect(storkFactoryParameter.validTo).to.equal(6)
 
     await expect(storkFactory.initialize(constants.AddressZero)).to.be.reverted
   })

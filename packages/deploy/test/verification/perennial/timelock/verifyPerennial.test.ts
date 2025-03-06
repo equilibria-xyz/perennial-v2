@@ -20,17 +20,17 @@ describe('Verify Timelock', () => {
     // Make typescript happy
     if (!deployer) throw new Error()
 
+    expect(await timelock.callStatic.getMinDelay()).to.equal(60)
+
     const ADMIN_ROLE = await timelock.callStatic.DEFAULT_ADMIN_ROLE()
     const PROPOSER_ROLE = await timelock.callStatic.PROPOSER_ROLE()
     const EXECUTOR_ROLE = await timelock.callStatic.EXECUTOR_ROLE()
     const CANCELLER_ROLE = await timelock.callStatic.CANCELLER_ROLE()
     const TIMELOCK_ADMIN_ROLE = await timelock.callStatic.TIMELOCK_ADMIN_ROLE()
 
-    expect(await timelock.callStatic.getMinDelay()).to.equal(60)
-
-    // deployer can propose and cancel
+    // deployer can only cancel
     expect(await timelock.callStatic.hasRole(ADMIN_ROLE, deployer)).to.be.false
-    expect(await timelock.callStatic.hasRole(PROPOSER_ROLE, deployer)).to.be.true
+    expect(await timelock.callStatic.hasRole(PROPOSER_ROLE, deployer)).to.be.false
     expect(await timelock.callStatic.hasRole(EXECUTOR_ROLE, deployer)).to.be.false
     expect(await timelock.callStatic.hasRole(CANCELLER_ROLE, deployer)).to.be.true
     expect(await timelock.callStatic.hasRole(TIMELOCK_ADMIN_ROLE, deployer)).to.be.false
@@ -48,5 +48,14 @@ describe('Verify Timelock', () => {
     expect(await timelock.callStatic.hasRole(EXECUTOR_ROLE, constants.AddressZero)).to.be.true
     expect(await timelock.callStatic.hasRole(CANCELLER_ROLE, constants.AddressZero)).to.be.false
     expect(await timelock.callStatic.hasRole(TIMELOCK_ADMIN_ROLE, constants.AddressZero)).to.be.false
+
+    const safe = '0xBCefBBafD7fbA950713941a319061A64524c4e30'
+
+    // safe should be able to propose
+    expect(await timelock.callStatic.hasRole(ADMIN_ROLE, safe)).to.be.false
+    expect(await timelock.callStatic.hasRole(PROPOSER_ROLE, safe)).to.be.true
+    expect(await timelock.callStatic.hasRole(EXECUTOR_ROLE, safe)).to.be.false
+    expect(await timelock.callStatic.hasRole(CANCELLER_ROLE, safe)).to.be.false
+    expect(await timelock.callStatic.hasRole(TIMELOCK_ADMIN_ROLE, safe)).to.be.false
   })
 })
