@@ -101,6 +101,7 @@ export const STANDARD_RISK_PARAMETER = {
   minMaintenance: parse6decimal('500'),
   staleAfter: 7200,
   makerReceiveOnly: false,
+  maxLiquidationFee: parse6decimal('10.00'),
 }
 
 export const STANDARD_MARKET_PARAMETER = {

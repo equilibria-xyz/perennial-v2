@@ -157,6 +157,7 @@ export interface RiskParameter {
   minMaintenance: BigNumberish
   staleAfter: BigNumberish
   makerReceiveOnly: boolean
+  maxLiquidationFee: BigNumberish
 }
 
 export interface Context {
@@ -531,6 +532,7 @@ export const DEFAULT_RISK_PARAMETER: RiskParameter = {
   minMaintenance: 0,
   staleAfter: 0,
   makerReceiveOnly: false,
+  maxLiquidationFee: 0,
 }
 
 export const DEFAULT_CONTEXT: Context = {

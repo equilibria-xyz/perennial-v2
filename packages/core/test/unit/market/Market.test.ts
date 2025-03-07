@@ -545,6 +545,7 @@ describe('Market', () => {
       minMaintenance: parse6decimal('100'),
       staleAfter: 7200,
       makerReceiveOnly: false,
+      maxLiquidationFee: parse6decimal('1000'),
     }
     marketParameter = {
       fundingFee: parse6decimal('0.1'),
@@ -657,6 +658,7 @@ describe('Market', () => {
       expect(riskParameterResult.minMaintenance).to.equal(0)
       expect(riskParameterResult.staleAfter).to.equal(0)
       expect(riskParameterResult.makerReceiveOnly).to.equal(false)
+      expect(riskParameterResult.maxLiquidationFee).to.equal(0)
 
       const marketParameterResult = await market.parameter()
       expect(marketParameterResult.fundingFee).to.equal(0)
@@ -784,6 +786,7 @@ describe('Market', () => {
         minMaintenance: parse6decimal('50'),
         staleAfter: 9600,
         makerReceiveOnly: true,
+        maxLiquidationFee: parse6decimal('1000'),
       }
 
       it('updates the parameters (owner)', async () => {
@@ -17191,6 +17194,99 @@ describe('Market', () => {
           ).to.revertedWithCustomError(market, 'InstancePausedError')
 
           factory.paused.reset()
+        })
+      })
+
+      it('liquidation w/ very low max liquidation fee', async () => {
+        // set maxLiquidation fee to 5
+        const riskParameter = { ...(await market.riskParameter()) }
+        riskParameter.maxLiquidationFee = parse6decimal('5')
+        await market.updateRiskParameter(riskParameter)
+
+        await market
+          .connect(userB)
+          ['update(address,int256,int256,int256,address)'](
+            userB.address,
+            POSITION,
+            0,
+            COLLATERAL,
+            constants.AddressZero,
+          )
+        // open long position
+        await market
+          .connect(user)
+          ['update(address,int256,int256,address)'](
+            user.address,
+            POSITION.div(2),
+            parse6decimal('216'),
+            constants.AddressZero,
+          )
+        oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
+        oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        await settle(market, user)
+        await settle(market, userB)
+
+        const EXPECTED_PNL = parse6decimal('27').mul(5)
+        const EXPECTED_SETTLEMENT_FEE = parse6decimal('1')
+        const EXPECTED_LIQUIDATION_FEE = parse6decimal('5')
+
+        const oracleVersionLowerPrice = {
+          price: parse6decimal('96'),
+          timestamp: TIMESTAMP + 7200,
+          valid: true,
+        }
+        oracle.at
+          .whenCalledWith(oracleVersionLowerPrice.timestamp)
+          .returns([oracleVersionLowerPrice, INITIALIZED_ORACLE_RECEIPT])
+        oracle.status.returns([oracleVersionLowerPrice, ORACLE_VERSION_4.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        await settle(market, userB)
+
+        await market.connect(userB).close(user.address, true, constants.AddressZero)
+
+        oracle.at
+          .whenCalledWith(ORACLE_VERSION_4.timestamp)
+          .returns([ORACLE_VERSION_4, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: EXPECTED_SETTLEMENT_FEE }])
+        oracle.status.returns([ORACLE_VERSION_4, ORACLE_VERSION_5.timestamp])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        await settle(market, user)
+        await settle(market, userB)
+
+        const oracleVersionLowerPrice2 = {
+          price: parse6decimal('96'),
+          timestamp: TIMESTAMP + 14400,
+          valid: true,
+        }
+        oracle.at
+          .whenCalledWith(oracleVersionLowerPrice2.timestamp)
+          .returns([oracleVersionLowerPrice2, INITIALIZED_ORACLE_RECEIPT])
+        oracle.status.returns([oracleVersionLowerPrice2, oracleVersionLowerPrice2.timestamp + 3600])
+        oracle.request.whenCalledWith(user.address).returns()
+
+        await settle(market, user)
+        await settle(market, userB)
+
+        expectLocalEq(await market.locals(user.address), {
+          ...DEFAULT_LOCAL,
+          currentId: 2,
+          latestId: 2,
+        })
+        expect(await margin.claimables(userB.address)).to.equal(EXPECTED_LIQUIDATION_FEE)
+        expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+          parse6decimal('216')
+            .sub(EXPECTED_SETTLEMENT_FEE)
+            .sub(EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123))
+            .sub(EXPECTED_FUNDING_WITH_FEE_2_5_96.add(EXPECTED_INTEREST_5_96))
+            .sub(EXPECTED_LIQUIDATION_FEE),
+        )
+        expect(await market.liquidators(user.address, 2)).to.equal(userB.address)
+        expectPositionEq(await market.positions(user.address), {
+          ...DEFAULT_POSITION,
+          timestamp: ORACLE_VERSION_5.timestamp,
         })
       })
 

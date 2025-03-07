@@ -251,6 +251,7 @@ library VersionLib {
         liquidationFee = context.toOracleVersion.valid ?
             context.toOracleReceipt.settlementFee.mul(context.riskParameter.liquidationFee) :
             UFixed6Lib.ZERO;
+        liquidationFee = liquidationFee.min(context.riskParameter.maxLiquidationFee);
         next.liquidationFee.decrement(Fixed6Lib.from(liquidationFee), UFixed6Lib.ONE);
     }
 
