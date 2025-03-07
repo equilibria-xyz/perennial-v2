@@ -1,6 +1,5 @@
 import { BigNumberish, utils } from 'ethers'
 import { IMultiInvoker } from '../../../types/generated'
-import { InterfaceFeeStruct } from '../../../types/generated/contracts/MultiInvoker/MultiInvoker'
 import { ethers } from 'hardhat'
 import { BigNumber, constants } from 'ethers'
 import { IntentStruct } from '../../../types/generated/@perennial/v2-core/contracts/Market'
@@ -25,8 +24,8 @@ export const buildUpdateMarket = ({
   shortDelta = BigNumber.from(0),
   collateral = BigNumber.from(0),
   handleWrap = false,
-  interfaceFee1,
-  interfaceFee2,
+  referrer = constants.AddressZero,
+  additiveFee = BigNumber.from(0),
 }: {
   market: string
   longDelta?: BigNumber
@@ -34,23 +33,15 @@ export const buildUpdateMarket = ({
   shortDelta?: BigNumber
   collateral?: BigNumber
   handleWrap?: boolean
-  interfaceFee1?: InterfaceFeeStruct
-  interfaceFee2?: InterfaceFeeStruct
+  referrer?: string
+  additiveFee?: BigNumber
 }): Actions => {
   return [
     {
       action: 1,
       args: utils.defaultAbiCoder.encode(
-        ['address', 'int256', 'int256', 'int256', 'bool', 'tuple(uint256,address)', 'tuple(uint256,address)'],
-        [
-          market,
-          makerDelta,
-          longDelta.sub(shortDelta),
-          collateral,
-          handleWrap,
-          [interfaceFee1 ? interfaceFee1.amount : 0, interfaceFee1 ? interfaceFee1.receiver : constants.AddressZero],
-          [interfaceFee2 ? interfaceFee2.amount : 0, interfaceFee2 ? interfaceFee2.receiver : constants.AddressZero],
-        ],
+        ['address', 'int256', 'int256', 'int256', 'address', 'uint256', 'bool'],
+        [market, makerDelta, longDelta.sub(shortDelta), collateral, referrer, additiveFee, handleWrap],
       ),
     },
   ]
