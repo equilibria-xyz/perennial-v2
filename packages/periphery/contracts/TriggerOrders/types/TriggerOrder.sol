@@ -136,6 +136,7 @@ struct StoredTriggerOrder {
     address referrer;
     uint24 additiveFee;           // <= 1677%
     bytes9 __unallocated1__;     // 9 bytes left over (no need to pad trailing bytes)
+    /* slot 2 can be almost fully occupied by dirty data until it is re-stored */
 }
 struct TriggerOrderStorage { StoredTriggerOrder value; }
 using TriggerOrderStorageLib for TriggerOrderStorage global;
@@ -150,7 +151,7 @@ library TriggerOrderStorageLib {
     );
 
     // sig: 0xf3469aa7
-    /// @custom:error price, delta, maxFee, or interface fee amount is out-of-bounds
+    /// @custom:error price, delta, maxFee, or additive fee amount is out-of-bounds
     error TriggerOrderStorageInvalidError();
 
     /// @notice reads a trigger order struct from storage

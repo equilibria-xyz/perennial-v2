@@ -34,12 +34,6 @@ interface IManager {
     /// @param orderId Uniquely identifies the executed order
     event TriggerOrderExecuted(IMarket indexed market, address indexed account, TriggerOrder order, uint256 orderId);
 
-    /// @notice Emitted when an interface fee specified on a trigger order has been paid
-    /// @param account Actor who paid the fee
-    /// @param market Perennial market from which the fee was pulled
-    /// @param fee Details including the fee amount and recipient of the fee
-    event TriggerOrderInterfaceFeeCharged(address indexed account, IMarket indexed market, InterfaceFee fee);
-
     // sig: 0x955cc4b9
     /// @custom:error Order does not exist or was already cancelled or executed
     error ManagerCannotCancelError();
