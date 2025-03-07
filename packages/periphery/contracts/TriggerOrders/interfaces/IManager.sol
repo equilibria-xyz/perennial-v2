@@ -4,7 +4,6 @@ pragma solidity ^0.8.13;
 import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 
 import { CancelOrderAction } from "../types/CancelOrderAction.sol";
-import { InterfaceFee } from "../types/InterfaceFee.sol";
 import { PlaceOrderAction, TriggerOrder } from "../types/PlaceOrderAction.sol";
 
 /// @notice Stores and executes trigger orders

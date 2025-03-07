@@ -4,7 +4,6 @@ pragma solidity ^0.8.13;
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { IMarket, OracleVersion, Order, Position } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
-import { InterfaceFee, InterfaceFeeLib } from "./InterfaceFee.sol";
 
 /// @notice Changes a user's position in a market when price reaches a trigger threshold
 struct TriggerOrder {
