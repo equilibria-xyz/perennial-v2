@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 interface IStork {
     struct TemporalNumericValue {
         uint64 timestampNs; // 8 bytes
-        int192 quantizedValue; // 8 bytes
+        int192 quantizedValue; // 24 bytes
     }
 
     struct TemporalNumericValueInput {
