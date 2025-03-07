@@ -170,6 +170,7 @@ describe('Cross Margin', () => {
     user: SignerWithAddress,
     timestamp: number,
     price: BigNumber,
+    settle = true,
   ): Promise<number> {
     const keeperFactoryAddress = await market.keeperOracle.factory()
     const oracleFactory = await impersonateWithBalance(keeperFactoryAddress, utils.parseEther('10'))
@@ -177,7 +178,10 @@ describe('Cross Margin', () => {
     // a keeper cannot commit a future price, so advance past the block
     const currentBlockTime = await currentBlockTimestamp()
     if (currentBlockTime < timestamp) {
+      // console.log('advanceToPrice increasing by two seconds from', currentBlockTime, 'to', timestamp + 2)
       await increaseTo(timestamp + 2)
+    } else {
+      // console.log('advanceToPrice commiting at', currentBlockTime)
     }
     // create a version with the desired parameters and commit to the KeeperOracle
     const oracleVersion: OracleVersionStruct = {
@@ -189,9 +193,9 @@ describe('Cross Margin', () => {
       .connect(oracleFactory)
       .commit(oracleVersion, user.address, 0)
 
-    await market.market.connect(user).settle(user.address)
+    if (settle) await market.market.connect(user).settle(user.address)
 
-    // inform the caller of the current timestamp
+    // inform the caller of the commitment timestamp
     return await getTimestamp(tx)
   }
 
@@ -446,6 +450,83 @@ describe('Cross Margin', () => {
     expectCheckpointEq(await marketA.market.checkpoints(userA.address, timestamp), {
       ...DEFAULT_CHECKPOINT,
       collateral: parse6decimal('600'),
+    })
+  })
+
+  it('depsosit and withdrawal is checkpointed without position change', async () => {
+    // userB starts with only 100k
+    const INITIAL_DEPOSIT_B = parse6decimal('100000')
+    await margin.connect(userB).withdraw(userB.address, INITIAL_DEPOSIT_B)
+
+    // userA opens a cross-margin position in two markets
+    const timestamp1 = (await currentBlockTimestamp()) + 60
+    console.log('timestamp1', timestamp1)
+    await includeAt(async () => {
+      await changePositionImpl(marketA, userA, parse6decimal('200'), 0)
+      await changePositionImpl(marketB, userA, parse6decimal('50'), 0)
+    }, timestamp1)
+
+    // after settlement should have a cross-margin checkpoint but no isolated checkpoints
+    await advanceToPrice(marketA, userA, timestamp1, parse6decimal('100.1'))
+    // note this checkpoint is "unfinalized", as marketB has not yet settled
+    expectCheckpointEq(await margin.crossMarginCheckpoints(userA.address, timestamp1), {
+      ...DEFAULT_CHECKPOINT,
+      transfer: INITIAL_DEPOSIT,
+    })
+    expectCheckpointEq(await margin.isolatedCheckpoints(userA.address, marketA.market.address, timestamp1), {
+      ...DEFAULT_CHECKPOINT,
+    })
+    expectCheckpointEq(await margin.isolatedCheckpoints(userA.address, marketB.market.address, timestamp1), {
+      ...DEFAULT_CHECKPOINT,
+    })
+
+    // userB opens a short position in marketB
+    const timestamp2 = timestamp1 + 60 * 5
+    await includeAt(async () => {
+      await changePositionImpl(marketB, userB, 0, parse6decimal('-25'))
+    }, timestamp2)
+    // need to commit timestamp1 price for userA before userB can settle timestamp2
+    await advanceToPrice(marketB, userA, timestamp1, parse6decimal('500.1'), false)
+    await advanceToPrice(marketB, userB, timestamp2, parse6decimal('500.2'))
+
+    // userA decides to withdraw some funds without position change
+    const timestamp3 = timestamp2 + 60 * 5
+    const withdrawalA = parse6decimal('2500')
+    await includeAt(async () => {
+      await margin.connect(userA).withdraw(userA.address, withdrawalA)
+    }, timestamp3)
+    expect(await margin.crossMarginBalances(userA.address)).to.equal(INITIAL_DEPOSIT.sub(withdrawalA))
+
+    // userA should have no checkpoint at timestamp2 (no activity) or timestamp3 (not yet settled)
+    expectCheckpointEq(await margin.crossMarginCheckpoints(userA.address, timestamp2), {
+      ...DEFAULT_CHECKPOINT,
+    })
+    expectCheckpointEq(await margin.crossMarginCheckpoints(userA.address, timestamp3), {
+      ...DEFAULT_CHECKPOINT,
+    })
+
+    // userA settles; should have a checkpoint at timestamp3
+    await advanceToPrice(marketA, userA, timestamp3, parse6decimal('100.3'))
+    expectCheckpointEq(await margin.crossMarginCheckpoints(userA.address, timestamp3), {
+      ...DEFAULT_CHECKPOINT,
+      transfer: -withdrawalA,
+      collateral: INITIAL_DEPOSIT,
+    })
+
+    // concerned over price movement, userB recollateralizes without position change
+    const timestamp4 = timestamp3 + 60 * 5
+    const depositB = parse6decimal('3500')
+    await includeAt(async () => {
+      await margin.connect(userB).deposit(userB.address, depositB)
+    }, timestamp4)
+    expect(await margin.crossMarginBalances(userB.address)).to.equal(INITIAL_DEPOSIT_B.add(depositB))
+
+    // userB settles; should have a checkpoint at timestamp4
+    await advanceToPrice(marketB, userB, timestamp4, parse6decimal('500.3'))
+    expectCheckpointEq(await margin.crossMarginCheckpoints(userB.address, timestamp4), {
+      ...DEFAULT_CHECKPOINT,
+      transfer: depositB,
+      collateral: INITIAL_DEPOSIT_B,
     })
   })
 })

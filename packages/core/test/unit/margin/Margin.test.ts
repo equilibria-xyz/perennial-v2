@@ -529,7 +529,7 @@ describe('Margin', () => {
 
       // change marketA to isolated
       marketA.marginRequired.reset()
-      marketB.checkMarginAndRequestPrice.reset()
+      marketB.marginRequired.reset()
       await expect(margin.connect(user).isolate(user.address, marketA.address, parse6decimal('400')))
         .to.emit(margin, 'MarketIsolated')
         .withArgs(user.address, marketA.address)
@@ -540,7 +540,7 @@ describe('Margin', () => {
       // ensure both margin checks were performed:
       // marketA (against newly isolated amount) and marketB (against cross-margin balance)
       expect(marketA.marginRequired).to.have.been.calledWith(user.address, constants.Zero)
-      expect(marketB.checkMarginAndRequestPrice).to.have.been.calledWith(user.address, constants.Zero)
+      expect(marketB.marginRequired).to.have.been.calledWith(user.address, constants.Zero)
     })
 
     it('isolates collateral into two markets', async () => {
@@ -668,11 +668,11 @@ describe('Margin', () => {
       const marketSignerA = await impersonate.impersonateWithBalance(marketA.address, utils.parseEther('10'))
       // 300 > 200, should return true
       marketA.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('200'))
-      expect(await margin.connect(marketSignerA).callStatic.checkMargin(user.address, constants.Zero)).to.be.true
+      expect(await margin.connect(marketSignerA).margined(user.address, constants.Zero)).to.be.true
       expect(marketA.marginRequired).to.have.been.calledWith(user.address, constants.Zero)
       // 300 < 400, should return false
       marketA.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('400'))
-      expect(await margin.connect(marketSignerA).callStatic.checkMargin(user.address, constants.Zero)).to.be.false
+      expect(await margin.connect(marketSignerA).margined(user.address, constants.Zero)).to.be.false
       expect(marketB.marginRequired).to.not.have.been.called
       expect(marketC.marginRequired).to.not.have.been.called
 
@@ -680,17 +680,17 @@ describe('Margin', () => {
       // 750 > 700, should return false
       const marketSignerB = await impersonate.impersonateWithBalance(marketB.address, utils.parseEther('10'))
       const marketSignerC = await impersonate.impersonateWithBalance(marketC.address, utils.parseEther('10'))
-      marketB.checkMarginAndRequestPrice.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('370'))
-      marketC.checkMarginAndRequestPrice.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('380'))
-      expect(await margin.connect(marketSignerB).callStatic.checkMargin(user.address, constants.Zero)).to.be.false
-      expect(marketB.checkMarginAndRequestPrice).to.have.been.calledWith(user.address, constants.Zero)
-      expect(marketC.checkMarginAndRequestPrice).to.have.been.calledWith(user.address, constants.Zero)
-      expect(await margin.connect(marketSignerC).callStatic.checkMargin(user.address, constants.Zero)).to.be.false
+      marketB.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('370'))
+      marketC.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('380'))
+      expect(await margin.connect(marketSignerB).margined(user.address, constants.Zero)).to.be.false
+      expect(marketB.marginRequired).to.have.been.calledWith(user.address, constants.Zero)
+      expect(marketC.marginRequired).to.have.been.calledWith(user.address, constants.Zero)
+      expect(await margin.connect(marketSignerC).margined(user.address, constants.Zero)).to.be.false
       // 475 < 700, should return true
-      marketB.checkMarginAndRequestPrice.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('250'))
-      marketC.checkMarginAndRequestPrice.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('225'))
-      expect(await margin.connect(marketSignerB).callStatic.checkMargin(user.address, constants.Zero)).to.be.true
-      expect(await margin.connect(marketSignerC).callStatic.checkMargin(user.address, constants.Zero)).to.be.true
+      marketB.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('250'))
+      marketC.marginRequired.whenCalledWith(user.address, constants.Zero).returns(parse6decimal('225'))
+      expect(await margin.connect(marketSignerB).margined(user.address, constants.Zero)).to.be.true
+      expect(await margin.connect(marketSignerC).margined(user.address, constants.Zero)).to.be.true
     })
 
     it('honors minCollateralization on isolated margin check', async () => {
@@ -706,7 +706,7 @@ describe('Margin', () => {
       marketA.marginRequired
         .whenCalledWith(user.address, minCollateralization)
         .returns(parse6decimal('190').mul(11).div(10))
-      expect(await margin.connect(marketSignerA).callStatic.checkMargin(user.address, minCollateralization)).to.be.false
+      expect(await margin.connect(marketSignerA).margined(user.address, minCollateralization)).to.be.false
       expect(marketA.marginRequired).to.have.been.calledWith(user.address, minCollateralization)
     })
 

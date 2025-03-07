@@ -104,6 +104,7 @@ library CheckpointLib {
         Checkpoint memory self,
         Checkpoint memory local
     ) internal pure {
+        self.transfer = self.transfer.add(local.transfer);
         self.collateral = self.collateral.add(local.collateral);
         self.tradeFee = self.tradeFee.add(local.tradeFee);
         self.settlementFee = self.settlementFee.add(local.settlementFee);

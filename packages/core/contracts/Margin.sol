@@ -15,6 +15,7 @@ import { Position } from "./types/Position.sol";
 import { RiskParameter } from "./types/RiskParameter.sol";
 import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
 import { IMarket, IMarketFactory } from "./interfaces/IMarketFactory.sol";
+import "hardhat/console.sol";
 
 contract Margin is IMargin, Instance, ReentrancyGuard {
     IMarket private constant CROSS_MARGIN = IMarket(address(0));
@@ -73,8 +74,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         DSU.pull(msg.sender, UFixed18Lib.from(amount));
         _balances[account][CROSS_MARGIN] = _balances[account][CROSS_MARGIN].add(Fixed6Lib.from(amount));
 
-        // TODO: Request prices for cross-margined markets with position?
-        // Cross-margin checkpoint to record transfer amount upon settlement?
+        _requestCrossMarginSettlement(account, Fixed6Lib.from(amount));
 
         emit FundsDeposited(account, amount);
     }
@@ -89,8 +89,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         // ensure crossed markets remain margined after withdrawal
         if (!_checkCrossMargin(account)) revert IMarket.MarketInsufficientMarginError();
 
-        // TODO: For markets with position, request new price, and write checkpoint with transfer upon settlement?
-        // If no positions, just write the checkpoint with transfer immediately?
+        _requestCrossMarginSettlement(account, Fixed6Lib.from(-1, amount));
 
         // withdrawal goes to sender, not account, consistent with legacy Market behavior
         DSU.push(msg.sender, UFixed18Lib.from(amount));
@@ -135,10 +134,10 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     /// @inheritdoc IMargin
-    function checkMargin(
+    function margined(
         address account,
         UFixed6 minCollateralization
-    ) external onlyMarket returns (bool isMargined) {
+    ) external onlyMarket view returns (bool isMargined) {
         IMarket market = IMarket(msg.sender);
         if (_isIsolated(account, market)) {
             // Market in isolated mode; only need to check against isolated balance
@@ -199,22 +198,34 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     // but would be quite dirty to pass a context struct through each Market.
     /// @inheritdoc IMargin
     function updateCheckpoint(address account, uint256 version, Checkpoint memory latestMarketCheckpoint, Fixed6 collateral) external onlyMarket {
+        // TODO: filter these out in the Market (see PR#593)
+        if (account == address(0)) return;
+
         IMarket market = IMarket(msg.sender);
         if (_isCrossed(account, market)) {
+            console.log("  Margin::updateCheckpoint crossed for market %s account %s version %s with collateral ",
+                msg.sender, account, version);
+            console.logInt(Fixed6.unwrap(collateral));
 
             uint256 latestCrossVersion = latestCrossMarginVersion[account];
             Checkpoint memory checkpoint;
             // TODO: Organize these conditionals for efficiency rather than readability?
             if (latestCrossVersion == 0) {
+                console.log("   Margin::updateCheckpoint first checkpoint");
                 // First checkpoint; initialize with current cross-margin balance as transfer
                 checkpoint = Checkpoint(Fixed6Lib.ZERO, UFixed6Lib.ZERO, _balances[account][CROSS_MARGIN], Fixed6Lib.ZERO);
                 latestCrossMarginVersion[account] = version;
             } else if (latestCrossVersion == version) {
+                console.log("   Margin::updateCheckpoint update checkpoint");
                 // Another market settled for this version already; update as appropriate
                 checkpoint = _checkpoints[account][CROSS_MARGIN][latestCrossVersion].read();
             } else {
                 // First market update for this version; create a new latest checkpoint
                 checkpoint = _checkpoints[account][CROSS_MARGIN][latestCrossVersion].read();
+                console.log("   Margin::updateCheckpoint create checkpoint from existing with transfer ");
+                console.logInt(Fixed6.unwrap(checkpoint.transfer));
+                console.log(" collateral ");
+                console.logInt(Fixed6.unwrap(collateral));
                 // TODO: roll this into a Checkpoint::next method?
                 checkpoint.collateral = checkpoint.collateral.add(checkpoint.transfer);
                 checkpoint.transfer = Fixed6Lib.ZERO;
@@ -222,6 +233,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
             }
 
             // Aggregate the market checkpoint into the cross-margin checkpoint
+            // console.log("   Margin::updateCheckpoint adding market checkpoint with collateral ");
+            // console.logInt(Fixed6.unwrap(latestMarketCheckpoint.collateral));
             CheckpointLib.add(checkpoint, latestMarketCheckpoint);
             _checkpoints[account][CROSS_MARGIN][version].store(checkpoint);
 
@@ -230,6 +243,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
             _balances[account][CROSS_MARGIN] = crossBalance.add(collateral);
             emit FundsChanged(account, collateral);
         } else {
+            // console.log("  Margin::updateCheckpoint for account %s non-cross market %s", account, msg.sender);
             // Store the checkpoint
             _checkpoints[account][IMarket(msg.sender)][version].store(latestMarketCheckpoint);
             // Update balance
@@ -282,14 +296,30 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     }
 
     // TODO: handle minCollateralization for cross-margined markets
-    function _checkCrossMargin(address account) private returns (bool isMargined) {
+    function _checkCrossMargin(address account) private view returns (bool isMargined) {
         IMarket market;
         UFixed6 requirement;
         for (uint256 i; i < crossMarginMarkets[account].length; i++) {
             market = crossMarginMarkets[account][i];
-            requirement = requirement.add(market.checkMarginAndRequestPrice(account, UFixed6Lib.ZERO));
+            // TODO: perhaps market should check this within Market::_marginRequired
+            if (market.stale()) revert IMarket.MarketStalePriceError();
+            requirement = requirement.add(market.marginRequired(account, UFixed6Lib.ZERO));
         }
         return UFixed6Lib.unsafeFrom(_balances[account][CROSS_MARGIN]).gte(requirement);
+    }
+
+    function _requestCrossMarginSettlement(address account, Fixed6 transfer) private returns (bool isMargined) {
+        IMarket market;
+        // FIXME: Sends transfer to first market, which seems kludgy.  More importantly, what should we
+        // do here if there are no markets?  Should we just write a checkpoint at block.timestamp?
+        if (crossMarginMarkets[account].length == 0) {
+            console.log("  Margin::_requestCrossMarginSettlement no markets for account %s", account);
+        }
+        for (uint256 i; i < crossMarginMarkets[account].length; i++) {
+            market = crossMarginMarkets[account][i];
+            // console.log("  Margin::_requestCrossMarginSettlement making empty update for market %s account %s", address(market), account);
+            market.noOpUpdate(account, i == 0 ? transfer : Fixed6Lib.ZERO);
+        }
     }
 
     function _crossMaintained(address account) private view returns (bool isMaintained) {

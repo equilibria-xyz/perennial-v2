@@ -27,6 +27,7 @@ import { OracleReceipt } from "./types/OracleReceipt.sol";
 import { InvariantLib } from "./libs/InvariantLib.sol";
 import { VersionAccumulationResponse, VersionLib } from "./libs/VersionLib.sol";
 import { Checkpoint, CheckpointAccumulationResponse, CheckpointLib } from "./libs/CheckpointLib.sol";
+import "hardhat/console.sol";
 
 /// @title Market
 /// @notice Manages logic and state for a single market.
@@ -307,21 +308,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         emit RiskParameterUpdated(newRiskParameter);
     }
 
-    /// @inheritdoc IMarket
-    function checkMarginAndRequestPrice(
-        address account,
-        UFixed6 minCollateralization
-    ) external onlyMargin returns (UFixed6 requirement) {
-        // Ensure margin requirements are measured against a non-stale price
-        OracleVersion memory latestOracleVersion;
-        uint256 currentTimestamp;
-        (latestOracleVersion, currentTimestamp, requirement) = _marginRequired(account, minCollateralization);
-        if (_stale(latestOracleVersion, currentTimestamp, _riskParameter.read().staleAfter)) revert IMarket.MarketStalePriceError();
-
-        // Request a new price for settlement
-        oracle.request(IMarket(this), account);
-    }
-
     /// @notice Transfers a fee that the sender has accrued to the Margin contract
     /// @dev Applicable fees include: protocol, oracle, and risk
     /// @return feeReceived The amount of the fee claimed
@@ -352,6 +338,34 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             margin.updateClaimable(msg.sender, feeReceived);
             emit FeeClaimed(account, msg.sender, feeReceived);
         }
+    }
+
+    /// @inheritdoc IMarket
+    function noOpUpdate(address account, Fixed6 collateral) external onlyMargin {
+        // don't implicitly settle to avoid invoking Margin::handleMarketSettle
+        Context memory context =_loadContext(account);
+        UpdateContext memory updateContext = _loadUpdateContext(
+            context,
+            address(0), address(0), address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+
+        // create empty order to advance id and timestamp
+        Order memory newOrder = OrderLib.from(
+            context.currentTimestamp,
+            updateContext.currentPositionLocal,
+            Fixed6Lib.ZERO,
+            Fixed6Lib.ZERO,
+            collateral,
+            false,
+            false,
+            UFixed6Lib.ZERO
+        );
+        // console.log("   Market::noOpUpdate created order at %s with collateral ", context.currentTimestamp);
+        // console.logInt(Fixed6.unwrap(newOrder.collateral));
+
+        // don't invoke Margin::handleMarketUpdate
+        // FIXME: This won't work in settle-only mode, which seems undesirable.
+        _update(context, updateContext, newOrder, GuaranteeLib.fresh(), address(0), address(0));
+        _storeContext(context);
     }
 
     /// @notice Returns the current parameter set
@@ -706,7 +720,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ) revert IMarket.MarketStalePriceError();
 
         // check margin
-        if (!newOrder.protected() && !margin.checkMargin(context.account, updateContext.collateralization))
+        if (!newOrder.protected() && !margin.margined(context.account, updateContext.collateralization))
             revert IMarket.MarketInsufficientMarginError();
     }
 
@@ -1001,6 +1015,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             versionFrom,
             versionTo
         );
+        // console.log("   Market::_processOrderLocal accumulated checkpoint from order with collateral ");
+        // console.logInt(Fixed6.unwrap(newOrder.collateral));
+        // console.log(" creating new checkpoint with transfer ");
+        // console.logInt(Fixed6.unwrap(settlementContext.latestCheckpoint.transfer));
+        // console.log(" and collateral ");
+        // console.logInt(Fixed6.unwrap(settlementContext.latestCheckpoint.collateral));
 
         context.latestPositionLocal.update(newOrder);
         // calculate and store collateral change for account
