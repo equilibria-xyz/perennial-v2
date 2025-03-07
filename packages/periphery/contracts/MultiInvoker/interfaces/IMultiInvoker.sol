@@ -6,7 +6,6 @@ import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 import { IMarketFactory } from "@perennial/v2-core/contracts/interfaces/IMarketFactory.sol";
 import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
-import { InterfaceFee } from "../types/InterfaceFee.sol";
 
 interface IMultiInvoker {
     enum PerennialAction {
@@ -27,8 +26,6 @@ interface IMultiInvoker {
         PerennialAction action;
         bytes args;
     }
-
-    event InterfaceFeeCharged(address indexed account, IMarket indexed market, InterfaceFee fee);
 
     // sig: 0x42ecdedb
     error MultiInvokerUnauthorizedError();
