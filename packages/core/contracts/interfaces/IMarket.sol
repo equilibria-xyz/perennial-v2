@@ -119,6 +119,8 @@ interface IMarket is IInstance {
     error MarketInvalidIntentFeeError();
     // sig: 0xaf5dfc8f
     error MarketIntentPriceDeviationError();
+    // sig: 0x350aa830
+    error MarketInvalidAdditiveFeeError();
 
     // sig: 0x2142bc27
     error GlobalStorageInvalidError();
@@ -170,6 +172,7 @@ interface IMarket is IInstance {
     function update(address account, Fixed6 takerAmount, address referrer) external;
     function update(address account, Fixed6 takerAmount, Fixed6 collateral, address referrer) external;
     function update(address account, Fixed6 makerAmount, Fixed6 takerAmount, Fixed6 collateral, address referrer) external;
+    function update(address account, Fixed6 makerAmount, Fixed6 takerAmount, Fixed6 collateral, address referrer, UFixed6 additiveFee) external;
     function close(address account, bool protect, address referrer) external;
     function parameter() external view returns (MarketParameter memory);
     function riskParameter() external view returns (RiskParameter memory);

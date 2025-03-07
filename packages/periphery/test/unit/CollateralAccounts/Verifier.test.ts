@@ -502,6 +502,7 @@ describe('Verifier', () => {
         amount: parse6decimal('15'),
         price: parse6decimal('3110'),
         fee: parse6decimal('0.5'),
+        additiveFee: 0,
         originator: constants.AddressZero,
         solver: constants.AddressZero,
         collateralization: parse6decimal('0.03'),

@@ -12,13 +12,7 @@ import { currentBlockTimestamp } from '../../../../common/testutil/time'
 import { signAction, signCancelOrderAction, signCommon, signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
 import { DEFAULT_TRIGGER_ORDER } from '../../helpers/TriggerOrders/order'
 import { IMarket } from '@perennial/v2-core/types/generated'
-import {
-  IManager,
-  IMarketFactory,
-  IOrderVerifier,
-  OrderVerifier,
-  OrderVerifier__factory,
-} from '../../../types/generated'
+import { IMarketFactory, IOrderVerifier, OrderVerifier, OrderVerifier__factory } from '../../../types/generated'
 
 const { ethers } = HRE
 
@@ -26,7 +20,6 @@ const MAX_FEE = utils.parseEther('8')
 
 describe('Verifier', () => {
   let orderVerifier: OrderVerifier
-  let manager: FakeContract<IManager>
   let market: FakeContract<IMarket>
   let marketFactory: FakeContract<IMarketFactory>
   let owner: SignerWithAddress
@@ -75,12 +68,7 @@ describe('Verifier', () => {
         delta: parse6decimal('400'),
         maxFee: parse6decimal('0.67'),
         referrer: userB.address,
-        interfaceFee: {
-          amount: parse6decimal('0.0053'),
-          receiver: userC.address,
-          fixedFee: false,
-          unwrap: true,
-        },
+        additiveFee: parse6decimal('0.001'),
       },
       ...createActionMessage(userAddress, signerAddress, expiresInSeconds),
     }
@@ -109,7 +97,6 @@ describe('Verifier', () => {
     ;[owner, userA, userB, userC] = await ethers.getSigners()
 
     // deploy a verifier
-    manager = await smock.fake<IManager>('IManager')
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     orderVerifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
 

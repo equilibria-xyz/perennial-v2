@@ -14,7 +14,6 @@ import { IManager } from "./interfaces/IManager.sol";
 import { IOrderVerifier } from "./interfaces/IOrderVerifier.sol";
 import { Action } from "./types/Action.sol";
 import { CancelOrderAction } from "./types/CancelOrderAction.sol";
-import { InterfaceFee } from "./types/InterfaceFee.sol";
 import { TriggerOrder, TriggerOrderStorage } from "./types/TriggerOrder.sol";
 import { PlaceOrderAction } from "./types/PlaceOrderAction.sol";
 
@@ -49,9 +48,8 @@ abstract contract Manager is IManager, Kept {
     /// Market => Account => Nonce => Order
     mapping(IMarket => mapping(address => mapping(uint256 => TriggerOrderStorage))) private _orders;
 
-    /// @dev Mapping of claimable DSU for each account
-    /// Account => Amount
-    mapping(address => UFixed6) public claimable;
+    /// @notice  DEPRECATED SLOT -- previously the claimable interface fee for each account
+    bytes32 private __unused0__;
 
     /// @dev Creates an instance
     /// @param usdc_ USDC stablecoin
@@ -59,7 +57,7 @@ abstract contract Manager is IManager, Kept {
     /// @param reserve_ DSU reserve contract used for unwrapping
     /// @param marketFactory_ Contract used to validate fee claims
     /// @param verifier_ Used to validate EIP712 signatures
-    /// @param margin_ Margin contract used for compensating keeper and paying interface fees
+    /// @param margin_ Margin contract used for compensating keeper
     constructor(
         Token6 usdc_,
         Token18 dsu_,
@@ -153,7 +151,6 @@ abstract contract Manager is IManager, Kept {
 
         if (!canExecute) revert ManagerCannotExecuteError();
 
-        bool interfaceFeeCharged = _chargeInterfaceFee(market, account, order);
         order.execute(market, account);
 
         // invalidate the order nonce
@@ -161,22 +158,12 @@ abstract contract Manager is IManager, Kept {
         _orders[market][account][orderId].store(order);
 
         emit TriggerOrderExecuted(market, account, order, orderId);
-        if (interfaceFeeCharged) emit TriggerOrderInterfaceFeeCharged(account, market, order.interfaceFee);
 
         // compensate keeper
         uint256 applicableGas = startGas - gasleft();
         bytes memory data = abi.encode(account, order.maxFee);
 
         _handleKeeperFee(keepConfigBuffered, applicableGas, abi.encode(account, orderId), 0, data);
-    }
-
-    /// @inheritdoc IManager
-    function claim(address account, bool unwrap) external onlyOperator(account, msg.sender) {
-        UFixed6 claimableAmount = claimable[account];
-        claimable[account] = UFixed6Lib.ZERO;
-
-        if (unwrap) _unwrapAndWithdraw(msg.sender, UFixed18Lib.from(claimableAmount));
-        else DSU.push(msg.sender, UFixed18Lib.from(claimableAmount));
     }
 
     /// @notice Transfers DSU from margin contract to manager to compensate keeper
@@ -208,23 +195,7 @@ abstract contract Manager is IManager, Kept {
         emit TriggerOrderCancelled(market, account, orderId);
     }
 
-    /// @notice Transfers DSU from market to manager to pay interface fee
-    function _chargeInterfaceFee(IMarket market, address account, TriggerOrder memory order) internal returns (bool) {
-        if (order.interfaceFee.amount.isZero()) return false;
-
-        // determine amount of fee to charge
-        UFixed6 feeAmount = order.interfaceFee.fixedFee ?
-            order.interfaceFee.amount :
-            order.notionalValue(market, account).mul(order.interfaceFee.amount);
-
-        _marginWithdraw(account, feeAmount);
-
-        claimable[order.interfaceFee.receiver] = claimable[order.interfaceFee.receiver].add(feeAmount);
-
-        return true;
-    }
-
-    /// @notice Transfers DSU from margin contract to manager contract to pay keeper or interface fee
+    /// @notice Transfers DSU from margin contract to manager contract to pay keeper
     function _marginWithdraw(address account, UFixed6 amount) private {
         margin.withdraw(account, amount);
     }
@@ -238,13 +209,6 @@ abstract contract Manager is IManager, Kept {
 
         _orders[market][account][orderId].store(order);
         emit TriggerOrderPlaced(market, account, order, orderId);
-    }
-
-    /// @notice Unwraps DSU to USDC and pushes to interface fee receiver
-    function _unwrapAndWithdraw(address receiver, UFixed18 amount) private {
-        UFixed6 balanceBefore = USDC.balanceOf(address(this));
-        reserve.redeem(amount);
-        USDC.push(receiver, USDC.balanceOf(address(this)).sub(balanceBefore));
     }
 
     modifier keepAction(Action calldata action, bytes memory applicableCalldata) {
