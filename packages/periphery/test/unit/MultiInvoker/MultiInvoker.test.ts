@@ -33,13 +33,12 @@ import {
 import { parse6decimal } from '../../../../common/testutil/types'
 
 import { OracleVersionStruct } from '../../../types/generated/@perennial/v2-oracle/contracts/Oracle'
-import { anyValue } from '@nomicfoundation/hardhat-chai-matchers/internal/withArgs'
 
 const ethers = { HRE }
 use(smock.matchers)
 
 export function RunMultiInvokerTests(name: string, setup: () => Promise<void>): void {
-  describe.only(name, () => {
+  describe(name, () => {
     let owner: SignerWithAddress
     let user: SignerWithAddress
     let user2: SignerWithAddress

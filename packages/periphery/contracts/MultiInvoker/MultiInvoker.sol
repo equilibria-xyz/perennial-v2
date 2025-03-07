@@ -356,15 +356,6 @@ contract MultiInvoker is IMultiInvoker, Initializable {
         }
     }
 
-    /// @notice Withdraws `withdrawal` from `account`'s `market` position
-    /// @param market Market to withdraw from
-    /// @param account Account to withdraw from
-    /// @param withdrawal Amount to withdraw
-    function _marketWithdraw(IMarket market, address account, UFixed6 withdrawal) private {
-        market.update(account, Fixed6Lib.ZERO, Fixed6Lib.from(-1, withdrawal), address(0));
-        market.margin().withdraw(account, withdrawal);
-    }
-
     /// @notice Target market must be created by MarketFactory
     modifier isMarketInstance(IMarket market) {
         if (!marketFactory.instances(market))
