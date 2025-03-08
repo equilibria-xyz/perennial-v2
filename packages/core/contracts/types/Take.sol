@@ -11,6 +11,8 @@ struct Take {
     Fixed6 amount;
     /// @dev Recipient of referral fee
     address referrer;
+    /// @dev Additive fee, a percentage of the notional size of the order
+    UFixed6 additiveFee;
     /// @dev Information shared across all EIP712 market actions
     ///      common.account - identifies the user
     ///      common.signer  - user or delegate signing the transaction
@@ -26,12 +28,12 @@ using TakeLib for Take global;
 library TakeLib {
     /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
-        "Take(int256 amount,address referrer,Common common)"
+        "Take(int256 amount,address referrer,uint256 additiveFee,Common common)"
         "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
     );
 
     /// @dev Used to create a signed message
     function hash(Take memory self) internal pure returns (bytes32) {
-        return keccak256(abi.encode(STRUCT_HASH, self.amount, self.referrer, CommonLib.hash(self.common)));
+        return keccak256(abi.encode(STRUCT_HASH, self.amount, self.referrer, self.additiveFee, CommonLib.hash(self.common)));
     }
 }

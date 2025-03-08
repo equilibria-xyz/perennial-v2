@@ -206,8 +206,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param take Message requesting change in user's taker position
     /// @param signature Signature of taker or authorized signer
     function update(Take calldata take, bytes memory signature) external nonReentrant whenNotPaused {
+        if (take.additiveFee.gt(IMarketFactory(address(factory())).parameter().maxFee)) revert MarketInvalidAdditiveFeeError();
         verifier.verifyTake(take, signature);
-        _updateMarket(take.common.account, take.common.signer, Fixed6Lib.ZERO, take.amount, Fixed6Lib.ZERO, take.referrer, UFixed6Lib.ZERO);
+        _updateMarket(take.common.account, take.common.signer, Fixed6Lib.ZERO, take.amount, Fixed6Lib.ZERO, take.referrer, take.additiveFee);
     }
 
     /// @notice Updates the account's position
@@ -257,7 +258,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address referrer,
         UFixed6 additiveFee
     ) external nonReentrant whenNotPaused {
-        if (additiveFee.gt(IMarketFactory(address(factory())).parameter().maxFee)) revert MarketInvalidAdditiveFeeError();
         _updateMarket(account, address(0), makerAmount, takerAmount, collateral, referrer, additiveFee);
     }
 

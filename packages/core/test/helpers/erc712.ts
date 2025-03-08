@@ -102,6 +102,7 @@ export async function signTake(
     Take: [
       { name: 'amount', type: 'int256' },
       { name: 'referrer', type: 'address' },
+      { name: 'additiveFee', type: 'uint256' },
       { name: 'common', type: 'Common' },
     ],
   }
