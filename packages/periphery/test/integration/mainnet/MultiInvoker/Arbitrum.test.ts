@@ -4,12 +4,19 @@ import { Address } from 'hardhat-deploy/dist/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import HRE from 'hardhat'
 
-import { IERC20Metadata__factory, IKeeperOracle } from '../../../../types/generated'
+import {
+  IERC20Metadata__factory,
+  IKeeperOracle,
+  Manager,
+  Manager_Arbitrum__factory,
+  OrderVerifier,
+  OrderVerifier__factory,
+} from '../../../../types/generated'
 
 import { RunInvokerTests } from './Invoke.test'
 import { RunOrderTests } from './Orders.test'
 import { RunPythOracleTests } from './Pyth.test'
-import { createInvoker, deployProtocol, InstanceVars } from './setupHelpers'
+import { createCompressor, createInvoker, deployProtocol, InstanceVars } from './setupHelpers'
 import {
   CHAINLINK_ETH_USD_FEED,
   DSU_ADDRESS,
@@ -27,11 +34,28 @@ import {
   PYTH_ETH_USD_PRICE_FEED,
 } from '../../../helpers/oracleHelpers'
 import { time } from '../../../../../common/testutil'
-import { KeeperOracle, PythFactory } from '@perennial/v2-oracle/types/generated'
+import {
+  ArbGasInfo,
+  IERC20Metadata,
+  KeeperOracle,
+  MarketFactory,
+  PythFactory,
+} from '@perennial/v2-oracle/types/generated'
+import { RunCompressorTests } from '../Compressor.test'
+import { OracleVersionStruct } from '../../../../types/generated/@perennial/v2-oracle/contracts/Oracle'
+import { smock } from '@defi-wonderland/smock'
 
 let pythOracleFactory: PythFactory
 let keeperOracle: IKeeperOracle
 let lastPrice: BigNumber = utils.parseEther('2620.237388') // advanceToPrice converts to 6 decimals
+
+const ORACLE_STARTING_TIMESTAMP = BigNumber.from(1646456563)
+
+const INITIAL_ORACLE_VERSION_ETH: OracleVersionStruct = {
+  timestamp: ORACLE_STARTING_TIMESTAMP,
+  price: BigNumber.from('2620237388'),
+  valid: true,
+}
 
 const fixture = async (): Promise<InstanceVars> => {
   // get users and token addresses
@@ -91,9 +115,57 @@ async function advanceToPrice(price?: BigNumber): Promise<void> {
   await advanceToPriceImpl(keeperOracle, oracleFeeReceiver, timestamp, lastPrice)
 }
 
+async function getManager(dsu: IERC20Metadata, marketFactory: MarketFactory): Promise<[Manager, OrderVerifier]> {
+  const [owner] = await ethers.getSigners()
+
+  // deploy the order manager
+  const verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
+  const manager = await new Manager_Arbitrum__factory(owner).deploy(
+    USDC_ADDRESS,
+    dsu.address,
+    DSU_RESERVE,
+    marketFactory.address,
+    verifier.address,
+  )
+
+  const keepConfig = {
+    multiplierBase: ethers.utils.parseEther('1'),
+    bufferBase: 950_000, // buffer for withdrawing keeper fee from market
+    multiplierCalldata: 0,
+    bufferCalldata: 0,
+  }
+  const keepConfigBuffered = {
+    multiplierBase: ethers.utils.parseEther('1.05'),
+    bufferBase: 1_875_000, // for price commitment
+    multiplierCalldata: ethers.utils.parseEther('1.05'),
+    bufferCalldata: 35_200,
+  }
+
+  await manager.initialize(CHAINLINK_ETH_USD_FEED, keepConfig, keepConfigBuffered)
+  return [manager, verifier]
+}
+
+async function mockGasInfo() {
+  // Hardhat fork does not support Arbitrum built-ins; Kept produces "invalid opcode" error without this
+  const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
+    address: '0x000000000000000000000000000000000000006C',
+  })
+  gasInfo.getL1BaseFeeEstimate.returns(1)
+}
+
 if (process.env.FORK_NETWORK === 'arbitrum') {
   // TODO: need a chain-agnostic sub-oracle implementation in Vaults
   // RunInvokerTests(getFixture, createInvoker, fundWalletDSU, fundWalletUSDC, advanceToPrice)
+  RunCompressorTests(
+    getFixture,
+    createCompressor,
+    getKeeperOracle,
+    getManager,
+    fundWalletDSU,
+    fundWalletUSDC,
+    advanceToPrice,
+    mockGasInfo,
+  )
   RunOrderTests(getFixture, createInvoker, advanceToPrice, false)
   RunPythOracleTests(getFixture, createInvoker, getKeeperOracle, fundWalletDSU, {
     startingTime: 1723858683, // VAA timestamp minus 5 seconds
