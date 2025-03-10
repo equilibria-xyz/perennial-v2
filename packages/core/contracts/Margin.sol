@@ -15,7 +15,9 @@ import { Position } from "./types/Position.sol";
 import { RiskParameter } from "./types/RiskParameter.sol";
 import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
 import { IMarket, IMarketFactory } from "./interfaces/IMarketFactory.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "hardhat/console.sol";
+
 
 contract Margin is IMargin, Instance, ReentrancyGuard {
     IMarket private constant CROSS_MARGIN = IMarket(address(0));
@@ -30,30 +32,21 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     IMarketFactory public marketFactory;
 
     /// @dev Iterable collection of cross-margined markets for a user (account => markets)
-    mapping(address => IMarket[]) private crossMarginMarkets;
-
-    /// @dev Looks up index of the cross-margined market (account => market => index)
-    mapping(address => mapping(IMarket => uint256)) private crossMarginMarketIndex;
+    mapping(address => EnumerableSet.AddressSet) private markets;
 
     /// @notice Storage for claimable balances: user -> market -> balance
     mapping(address => UFixed6) public claimables;
 
     /// @notice Storage for account balances: user -> market -> balance
     /// Cross-margin balances stored under IMarket(address(0))
-    mapping(address => mapping(IMarket => Fixed6)) private _balances;
+    mapping(address => mapping(IMarket => UFixed6)) private _balances;
 
     /// @dev Storage for account checkpoints: user -> market -> version -> checkpoint
     /// Cross-margin checkpoints stored as IMarket(address(0))
     mapping(address => mapping(IMarket => mapping(uint256 => CheckpointStorage))) private _checkpoints;
 
-    /// @notice Timestamp of the most recently written cross-margin checkpoint: user -> version
-    mapping(address => uint256) public latestCrossMarginVersion;
-
-    /// @notice Supresses default behavior of deisolating funds when a position is closed
-    mapping(address => bool) public autoDeisolateDisabled;
-
-    /// @dev Prevents implicit deisolation when isolating with no position
-    mapping(address => mapping(IMarket => bool)) private _hadPositionAtLastIsolate;
+    /// @notice
+    mapping(address => mapping(IMarket => uint256)) private _latestCheckpoints;
 
     /// @dev Creates instance
     /// @param dsu Digital Standard Unit stablecoin used as collateral
@@ -74,7 +67,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         DSU.pull(msg.sender, UFixed18Lib.from(amount));
         _balances[account][CROSS_MARGIN] = _balances[account][CROSS_MARGIN].add(Fixed6Lib.from(amount));
 
-        _requestCrossMarginSettlement(account, Fixed6Lib.from(amount));
+        // TODO: get current version and create cross checkpoint
+        _requestCheckpoint(account, Fixed6Lib.from(amount));
 
         emit FundsDeposited(account, amount);
     }
@@ -86,10 +80,12 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         if (balance.lt(Fixed6Lib.from(amount))) revert MarginInsufficientCrossedBalanceError();
         _balances[account][CROSS_MARGIN] = balance.sub(Fixed6Lib.from(amount));
 
-        // ensure crossed markets remain margined after withdrawal
-        if (!_checkCrossMargin(account)) revert IMarket.MarketInsufficientMarginError();
+        // TODO: get current version and create cross checkpoint
+        _requestCheckpoint(account, Fixed6Lib.from(-1, amount));
 
-        _requestCrossMarginSettlement(account, Fixed6Lib.from(-1, amount));
+        // ensure crossed markets remain margined after withdrawal
+        // TODO: check stale, settle?
+        if (!_checkCrossMargin(account)) revert IMarket.MarketInsufficientMarginError();
 
         // withdrawal goes to sender, not account, consistent with legacy Market behavior
         DSU.push(msg.sender, UFixed18Lib.from(amount));
@@ -101,8 +97,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         address account,
         IMarket market,
         Fixed6 amount
-    ) external nonReentrant onlyOperator(account){
-        market.settle(account);
+    ) external nonReentrant onlyOperator(account) {
         _isolate(account, market, amount, true);
     }
 
@@ -114,78 +109,40 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         emit ClaimableWithdrawn(account, receiver, feeReceived);
     }
 
-    // @inheritdoc IMargin
-    function disableAutoDeisolate(address account, bool disabled) external onlyOperator(account) {
-        autoDeisolateDisabled[account] = disabled;
+    /// @inheritdoc IMargin
+    function maintained(address account) external onlyMarket view returns (bool isMaintained) {
+        IMarket market = IMarket(msg.sender);
+        return _isIsolated(account, market) ? _checkIsolatedMaintenance(account, market) : _checkCrossMaintained(account);
     }
 
     /// @inheritdoc IMargin
-    function maintained(
-        address account
-    ) external onlyMarket view returns (bool isMaintained) {
-        IMarket market = IMarket(msg.sender);
-        if (_isIsolated(account, market)) {
-            Fixed6 collateral = _balances[account][market];
-            UFixed6 requirement = market.maintenanceRequired(account);
-            return UFixed6Lib.unsafeFrom(collateral).gte(requirement);
-        } else {
-            return _crossMaintained(account);
-        }
-    }
+    function margined(address account) external onlyMarket view returns (bool isMargined) {
+        // TODO: check stale
 
-    /// @inheritdoc IMargin
-    function margined(
-        address account,
-        UFixed6 minCollateralization
-    ) external onlyMarket view returns (bool isMargined) {
         IMarket market = IMarket(msg.sender);
-        if (_isIsolated(account, market)) {
-            // Market in isolated mode; only need to check against isolated balance
-            return _checkIsolatedMargin(account, market, minCollateralization);
-        } else {
-            // Market in cross-margin mode; check all cross-margined markets
-            return _checkCrossMargin(account);
-        }
-    }
 
-    /// @inheritdoc IMargin
-    function handleMarketUpdate(address account, Fixed6 collateralDelta) external onlyMarket {
-        IMarket market = IMarket(msg.sender);
-        if (!collateralDelta.isZero() || _isIsolated(account, market))
-            // Account's isolated collateral is changing, or market is already isolated
-            _isolate(account, market, collateralDelta, false);
-        else
-            // Ensure market is tracked as cross-margined
-            _cross(account, market);
-    }
-
-    /// @inheritdoc IMargin
-    function handleMarketSettle(address account, uint256 latestVersion) external onlyMarket {
-        IMarket market = IMarket(msg.sender);
-        UFixed6 isolatedBalance = UFixed6Lib.unsafeFrom(_balances[account][market]);
-
-        // Settle all cross-margined markets and write a checkpoint
+         // Settle all cross-margined markets and write a checkpoint
         if (_isCrossed(account, market)) {
-            for (uint256 i; i < crossMarginMarkets[account].length; i++) {
-                IMarket marketToSettle = crossMarginMarkets[account][i];
+            for (uint256 i; i < markets[account].length(); i++) {
+                IMarket marketToSettle = markets[account].at(i);
                 if (market != marketToSettle) marketToSettle.settle(account);
             }
         }
 
-        // Auto-deisolate funds if position was closed
-        if (!isolatedBalance.isZero()                         // account has an isolated balance
-                && !autoDeisolateDisabled[account]            // this feature is not explicitly disabled
-                && !market.hasPosition(account)               // market currently has no position
-                && _hadPositionAtLastIsolate[account][market] // market had no position when funds last isolated
-            ) {
-            // If position is closed, deisolate all funds from the market
-            Fixed6 amount = Fixed6Lib.from(-1, isolatedBalance);
-            _isolate(account, market, amount, false);
-            // Update the checkpoint which closed the position to record the deisolation
-            Checkpoint memory checkpoint = _checkpoints[account][market][latestVersion].read();
-            CheckpointLib.deisolate(checkpoint, amount);
-            _checkpoints[account][market][latestVersion].store(checkpoint);
-        }
+        return _isIsolated(account, market) ? _checkIsolatedMargin(account, market) : _checkCrossMargin(account);
+    }
+
+    /// @inheritdoc IMargin
+    function postSettlement(address account, uint256 latestVersion) external onlyMarket {
+        // process positions closes on settlement
+        IMarket market = IMarket(msg.sender);
+        if (market.hasPosition(account)) return; // TODO: replace with worthCasePosition == 0
+
+        // If position is closed, deisolate all funds from the market
+        _isolate(account, market, Fixed6Lib.from(-1, _balances[account][market]), true);
+
+        // degegister market from cross margin
+        if (_isCrossed(account, market)) _uncross(account, market);
     }
 
     /// @inheritdoc IMargin
@@ -197,46 +154,35 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     // TODO: Inefficient to keep reading and writing storage for each market when handling a cross-margin settlement,
     // but would be quite dirty to pass a context struct through each Market.
     /// @inheritdoc IMargin
-    function updateCheckpoint(address account, uint256 version, Checkpoint memory latestMarketCheckpoint, Fixed6 collateral) external onlyMarket {
-        // TODO: filter these out in the Market (see PR#593)
-        if (account == address(0)) return;
-
+    function postProcessLocal(
+        address account,
+        uint256 version,
+        Fixed6 collateral,
+        Fixed6 transfer,
+        UFixed6 tradeFee,
+        UFixed6 settlementFee
+    ) external onlyMarket {
         IMarket market = IMarket(msg.sender);
         if (_isCrossed(account, market)) {
-            console.log("  Margin::updateCheckpoint crossed for market %s account %s version %s with collateral ",
-                msg.sender, account, version);
-            console.logInt(Fixed6.unwrap(collateral));
+            uint256 latestVersion = _latestCheckpoints[account][CROSS_MARGIN];
+            Checkpoint memory latestCheckpoint = _checkpoints[account][CROSS_MARGIN][latestVersion].read();
 
-            uint256 latestCrossVersion = latestCrossMarginVersion[account];
-            Checkpoint memory checkpoint;
-            // TODO: Organize these conditionals for efficiency rather than readability?
-            if (latestCrossVersion == 0) {
-                console.log("   Margin::updateCheckpoint first checkpoint");
-                // First checkpoint; initialize with current cross-margin balance as transfer
-                checkpoint = Checkpoint(Fixed6Lib.ZERO, UFixed6Lib.ZERO, _balances[account][CROSS_MARGIN], Fixed6Lib.ZERO);
-                latestCrossMarginVersion[account] = version;
-            } else if (latestCrossVersion == version) {
-                console.log("   Margin::updateCheckpoint update checkpoint");
-                // Another market settled for this version already; update as appropriate
-                checkpoint = _checkpoints[account][CROSS_MARGIN][latestCrossVersion].read();
-            } else {
-                // First market update for this version; create a new latest checkpoint
-                checkpoint = _checkpoints[account][CROSS_MARGIN][latestCrossVersion].read();
-                console.log("   Margin::updateCheckpoint create checkpoint from existing with transfer ");
-                console.logInt(Fixed6.unwrap(checkpoint.transfer));
-                console.log(" collateral ");
-                console.logInt(Fixed6.unwrap(collateral));
-                // TODO: roll this into a Checkpoint::next method?
-                checkpoint.collateral = checkpoint.collateral.add(checkpoint.transfer);
-                checkpoint.transfer = Fixed6Lib.ZERO;
-                latestCrossMarginVersion[account] = version;
+            if (latestVersion != version) {
+                Checkpoint memory next;
+                next.collateral = latestCheckpoint.collateral
+                    .sub(latestCheckpoint.tradeFee)                       // trade fee processed post settlement
+                    .sub(Fixed6Lib.from(latestCheckpoint.settlementFee))  // settlement / liquidation fee processed post settlement
+                    .add(latestCheckpoint.transfer);                       // deposit / withdrawal processed post settlement
+                latestCheckpoint = next;
             }
 
-            // Aggregate the market checkpoint into the cross-margin checkpoint
-            // console.log("   Margin::updateCheckpoint adding market checkpoint with collateral ");
-            // console.logInt(Fixed6.unwrap(latestMarketCheckpoint.collateral));
-            CheckpointLib.add(checkpoint, latestMarketCheckpoint);
-            _checkpoints[account][CROSS_MARGIN][version].store(checkpoint);
+            latestCheckpoint.collateral = latestCheckpoint.collateral.add(collateral);        // incorporate collateral change at this settlement
+            latestCheckpoint.transfer = latestCheckpoint.transfer.add(transfer);
+            latestCheckpoint.tradeFee = latestCheckpoint.tradeFee.add(Fixed6Lib.from(tradeFee));
+            latestCheckpoint.settlementFee = latestCheckpoint.settlementFee.add(settlementFee);
+
+            _checkpoints[account][CROSS_MARGIN][version].store(latestCheckpoint);
+            _latestCheckpoints[account][CROSS_MARGIN] = version;
 
             // Update balance
             Fixed6 crossBalance = _balances[account][CROSS_MARGIN];
@@ -251,16 +197,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
             _balances[account][market] = isolatedBalance.add(collateral);
             emit IsolatedFundsChanged(account, market, collateral);
         }
-    }
-
-    /// @inheritdoc IMargin
-    function crossMarginBalances(address account) external view returns (Fixed6) {
-        return _balances[account][CROSS_MARGIN];
-    }
-
-    /// @inheritdoc IMargin
-    function isolatedBalances(address account, IMarket market) external view returns (Fixed6) {
-        return _balances[account][market];
     }
 
     /// @inheritdoc IMargin
@@ -283,116 +219,69 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         return _checkpoints[account][market][version].read();
     }
 
-    // TODO: Should we move the price request from Market to Margin, so we can just call checkMarginAndRequestPrice here?
-    // Then we may be able to eliminate IMarket::marginRequired view.
-    function _checkIsolatedMargin(
-        address account,
-        IMarket market,
-        UFixed6 minCollateralization
-    ) private view returns (bool isMargined) {
-        Fixed6 isolatedCollateral = _balances[account][market];
-        UFixed6 requirement = market.marginRequired(account, minCollateralization);
-        return UFixed6Lib.unsafeFrom(isolatedCollateral).gte(requirement);
+    // TODO
+    function _checkIsolatedMargin(address account, IMarket market) private view returns (bool) {
+        return _balances[account][market].gte(market.marginRequired(account));
     }
 
-    // TODO: handle minCollateralization for cross-margined markets
-    function _checkCrossMargin(address account) private view returns (bool isMargined) {
-        IMarket market;
-        UFixed6 requirement;
-        for (uint256 i; i < crossMarginMarkets[account].length; i++) {
-            market = crossMarginMarkets[account][i];
-            // TODO: perhaps market should check this within Market::_marginRequired
-            if (market.stale()) revert IMarket.MarketStalePriceError();
-            requirement = requirement.add(market.marginRequired(account, UFixed6Lib.ZERO));
-        }
-        return UFixed6Lib.unsafeFrom(_balances[account][CROSS_MARGIN]).gte(requirement);
+    // TODO
+    function _checkIsolatedMaintenance(address account, IMarket market) private view returns (bool) {
+        return _balances[account][market].gte(market.maintenanceRequired(account));
     }
 
-    function _requestCrossMarginSettlement(address account, Fixed6 transfer) private returns (bool isMargined) {
-        IMarket market;
-        // FIXME: Sends transfer to first market, which seems kludgy.  More importantly, what should we
-        // do here if there are no markets?  Should we just write a checkpoint at block.timestamp?
-        if (crossMarginMarkets[account].length == 0) {
-            console.log("  Margin::_requestCrossMarginSettlement no markets for account %s", account);
-        }
-        for (uint256 i; i < crossMarginMarkets[account].length; i++) {
-            market = crossMarginMarkets[account][i];
-            // console.log("  Margin::_requestCrossMarginSettlement making empty update for market %s account %s", address(market), account);
-            market.noOpUpdate(account, i == 0 ? transfer : Fixed6Lib.ZERO);
-        }
+    // TODO
+    function _checkCrossMargin(address account) private view returns (bool) {
+        UFixed6 totalRequirement;
+        for (uint256 i; i < markets[account].length(); i++)
+            totalRequirement = totalRequirement.add(markets[account].at(i).marginRequired(account, UFixed6Lib.ZERO));
+        return _balances[account][CROSS_MARGIN].gte(totalRequirement);
     }
 
-    function _crossMaintained(address account) private view returns (bool isMaintained) {
-        IMarket market;
-        UFixed6 requirement;
-        for (uint256 i; i < crossMarginMarkets[account].length; i++) {
-            market = crossMarginMarkets[account][i];
-            requirement = requirement.add(market.maintenanceRequired(account));
-        }
-        return UFixed6Lib.unsafeFrom(_balances[account][CROSS_MARGIN]).gte(requirement);
+    // TODO
+    function _checkCrossMaintained(address account) private view returns (bool) {
+        UFixed6 totalRequirement;
+        for (uint256 i; i < markets[account].length(); i++)
+            totalRequirement = totalRequirement.add(markets[account].at(i).maintenanceRequired(account));
+        return _balances[account][CROSS_MARGIN].gte(totalRequirement);
+    }
+
+    function _requestCheckpoint(address account, Fixed6 transfer) private {
+        // TODO: crete checkpoint with the correct collateral start point
+        for (uint256 i; i < markets[account].length(); i++)
+            markets[account].at(i).noOpUpdate(account, i == 0 ? transfer : Fixed6Lib.ZERO);
     }
 
     /// @dev Upserts a market into cross-margin collections
     function _cross(address account, IMarket market) private {
-        if (!_isCrossed(account, market)) {
-            uint256 newIndex = crossMarginMarkets[account].length;
-            if (newIndex == MAX_CROSS_MARGIN_MARKETS) revert MarginTooManyCrossedMarketsError();
-            crossMarginMarkets[account].push(market);
-            crossMarginMarketIndex[account][market] = newIndex;
-            emit MarketCrossed(account, market);
-        }
+        if (markets[account].add(address(market))) emit MarketCrossed(account, market);
     }
 
     /// @dev Removes a market from cross-margin collections
     function _uncross(address account, IMarket market) private {
-        if (_isCrossed(account, market)) {
-            uint256 index = crossMarginMarketIndex[account][market];
-            uint256 lastIndex = crossMarginMarkets[account].length - 1;
-            if (index != lastIndex) {
-                // Swap last item with the one being removed
-                IMarket lastMarket = crossMarginMarkets[account][lastIndex];
-                crossMarginMarkets[account][index] = lastMarket;
-                crossMarginMarketIndex[account][lastMarket] = index;
-            }
-            // Remove the last item
-            crossMarginMarkets[account].pop();
-            delete crossMarginMarketIndex[account][market];
-        }
+        if (markets[account].remove(address(market))) emit MarketUncrossed(account, market);
     }
 
-    /// @dev Implementation logic for adjusting isolated collateral, without settling market
+    /// @dev Implementation logic for adjusting isolated collateral, must be settled first
     function _isolate(
         address account,
         IMarket market,
         Fixed6 amount,
         bool updateCheckpoint_
     ) private {
+        // can only isolate if market is un-assigned, (isolating) or is isolated (re-isolating / de-isolating)
+        if (_isCrossed(account, market)) revert MarginHasPositionError();
+
+        if (amount.isZero()) return;
+
         // Calculate new balances
-        Fixed6 newCrossBalance = _balances[account][CROSS_MARGIN].sub(amount);
-        if (newCrossBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientCrossedBalanceError();
-        Fixed6 oldIsolatedBalance = _balances[account][market];
-        Fixed6 newIsolatedBalance = oldIsolatedBalance.add(amount);
-        if (newIsolatedBalance.lt(Fixed6Lib.ZERO)) revert MarginInsufficientIsolatedBalanceError();
+        _balances[account][CROSS_MARGIN] = _balances[account][CROSS_MARGIN].sub(amount);
+        _balances[account][market] = _balances[account][market].add(amount);
 
-        // Ensure no position if switching modes
-        bool isolating = oldIsolatedBalance.isZero() && !newIsolatedBalance.isZero();
-        bool deisolating = !oldIsolatedBalance.isZero() && newIsolatedBalance.isZero();
-        // TODO: We could add logic here to support switching modes with a position.
-        if ((isolating || deisolating) && _hasPosition(account, market)) revert MarginHasPositionError();
-        bool decreasingIsolatedBalance = newIsolatedBalance.lt(oldIsolatedBalance);
-
-        // If switching mode to isolated, remove from cross-margin collections
-        if (isolating) _uncross(account, market);
-
-        // Update storage
-        bool hasPosition = market.hasPosition(account);
-        _hadPositionAtLastIsolate[account][market] = hasPosition;
-        _balances[account][CROSS_MARGIN] = newCrossBalance;
-        _balances[account][market] = newIsolatedBalance;
+        // TODO: we should move checkpoint completely to Margin
         if (updateCheckpoint_) {
             uint256 latestTimestamp = market.oracle().latest().timestamp;
             Checkpoint memory checkpoint = _checkpoints[account][market][latestTimestamp].read();
-            checkpoint.collateral = checkpoint.collateral.add(amount);
+            checkpoint.transfer = checkpoint.transfer.add(amount);
             _checkpoints[account][market][latestTimestamp].store(checkpoint);
         }
 

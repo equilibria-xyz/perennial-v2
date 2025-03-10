@@ -122,9 +122,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         _storeContext(context);
 
-        if (msg.sender != address(margin)) {
-            margin.handleMarketSettle(context.account, context.latestPositionLocal.timestamp);
-        }
+        margin.postSettlement(context.account, context.latestPositionLocal.timestamp);
     }
 
     /// @notice Updates both the long and short positions of an intent order
@@ -285,6 +283,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // process update
         _updateAndStore(context, updateContext, newOrder, newGuarantee, referrer, address(0));
+
+        // when liquidating, ensure maintenance requirements are not met
+        if (newOrder.protected() && ( // TODO: is this is the most updated check? can we move this to a liquidation only function?
+            context.pendingLocal.neg().lt(context.latestPositionLocal.magnitude()) ||  // total pending close is not equal to latest position
+            margin.maintained(context.account) ||                                      // latest position is properly maintained
+            !newOrder.collateral.eq(Fixed6Lib.ZERO) ||                                 // TODO: can eliminate because close method doesn't touch collateral
+            !newOrder.pos().eq(UFixed6Lib.ZERO))                                       // TODO: can eliminate because close orders cannot increase position
+        ) revert IMarket.MarketInvalidProtectionError();
     }
 
     /// @notice Updates the coordinator of the market
@@ -692,7 +698,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             !updateContext.signer &&     // sender is not relaying the account's signed intention
             !updateContext.operator      // sender is not operator approved for account
         ) revert IMarket.MarketOperatorNotAllowedError();
-        if (!newOrder.protected()) margin.handleMarketUpdate(context.account, newOrder.collateral);
+        if (!newOrder.protected()) margin.isolate(context.account, IMarket(this), newOrder.collateral);
 
         // process update
         _update(context, updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
@@ -703,24 +709,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // TODO: consider updating these three checks into a post-save invariant;
         // perhaps moving into a new InvariantLib function to reduce contract size
 
-        // when liquidating, ensure maintenance requirements are not met
-        if (newOrder.protected() && (
-            context.pendingLocal.neg().lt(context.latestPositionLocal.magnitude()) ||  // total pending close is not equal to latest position
-            margin.maintained(context.account) ||                                      // latest position is properly maintained
-            !newOrder.collateral.eq(Fixed6Lib.ZERO) ||                                 // TODO: can eliminate because close method doesn't touch collateral
-            !newOrder.pos().eq(UFixed6Lib.ZERO))                                       // TODO: can eliminate because close orders cannot increase position
-        ) revert IMarket.MarketInvalidProtectionError();
-
-
         // TODO: This doesn't need to be done post-save; keeping adjacent to maintenance/margin checks for future refactoring.
         if (
-            !(context.latestPositionLocal.magnitude().isZero() && context.pendingLocal.isEmpty()) && // sender has no position
-            !(newOrder.isEmpty() && newOrder.collateral.gte(Fixed6Lib.ZERO)) &&                            // sender is isolating collateral into account, without position change
+            !(context.latestPositionLocal.magnitude().isZero() && context.pendingLocal.isEmpty()) &&        // sender has no position
             _stale(context.latestOracleVersion, context.currentTimestamp, context.riskParameter.staleAfter)                                                                                                          // price is not stale
         ) revert IMarket.MarketStalePriceError();
 
         // check margin
-        if (!newOrder.protected() && !margin.margined(context.account, updateContext.collateralization))
+        if (!newOrder.protected() && !margin.margined(context.account))
             revert IMarket.MarketInsufficientMarginError();
     }
 
@@ -973,7 +969,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             oracleReceipt
         );
 
-        context.global.update(newOrderId, accumulationResponse, context.marketParameter, oracleReceipt);
+        context.global.update(newOrderId, accumulationResponse, context.marketParameter, oracleReceipt); // TODO: convert to margin call
         context.latestPositionGlobal.update(newOrder);
 
         settlementContext.orderOracleVersion = oracleVersion;
@@ -1015,17 +1011,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             versionFrom,
             versionTo
         );
-        // console.log("   Market::_processOrderLocal accumulated checkpoint from order with collateral ");
-        // console.logInt(Fixed6.unwrap(newOrder.collateral));
-        // console.log(" creating new checkpoint with transfer ");
-        // console.logInt(Fixed6.unwrap(settlementContext.latestCheckpoint.transfer));
-        // console.log(" and collateral ");
-        // console.logInt(Fixed6.unwrap(settlementContext.latestCheckpoint.collateral));
 
         context.latestPositionLocal.update(newOrder);
+
         // calculate and store collateral change for account
         Fixed6 pnl = context.local.update(newOrderId, accumulationResponse);
-        margin.updateCheckpoint(context.account, newOrder.timestamp, settlementContext.latestCheckpoint, pnl);
+        margin.postProcessLocal(context.account, newOrder.timestamp, settlementContext.latestCheckpoint, pnl);
 
         _credit(liquidators[context.account][newOrderId], accumulationResponse.liquidationFee);
         _credit(orderReferrers[context.account][newOrderId], accumulationResponse.subtractiveFee);

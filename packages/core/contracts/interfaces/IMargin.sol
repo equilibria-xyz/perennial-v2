@@ -53,6 +53,9 @@ interface IMargin is IInstance {
     /// @param market Market in which collateral will be isolated
     event MarketIsolated(address indexed account, IMarket indexed market);
 
+    // TODO
+    event MarketUncrossed(address indexed account, IMarket indexed market);
+
     // sig: 0x6e6b12f6
     /// custom:error User must have no position and no unsettled orders to switch between cross-margin and isolated collateral
     error MarginHasPositionError();
@@ -135,12 +138,12 @@ interface IMargin is IInstance {
     /// @dev Called by market when Market.update is called, used to adjust isolated collateral balance for market
     /// @param account User intending to adjust isolated collateral for market
     /// @param collateralDelta Change in collateral requested by order prepared by market
-    function handleMarketUpdate(address account, Fixed6 collateralDelta) external;
+    function preUpdate(address account, Fixed6 collateralDelta) external;
 
     /// @dev Called by market when Market.settle is called, used to implicitly deisolate when positions are closed.
     /// @param account User who was settled
     /// @param latestVersion Most recent version settled, used for updating checkpoint if necessary
-    function handleMarketSettle(address account, uint256 latestVersion) external;
+    function postSettlement(address account, uint256 latestVersion) external;
 
     /// @dev Called by market to adjust claimable balance when fees are claimed or exposure settled
     function updateClaimable(address account, UFixed6 collateralDelta) external;
@@ -151,7 +154,7 @@ interface IMargin is IInstance {
     /// @param version Timestamp of the snapshot
     /// @param latest Checkpoint prepared by the market
     /// @param collateral Collateral delta (pnl, funding, and interest) calculated by the Local
-    function updateCheckpoint(address account, uint256 version, Checkpoint memory latest, Fixed6 collateral) external;
+    function postProcessLocal(address account, uint256 version, Checkpoint memory latest, Fixed6 collateral) external;
 
     /// @notice Retrieves the claimable balance for a user
     function claimables(address) external view returns (UFixed6);
