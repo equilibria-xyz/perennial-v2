@@ -1,5 +1,16 @@
 import defaultConfig, { OPTIMIZER_ENABLED, SOLIDITY_VERSION } from '../common/hardhat.default.config'
 
+const controllerOverrides = {
+  version: SOLIDITY_VERSION,
+  settings: {
+    optimizer: {
+      enabled: OPTIMIZER_ENABLED,
+      runs: 80000,
+    },
+    viaIR: OPTIMIZER_ENABLED,
+  },
+}
+
 const multiInvokerOverrides = {
   version: SOLIDITY_VERSION,
   settings: {
@@ -12,6 +23,7 @@ const multiInvokerOverrides = {
 }
 
 export const solidityOverrides = {
+  'contracts/Controller_Optimism.sol': controllerOverrides,
   'contracts/MultiInvoker.sol': multiInvokerOverrides,
 }
 const config = defaultConfig({
