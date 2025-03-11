@@ -15,8 +15,10 @@ import {
   IERC20Metadata,
   IERC20Metadata__factory,
   IMarketFactory,
+  OptGasInfo,
 } from '../../types/generated'
 import { impersonate } from '../../../common/testutil'
+import { smock } from '@defi-wonderland/smock'
 
 export const PYTH_ADDRESS = '0x8250f4aF4B972684F7b336503E2D6dFeDeB1487a'
 export const CHAINLINK_ETH_USD_FEED = '0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70'
@@ -74,10 +76,10 @@ export async function fundWalletDSU(
   const balanceBefore = await dsu.balanceOf(wallet.address)
 
   // fund wallet with USDC and then mint using reserve
-  await fundWalletUSDC(wallet, amount.div(1e12), overrides)
+  await fundWalletUSDC(wallet, amount.div(1e12), overrides ?? {})
   const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, wallet)
-  await usdc.connect(wallet).approve(reserve.address, amount.div(1e12))
-  await reserve.mint(amount)
+  await usdc.connect(wallet).approve(reserve.address, amount.div(1e12), overrides ?? {})
+  await reserve.mint(amount, overrides ?? {})
 
   expect((await dsu.balanceOf(wallet.address)).sub(balanceBefore)).to.equal(amount)
 }
@@ -102,4 +104,14 @@ export async function getStablecoins(owner: SignerWithAddress): Promise<[IERC20M
   const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
   const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, owner)
   return [dsu, usdc]
+}
+
+export async function mockGasInfo() {
+  const gasInfo = await smock.fake<OptGasInfo>('OptGasInfo', {
+    address: '0x420000000000000000000000000000000000000F',
+  })
+  gasInfo.getL1GasUsed.returns(1600)
+  gasInfo.l1BaseFee.returns(96617457705)
+  gasInfo.baseFeeScalar.returns(13841697)
+  gasInfo.decimals.returns(6)
 }

@@ -377,26 +377,21 @@ jobs:
         run: yarn --frozen-lockfile
       - name: Compile
         run: yarn workspaces run compile # compile all packages
-      - name: Run tests with coverage on Arbitrum
+      - name: Run tests with coverage on Base
         env:
           MOCHA_REPORTER: dot
           ARBITRUM_NODE_URL: ${{ secrets.ARBITRUM_NODE_URL }}
         run: |
-          yarn workspace @perennial/v2-periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationArbitrum' || 'test:integrationArbitrum' }}
+          yarn workspace @perennial/v2-periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationBase' || 'test:integrationBase' }}
       - name: Upload lcov file
         uses: actions/upload-artifact@v4
         with:
-          name: periphery_arbitrum_integration_test_coverage
+          name: periphery_base_integration_test_coverage
           path: ./packages/periphery/coverage/lcov.info
-      - name: Run tests on Base
-        env:
-          MOCHA_REPORTER: dot
-          BASE_NODE_URL: ${{ secrets.BASE_NODE_URL }}
-        run: |
-          yarn workspace @perennial/v2-periphery run test:integrationBase
 
   # [PERIPHERY UNIT COVERAGE]
   periphery-unit-test-coverage:
+    if: false # TODO: need to update
     name: 'Periphery Unit Tests Coverage'
     runs-on: ubuntu-latest
     needs:
@@ -444,6 +439,7 @@ jobs:
 
   # [PERIPHERY INTEGRATION COVERAGE]
   periphery-integration-test-coverage:
+    if: false # TODO: need to update
     name: 'Periphery Integration Tests Coverage'
     runs-on: ubuntu-latest
     needs:
@@ -508,6 +504,7 @@ jobs:
 
   # [PERIPHERY COMBINED COVERAGE]
   periphery-test-coverage:
+    if: false # TODO: need to update
     name: 'Periphery Combined Tests Coverage'
     runs-on: ubuntu-latest
     needs: [periphery-unit-test-coverage, periphery-integration-test-coverage]

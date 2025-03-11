@@ -34,6 +34,7 @@ import {
   ISolverVault,
   MultiInvoker__factory,
 } from '../../../types/generated'
+import { time } from '../../../../common/testutil'
 import { DEFAULT_ORACLE_RECEIPT, parse6decimal } from '../../../../common/testutil/types'
 
 import { deployProductOnFork } from '@perennial/v2-vault/test/integration/helpers/setupHelpers'
@@ -89,6 +90,8 @@ export async function deployProtocol(
   chainlinkKeptFeedAddress: Address,
 ): Promise<InstanceVars> {
   const [owner, pauser, user, userB, userC, userD] = await ethers.getSigners()
+
+  time.reset()
 
   const payoff = IPayoffProvider__factory.connect((await new PowerTwo__factory(owner).deploy()).address, owner)
 
@@ -316,7 +319,7 @@ export async function createVault(
   await asset.connect(userD).approve(margin.address, ethers.constants.MaxUint256)
 
   // Seed markets with some activity
-  const depositAmount = parse6decimal('100000')
+  const depositAmount = parse6decimal('200000')
   await margin.connect(user).deposit(user.address, depositAmount)
   await ethMarket
     .connect(user)

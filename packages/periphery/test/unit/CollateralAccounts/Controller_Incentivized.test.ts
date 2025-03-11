@@ -39,20 +39,21 @@ import {
   Account__factory,
   AccountVerifier__factory,
   AggregatorV3Interface,
-  ArbGasInfo,
-  Controller_Arbitrum__factory,
   Controller_Incentivized,
   IAccount,
   IAccount__factory,
   IAccountVerifier,
   IERC20,
   IEmptySetReserve,
+  Controller_Optimism__factory,
+  OptGasInfo,
 } from '../../../types/generated'
 import {
   RelayedTakeStruct,
   RelayedSignerUpdateStruct,
   RelayedFillStruct,
 } from '../../../types/generated/contracts/CollateralAccounts/AccountVerifier'
+import { mockGasInfo } from '../../helpers/baseHelpers'
 const { ethers } = HRE
 
 const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
@@ -137,18 +138,15 @@ describe('Controller_Incentivized', () => {
 
     const accountImpl = await new Account__factory(owner).deploy(usdc.address, dsu.address, reserve.address)
     accountImpl.initialize(constants.AddressZero)
-    controller = await new Controller_Arbitrum__factory(owner).deploy(
+    controller = await new Controller_Optimism__factory(owner).deploy(
       accountImpl.address,
       marketFactory.address,
       await marketFactory.verifier(),
     )
 
-    // fake arbitrum gas calls used by Kept, required for Controller_Arbitrum,
+    // fake optimism gas calls used by Kept, required for Controller_Optimism,
     // a concrete implementation of abstract Controller_Incentivized contract
-    const gasInfo = await smock.fake<ArbGasInfo>('ArbGasInfo', {
-      address: '0x000000000000000000000000000000000000006C',
-    })
-    gasInfo.getL1BaseFeeEstimate.returns(1)
+    await mockGasInfo()
 
     const chainlink = await smock.fake<AggregatorV3Interface>('AggregatorV3Interface')
     verifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address)
