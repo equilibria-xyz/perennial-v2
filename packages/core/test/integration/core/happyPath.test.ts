@@ -53,7 +53,7 @@ export const PRICE_4 = parse6decimal('117.462552')
 const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
 const INTENT_PROTOTYPE = `(int256,int256,uint256,uint256,address,address,uint256,${COMMON_PROTOTYPE})`
 const MARKET_UPDATE_FILL_PROTOTYPE = `update((${INTENT_PROTOTYPE},${COMMON_PROTOTYPE}),bytes,bytes)`
-const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,${COMMON_PROTOTYPE}),bytes)`
+const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,uint256,${COMMON_PROTOTYPE}),bytes)`
 const MARKET_UPDATE_TAKER_DELTA_PROTOTYPE = 'update(address,int256,int256,address)'
 const MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE = 'update(address,int256,int256,int256,address)'
 
@@ -2562,6 +2562,7 @@ describe('Happy Path', () => {
     let message: TakeStruct = {
       amount: initialPosition,
       referrer: owner.address,
+      additiveFee: parse6decimal('0'),
       common: {
         account: userB.address,
         signer: userB.address,
@@ -2626,13 +2627,19 @@ describe('Happy Path', () => {
       long: initialPosition,
     })
 
-    // userB signs message to reduce their long position
+    // userB signs message to reduce their long position with additive fee
     const positionDelta = POSITION.div(-3) // -3.333333
-    message = { ...message, amount: positionDelta, common: { ...message.common, nonce: 3 } }
+    message = {
+      ...message,
+      amount: positionDelta,
+      additiveFee: parse6decimal('0.01'),
+      common: { ...message.common, nonce: 3 },
+    }
     signature = await signTake(userB, verifier, message)
 
     // userC again executes the update
     expectedTakerReferral = parse6decimal('0.041666') // referralFee * takerAmount = 0.0125 * |positionDelta|
+    const expectedAdditiveFee = parse6decimal('3.876119') // additiveFee * takerAmount * price = 0.01 * |positionDelta| * 116.284753
     await expect(market.connect(userC)[MARKET_UPDATE_TAKE_PROTOTYPE](message, signature))
       .to.emit(market, 'OrderCreated')
       .withArgs(
@@ -2644,6 +2651,7 @@ describe('Happy Path', () => {
           longNeg: positionDelta.mul(-1),
           takerReferral: expectedTakerReferral,
           invalidation: 1,
+          additiveFee: positionDelta.mul(-1).div(100),
         },
         DEFAULT_GUARANTEE,
         constants.AddressZero,
@@ -2664,16 +2672,18 @@ describe('Happy Path', () => {
       currentId: 3,
       latestId: 3,
     })
-    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(collateral3)
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(collateral3.sub(expectedAdditiveFee))
     expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_3), {
       ...DEFAULT_CHECKPOINT,
       collateral: collateral3,
+      tradeFee: expectedAdditiveFee,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
       timestamp: TIMESTAMP_3,
       long: POSITION.div(3),
     })
+    expect(await margin.claimables(owner.address)).to.equal(expectedAdditiveFee)
 
     // userB signs message to close their position, this time with no referrer
     const currentPosition = (await market.positions(userB.address)).long // 3.333333
@@ -2681,6 +2691,7 @@ describe('Happy Path', () => {
       ...message,
       amount: currentPosition.mul(-1),
       referrer: constants.AddressZero,
+      additiveFee: BigNumber.from(0),
       common: { ...message.common, nonce: 4 },
     }
     signature = await signTake(userB, verifier, message)
@@ -2716,10 +2727,10 @@ describe('Happy Path', () => {
       currentId: 4,
       latestId: 4,
     })
-    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(collateral4)
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(collateral4.sub(expectedAdditiveFee))
     expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_4), {
       ...DEFAULT_CHECKPOINT,
-      collateral: collateral4,
+      collateral: collateral4.sub(expectedAdditiveFee),
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
