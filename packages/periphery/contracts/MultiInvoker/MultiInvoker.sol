@@ -20,7 +20,6 @@ import { IPythFactory } from "@perennial/v2-oracle/contracts/interfaces/IPythFac
 import { IVault } from "@perennial/v2-vault/contracts/interfaces/IVault.sol";
 import { Intent } from "@perennial/v2-core/contracts/types/Intent.sol";
 import { IMultiInvoker } from "./interfaces/IMultiInvoker.sol";
-import { InterfaceFee } from "./types/InterfaceFee.sol";
 
 /// @title MultiInvoker
 /// @notice Extension to handle batched calls to the Perennial protocol
@@ -133,12 +132,12 @@ contract MultiInvoker is IMultiInvoker, Initializable {
                     Fixed6 maker,
                     Fixed6 taker,
                     Fixed6 collateral,
-                    bool wrap,
-                    InterfaceFee memory interfaceFee1,
-                    InterfaceFee memory interfaceFee2
-                ) = abi.decode(invocation.args, (IMarket, Fixed6, Fixed6, Fixed6, bool, InterfaceFee, InterfaceFee));
+                    address referrer,
+                    UFixed6 additiveFee,
+                    bool wrap
+                ) = abi.decode(invocation.args, (IMarket, Fixed6, Fixed6, Fixed6, address, UFixed6, bool));
 
-                _update(account, market, maker, taker, collateral, wrap, interfaceFee1, interfaceFee2);
+                _update(account, market, maker, taker, collateral, referrer, additiveFee, wrap);
             } else if (invocation.action == PerennialAction.UPDATE_INTENT) {
                 (IMarket market, Intent memory intent, bytes memory signature) = abi.decode(invocation.args, (IMarket, Intent, bytes));
 
@@ -172,18 +171,18 @@ contract MultiInvoker is IMultiInvoker, Initializable {
     /// @param taker change in taker position for account in `market`
     /// @param maker change in maker position for account in `market`
     /// @param collateral Net change in collateral for account in `market`
+    /// @param referrer Address of referrer
+    /// @param additiveFee Additive fee to charge (percentage of notional value)
     /// @param wrap Whether to wrap/unwrap collateral on deposit/withdrawal
-    /// @param interfaceFee1 Primary interface fee to charge
-    /// @param interfaceFee2 Secondary interface fee to charge
     function _update(
         address account,
         IMarket market,
         Fixed6 maker,
         Fixed6 taker,
         Fixed6 collateral,
-        bool wrap,
-        InterfaceFee memory interfaceFee1,
-        InterfaceFee memory interfaceFee2
+        address referrer,
+        UFixed6 additiveFee,
+        bool wrap
     ) internal isMarketInstance(market) {
         IMargin margin = market.margin();
 
@@ -199,17 +198,14 @@ contract MultiInvoker is IMultiInvoker, Initializable {
             maker,
             taker,
             collateral,
-            interfaceFee1.receiver == address(0) ? interfaceFee2.receiver : interfaceFee1.receiver
+            referrer,
+            additiveFee
         );
 
         if (collateral.sign() == -1) {
             margin.withdraw(account, collateral.abs());
             _withdraw(account, collateral.abs(), wrap);
         }
-
-        // charge interface fee
-        _chargeInterfaceFee(account, market, interfaceFee1);
-        _chargeInterfaceFee(account, market, interfaceFee2);
     }
 
     /// @notice Fills an intent update on behalf of account
@@ -268,19 +264,6 @@ contract MultiInvoker is IMultiInvoker, Initializable {
         } else {
             revert MultiInvokerInvalidInstanceError();
         }
-    }
-
-    /// @notice Charges an additive interface fee from collateral in this address during an update to a receiver
-    /// @param account Account to charge fee from
-    /// @param market Market to charge fee from
-    /// @param interfaceFee Interface fee to charge
-    function _chargeInterfaceFee(address account, IMarket market, InterfaceFee memory interfaceFee) internal {
-        if (interfaceFee.amount.isZero()) return;
-        _marketWithdraw(market, account, interfaceFee.amount);
-
-        claimable[interfaceFee.receiver] = claimable[interfaceFee.receiver].add(interfaceFee.amount);
-
-        emit InterfaceFeeCharged(account, market, interfaceFee);
     }
 
     /// @notice Claims market fees, unwraps DSU, and pushes USDC to fee earner
@@ -371,15 +354,6 @@ contract MultiInvoker is IMultiInvoker, Initializable {
         } catch (bytes memory reason) {
             if (revertOnFailure) Address.verifyCallResult(false, reason, "");
         }
-    }
-
-    /// @notice Withdraws `withdrawal` from `account`'s `market` position
-    /// @param market Market to withdraw from
-    /// @param account Account to withdraw from
-    /// @param withdrawal Amount to withdraw
-    function _marketWithdraw(IMarket market, address account, UFixed6 withdrawal) private {
-        market.update(account, Fixed6Lib.ZERO, Fixed6Lib.from(-1, withdrawal), address(0));
-        market.margin().withdraw(account, withdrawal);
     }
 
     /// @notice Target market must be created by MarketFactory
