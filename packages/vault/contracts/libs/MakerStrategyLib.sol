@@ -157,6 +157,7 @@ library MakerStrategyLib {
     /// @return context The strategy context of the vault
     function _load(Registration[] memory registrations) internal view returns (MakerStrategyContext memory context) {
         context.markets = new MarketMakerStrategyContext[](registrations.length);
+
         for (uint256 marketId; marketId < registrations.length; marketId++) {
             context.markets[marketId] = _loadContext(registrations[marketId]);
             context.totalMargin = context.totalMargin.add(context.markets[marketId].margin);

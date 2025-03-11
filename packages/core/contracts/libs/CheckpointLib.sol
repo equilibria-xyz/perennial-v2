@@ -103,6 +103,17 @@ library CheckpointLib {
         return (next, _response(result));
     }
 
+    /// @dev Used by Margin contract to update the checkpoint when collateral is
+    /// implicitly deisolated upon position close
+    /// @param self The checkpoint to update
+    /// @param collateralDelta Amount of collateral deisolated; always negative
+    function deisolate(
+        Checkpoint memory self,
+        Fixed6 collateralDelta
+    ) internal pure {
+        self.transfer = self.transfer.add(collateralDelta);
+    }
+
     /// @notice Converts the accumulation result into a response
     /// @param result The accumulation result
     /// @return response The accumulation response

@@ -84,6 +84,9 @@ abstract contract Vault is IVault, Instance {
         _register(initialMarket);
         _updateParameter(VaultParameter(initialDeposit, UFixed6Lib.ZERO, UFixed6Lib.ZERO, leverageBuffer));
 
+        // Prevent auto-deisolation when vault closes it's position
+        margin.disableAutoDeisolate(address(this), true);
+
         // permits the vault factory to make the initial deposit to prevent inflation attacks
         allowed[msg.sender] = true;
     }
@@ -537,6 +540,7 @@ abstract contract Vault is IVault, Instance {
         context.currentTimestamp = type(uint256).max;
         context.registrations = new Registration[](totalMarkets);
         context.collaterals = new Fixed6[](totalMarkets);
+        context.totalCollateral = margin.crossMarginBalances(address(this));
 
         for (uint256 marketId; marketId < totalMarkets; marketId++) {
             // parameter

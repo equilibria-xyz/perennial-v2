@@ -500,7 +500,7 @@ describe('Fees', () => {
     })
 
     it('charges price impact on make close', async () => {
-      const { user, userB, dsu } = instanceVars
+      const { userB } = instanceVars
 
       await expect(
         market
@@ -946,7 +946,7 @@ describe('Fees', () => {
         currentId: 2,
         latestId: 2,
       })
-      expect(await margin.isolatedBalances(userD.address, market.address)).to.equal(COLLATERAL.sub(expectedPriceImpact))
+      expect(await margin.crossMarginBalances(userD.address)).to.equal(COLLATERAL.sub(expectedPriceImpact))
       expectOrderEq(await market.pendingOrders(userD.address, 2), {
         ...DEFAULT_ORDER,
         timestamp: TIMESTAMP_2,
@@ -956,6 +956,7 @@ describe('Fees', () => {
       expectCheckpointEq(await market.checkpoints(userD.address, TIMESTAMP_2), {
         ...DEFAULT_CHECKPOINT,
         tradeFee: expectedPriceImpact,
+        transfer: -COLLATERAL.sub(expectedPriceImpact), // deisolated on position close
         collateral: COLLATERAL,
       })
       expectPositionEq(await market.positions(userD.address), {

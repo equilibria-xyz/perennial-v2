@@ -34,6 +34,7 @@ export async function deployProductOnFork({
   minMargin,
   minMaintenance,
   staleAfter,
+  maxLiquidationFee,
 }: DeployProductParams): Promise<IMarket> {
   const riskParameter: RiskParameterStruct = {
     margin: margin ?? parse6decimal('0.10'),
@@ -63,6 +64,7 @@ export async function deployProductOnFork({
     minMaintenance: minMaintenance ?? parse6decimal('100'),
     staleAfter: staleAfter ?? 7200,
     makerReceiveOnly: false,
+    maxLiquidationFee: maxLiquidationFee ?? parse6decimal('1000'),
   }
   const marketParameter = {
     fundingFee: fundingFee ?? parse6decimal('0.00'),

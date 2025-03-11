@@ -15,8 +15,10 @@ import { Target } from "../types/Target.sol";
 
 /// @dev The context of overall strategy
 struct SolverStrategyContext {
+    /// @dev Total vault collateral, available and isolated
     UFixed6 totalCollateral;
 
+    /// @dev State of registered markets
     MarketSolverStrategyContext[] markets;
 }
 
@@ -56,7 +58,6 @@ library SolverStrategyLib {
 
     /// @notice Compute the target allocation for each market
     /// @param registrations The registrations of the underlying markets
-    /// @param deposit The amount of assets that are being deposited into the vault
     /// @param withdrawal The amount of assets to make available for withdrawal
     /// @param ineligible The amount of assets that are inapplicable for allocation
     function allocate(
@@ -128,6 +129,12 @@ library SolverStrategyLib {
         target.taker = newTaker.sub(marketContext.currentTaker);
     }
 
+    /// @dev Compute the target allocation for a market
+    /// @param marketContext Current state of the market
+    /// @param markets Number of markets
+    /// @param latestCollateral Amount of collateral currently in the market
+    /// @param amount Total amount of collateral available to allocate across registered markets
+    /// @return Amount of collateral to allocate to the market
     function _allocateValue(
         MarketSolverStrategyContext memory marketContext,
         uint256 markets,
@@ -144,6 +151,7 @@ library SolverStrategyLib {
     /// @return context The strategy context of the vault
     function _load(Registration[] memory registrations) internal view returns (SolverStrategyContext memory context) {
         context.markets = new MarketSolverStrategyContext[](registrations.length);
+
         for (uint256 marketId; marketId < registrations.length; marketId++) {
             context.markets[marketId] = _loadContext(registrations[marketId]);
             context.totalCollateral = context.totalCollateral.add(context.markets[marketId].collateral);
