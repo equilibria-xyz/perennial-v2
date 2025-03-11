@@ -620,6 +620,7 @@ describe('Verifier', () => {
     const DEFAULT_TAKE = {
       amount: parse6decimal('20'),
       referrer: constants.AddressZero,
+      additiveFee: parse6decimal('0'),
       common: {
         account: constants.AddressZero,
         signer: constants.AddressZero,
