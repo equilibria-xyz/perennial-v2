@@ -868,7 +868,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ) _processOrderGlobal(context, settlementContext, context.global.latestId + 1, nextOrder.timestamp, nextOrder);
 
         while (
-            context.account != address(0) &&
             context.local.currentId != context.local.latestId &&
             (nextOrder = _pendingOrders[context.account][context.local.latestId + 1].read()).ready(context.latestOracleVersion)
         ) _processOrderLocal(context, settlementContext, context.local.latestId + 1, nextOrder.timestamp, nextOrder);
