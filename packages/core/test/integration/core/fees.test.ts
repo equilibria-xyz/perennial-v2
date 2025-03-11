@@ -499,7 +499,7 @@ describe('Fees', () => {
     })
 
     it('charges price impact on make close', async () => {
-      const { user, userB, dsu } = instanceVars
+      const { userB } = instanceVars
 
       await expect(
         market

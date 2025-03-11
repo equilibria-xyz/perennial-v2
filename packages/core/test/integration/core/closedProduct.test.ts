@@ -122,7 +122,6 @@ describe('Closed Market', () => {
     await chainlink.nextWithPriceModification(price => price.mul(4))
     await chainlink.nextWithPriceModification(price => price.mul(4))
 
-    const LIQUIDATION_FEE = BigNumber.from('1000000000')
     await market.connect(user).close(user.address, true, constants.AddressZero)
     await market.connect(userB).close(userB.address, true, constants.AddressZero)
 

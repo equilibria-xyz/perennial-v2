@@ -886,7 +886,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
                 _pendingOrder[context.global.latestId].read()
             );
 
-        if (context.latestOracleVersion.timestamp > context.latestPositionLocal.timestamp)
+        if (context.account != address(0) && context.latestOracleVersion.timestamp > context.latestPositionLocal.timestamp)
             _processOrderLocal(
                 context,
                 settlementContext,

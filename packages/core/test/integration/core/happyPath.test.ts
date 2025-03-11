@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 
-import { InstanceVars, deployProtocol, createMarket, settle, fundWallet } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import {
   DEFAULT_ORDER,
   DEFAULT_POSITION,
@@ -2265,7 +2265,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { owner, user, userB, dsu, margin, marketFactory, verifier } = instanceVars
+    const { user, userB, dsu, margin, marketFactory, verifier } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -3219,14 +3219,12 @@ describe('Happy Path', () => {
     await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
     await margin.connect(userB).deposit(userB.address, COLLATERAL.mul(2))
 
-    await margin.connect(user).isolate(user.address, market.address, COLLATERAL)
-
     for (let i = 0; i < delay; i++) {
       await market
         .connect(user)
         ['update(address,int256,int256,int256,address)'](
           user.address,
-          i == 0 ? POSITION : 1,
+          i == 0 ? POSITION.sub(delay) : 1,
           0,
           i == 0 ? COLLATERAL : 0,
           constants.AddressZero,
@@ -3235,7 +3233,7 @@ describe('Happy Path', () => {
         .connect(userB)
         ['update(address,int256,int256,address)'](
           userB.address,
-          i == 0 ? POSITION : 1,
+          i == 0 ? POSITION.div(2) : 1,
           i == 0 ? COLLATERAL : 0,
           constants.AddressZero,
         )
@@ -3246,7 +3244,7 @@ describe('Happy Path', () => {
     // ensure all pending can settle
     for (let i = 0; i < delay - 1; i++) await nextWithConstantPrice()
     if (sync) await nextWithConstantPrice()
-    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL.mul(2))
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
 
     // const currentVersion = delay + delay + delay - (sync ? 0 : 1)
     // const latestVersion = delay + delay - (sync ? 0 : 1)
@@ -3293,7 +3291,7 @@ describe('Happy Path', () => {
     expectPositionEq(await market.positions(user.address), {
       ...DEFAULT_POSITION,
       timestamp: (await chainlink.oracle.latest()).timestamp,
-      maker: POSITION.add(delay - 1),
+      maker: POSITION.sub(1),
     })
 
     // Check global state
@@ -3316,8 +3314,8 @@ describe('Happy Path', () => {
     expectPositionEq(await market.position(), {
       ...DEFAULT_POSITION,
       timestamp: (await chainlink.oracle.latest()).timestamp,
-      maker: POSITION.add(delay - 1),
-      long: POSITION.add(delay - 1),
+      maker: POSITION.sub(1),
+      long: POSITION.div(2).add(delay - 1),
     })
   })
 })
