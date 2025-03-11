@@ -376,7 +376,7 @@ export async function createMarket(
   riskParamOverrides?: Partial<RiskParameterStruct>,
   marketParamOverrides?: Partial<MarketParameterStruct>,
 ): Promise<Market> {
-  const { owner, marketFactory, coordinator, beneficiaryB, oracle } = instanceVars
+  const { owner, marketFactory, coordinator, oracle } = instanceVars
 
   const riskParameter = { ...STANDARD_RISK_PARAMETER, ...riskParamOverrides }
   const marketParameter = { ...STANDARD_MARKET_PARAMETER, ...marketParamOverrides }

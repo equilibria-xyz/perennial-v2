@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 
-import { InstanceVars, deployProtocol, createMarket, settle, fundWallet } from '../helpers/setupHelpers'
+import { InstanceVars, deployProtocol, createMarket, settle } from '../helpers/setupHelpers'
 import {
   DEFAULT_ORDER,
   DEFAULT_POSITION,
@@ -2263,7 +2263,7 @@ describe('Happy Path', () => {
     const POSITION = parse6decimal('10')
     const POSITION_B = parse6decimal('1')
     const COLLATERAL = parse6decimal('1000')
-    const { owner, user, userB, dsu, margin, marketFactory, verifier } = instanceVars
+    const { user, userB, dsu, margin, marketFactory, verifier } = instanceVars
 
     const market = await createMarket(instanceVars)
 
@@ -3147,7 +3147,8 @@ describe('Happy Path', () => {
     })
   })
 
-  it('multi-delayed update w/ collateral (gas)', async () => {
+  // uncheck skip to see gas results
+  it.skip('multi-delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
     const delay = 5
     const sync = true
@@ -3225,7 +3226,6 @@ describe('Happy Path', () => {
           i == 0 ? COLLATERAL : 0,
           constants.AddressZero,
         )
-      const pending = await market.pendings(userB.address)
       await market
         .connect(userB)
         ['update(address,int256,int256,address)'](
