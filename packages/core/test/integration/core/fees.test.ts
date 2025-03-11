@@ -1806,7 +1806,7 @@ describe('Fees', () => {
     })
 
     it('charges user additive and referral fee', async () => {
-      const { user, userB, dsu, marketFactory, owner } = instanceVars
+      const { user, userB, marketFactory, owner } = instanceVars
 
       const marketParameter = await market.parameter()
       await market.updateParameter({
