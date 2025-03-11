@@ -324,6 +324,7 @@ describe('Verifier', () => {
       const take: TakeStruct = {
         amount: parse6decimal('15'),
         referrer: userC.address,
+        additiveFee: parse6decimal('0'),
         common: {
           account: userB.address,
           signer: userB.address,
