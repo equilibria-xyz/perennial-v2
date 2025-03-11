@@ -2962,7 +2962,7 @@ describe('Happy Path', () => {
     // user withdraws all collateral
     await market
       .connect(user)
-      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, constants.MinInt256, false)
 
     // check user collateral and positions are 0
     expect((await market.locals(user.address)).collateral).to.equal(0)
