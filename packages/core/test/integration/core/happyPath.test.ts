@@ -2934,6 +2934,43 @@ describe('Happy Path', () => {
     })
   })
 
+  it('user can close position even if collateral less than margin required', async () => {
+    const POSITION = parse6decimal('10')
+    const COLLATERAL = parse6decimal('1000')
+    const { user, dsu, chainlink } = instanceVars
+
+    const market = await createMarket(instanceVars)
+    await dsu.connect(user).approve(market.address, constants.MaxUint256)
+    await market
+      .connect(user)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, POSITION, 0, 0, COLLATERAL, false)
+
+    // Settle the market with a new oracle version
+    await chainlink.nextWithPriceModification(price => price.mul(2))
+
+    // deposit a small amount of collateral to check margin
+    await expect(
+      market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 1, false),
+    ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
+
+    // user can close position if collateral is less than required margin
+    await market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
+
+    chainlink.updateParams(parse6decimal('1.0'), parse6decimal('0.1'))
+    await chainlink.next()
+
+    // user withdraws all collateral
+    await market
+      .connect(user)
+      ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, COLLATERAL, false)
+
+    // check user collateral and positions are 0
+    expect((await market.locals(user.address)).collateral).to.equal(0)
+    expect((await market.positions(user.address)).maker).to.equal(0)
+    expect((await market.positions(user.address)).long).to.equal(0)
+    expect((await market.positions(user.address)).short).to.equal(0)
+  })
+
   // uncheck skip to see gas results
   it.skip('multi-delayed update w/ collateral (gas)', async () => {
     const positionFeesOn = true
