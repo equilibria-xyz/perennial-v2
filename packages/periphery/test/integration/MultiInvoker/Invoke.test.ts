@@ -653,7 +653,7 @@ export function RunInvokerTests(
                 constants.AddressZero,
               )
 
-            expect((await market.pendingOrders(user.address, 2)).makerPos).to.eq(parse6decimal('1'))
+            expect((await market.pendings(user.address)).makerPos).to.eq(parse6decimal('1'))
           })
 
           it('creates a maker position with additive fee', async () => {
@@ -685,8 +685,8 @@ export function RunInvokerTests(
               .to.emit(market, 'OrderCreated')
               .withArgs(user.address, anyValue, anyValue, constants.AddressZero, userB.address, constants.AddressZero)
 
-            expect((await market.pendingOrders(user.address, 2)).makerPos).to.eq(parse6decimal('1'))
-            expect((await market.pendingOrders(user.address, 2)).additiveFee).to.eq(parse6decimal('0.01'))
+            expect((await market.pendings(user.address)).makerPos).to.eq(parse6decimal('1'))
+            expect((await market.pendings(user.address)).additiveFee).to.eq(parse6decimal('0.01'))
           })
 
           it('fills an intent update', async () => {

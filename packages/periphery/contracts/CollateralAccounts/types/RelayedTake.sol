@@ -21,7 +21,7 @@ library RelayedTakeLib {
         "RelayedTake(Take take,Action action)"
         "Action(uint256 maxFee,Common common)"
         "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
-        "Take(int256 amount,address referrer,Common common)"
+        "Take(int256 amount,address referrer,uint256 additiveFee,Common common)"
     );
 
     /// @dev Used to create a signed message

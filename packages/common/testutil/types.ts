@@ -193,6 +193,7 @@ export type Common = {
 export interface Take {
   amount: BigNumberish
   referrer: string
+  additiveFee: BigNumberish
   common: Common
 }
 
