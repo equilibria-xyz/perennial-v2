@@ -255,7 +255,7 @@ library VersionLib {
         next.liquidationFee.decrement(Fixed6Lib.from(liquidationFee), UFixed6Lib.ONE);
     }
 
-    /// @notice Globally accumulates linear fees since last oracle update
+    /// @notice Globally accumulates trade fees since last oracle update
     /// @param next The Version object to update
     /// @param context The accumulation context
     function _accumulateFee(
@@ -281,7 +281,7 @@ library VersionLib {
         result.subtractiveFee = result.subtractiveFee.add(makerSubtractiveFee).add(takerSubtractiveFee);
     }
 
-    /// @notice Globally accumulates linear fees since last oracle update
+    /// @notice Globally accumulates spread charged since last oracle update
     /// @param next The Version object to update
     /// @param context The accumulation context
     function _accumulateSpread(
