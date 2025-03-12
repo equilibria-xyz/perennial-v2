@@ -44,6 +44,7 @@ const VALID_ORDER = {
   takerReferral: parse6decimal('5'),
   overrideMagnitude: parse6decimal('0'),
   overrideNotional: parse6decimal('0'),
+  additiveFee: parse6decimal('0'),
 }
 
 describe('Position', () => {

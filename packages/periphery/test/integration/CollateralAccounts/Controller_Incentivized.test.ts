@@ -841,6 +841,7 @@ export function RunIncentivizedTests(
         const take: Take = {
           amount: POSITION_A,
           referrer: constants.AddressZero,
+          additiveFee: parse6decimal('0'),
           common: {
             account: userA.address,
             signer: userA.address,
@@ -936,6 +937,7 @@ export function RunIncentivizedTests(
           amount: -POSITION_C.div(4),
           price: parse6decimal('3110'),
           fee: parse6decimal('0.5'),
+          additiveFee: 0,
           originator: constants.AddressZero,
           solver: constants.AddressZero,
           collateralization: parse6decimal('0.03'),

@@ -133,6 +133,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param signature The signature of the intent that is being filled
     function update(address account, Intent calldata intent, bytes memory signature) external nonReentrant whenNotPaused {
         if (intent.fee.gt(UFixed6Lib.ONE)) revert MarketInvalidIntentFeeError();
+        if (intent.additiveFee.gt(IMarketFactory(address(factory())).parameter().maxFee)) revert MarketInvalidAdditiveFeeError();
 
         verifier.verifyIntent(intent, signature);
 
@@ -145,6 +146,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             address(0),
             UFixed6Lib.ZERO,
             UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO,
             false
         ); // account
         _updateIntent(
@@ -155,6 +157,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             intent.originator,
             intent.solver,
             intent.fee,
+            intent.additiveFee,
             intent.collateralization,
             true
         ); // signer
@@ -170,6 +173,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         bytes memory solverSignature
     ) external nonReentrant whenNotPaused {
         if (fill.intent.fee.gt(UFixed6Lib.ONE)) revert MarketInvalidIntentFeeError();
+        if (fill.intent.additiveFee.gt(IMarketFactory(address(factory())).parameter().maxFee)) revert MarketInvalidAdditiveFeeError();
 
         verifier.verifyIntent(fill.intent, traderSignature);
         verifier.verifyFill(fill, solverSignature);
@@ -183,6 +187,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             address(0),
             UFixed6Lib.ZERO,
             UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO,
             false
         ); // solver
         _updateIntent(
@@ -193,6 +198,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             fill.intent.originator,
             fill.intent.solver,
             fill.intent.fee,
+            fill.intent.additiveFee,
             fill.intent.collateralization,
             true
         ); // trader
@@ -202,8 +208,9 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param take Message requesting change in user's taker position
     /// @param signature Signature of taker or authorized signer
     function update(Take calldata take, bytes memory signature) external nonReentrant whenNotPaused {
+        if (take.additiveFee.gt(IMarketFactory(address(factory())).parameter().maxFee)) revert MarketInvalidAdditiveFeeError();
         verifier.verifyTake(take, signature);
-        _updateMarket(take.common.account, take.common.signer, Fixed6Lib.ZERO, take.amount, Fixed6Lib.ZERO, take.referrer);
+        _updateMarket(take.common.account, take.common.signer, Fixed6Lib.ZERO, take.amount, Fixed6Lib.ZERO, take.referrer, take.additiveFee);
     }
 
     /// @notice Updates the account's position
@@ -212,7 +219,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param takerAmount The position delta of the order (positive for long, negative for short)
     /// @param referrer The referrer of the order
     function update(address account, Fixed6 takerAmount, address referrer) external nonReentrant whenNotPaused {
-       _updateMarket(account, msg.sender, Fixed6Lib.ZERO, takerAmount, Fixed6Lib.ZERO, referrer);
+       _updateMarket(account, msg.sender, Fixed6Lib.ZERO, takerAmount, Fixed6Lib.ZERO, referrer, UFixed6Lib.ZERO);
     }
 
     /// @notice Updates the account's taker position and isolated collateral
@@ -226,7 +233,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 collateral,
         address referrer
     ) external nonReentrant whenNotPaused {
-        _updateMarket(account, address(0), Fixed6Lib.ZERO, takerAmount, collateral, referrer);
+        _updateMarket(account, address(0), Fixed6Lib.ZERO, takerAmount, collateral, referrer, UFixed6Lib.ZERO);
     }
 
     /// @notice Updates the account's position and isolated collateral
@@ -242,7 +249,18 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 collateral,
         address referrer
     ) external nonReentrant whenNotPaused {
-        _updateMarket(account, address(0), makerAmount, takerAmount, collateral, referrer);
+        _updateMarket(account, address(0), makerAmount, takerAmount, collateral, referrer, UFixed6Lib.ZERO);
+    }
+
+    function update(
+        address account,
+        Fixed6 makerAmount,
+        Fixed6 takerAmount,
+        Fixed6 collateral,
+        address referrer,
+        UFixed6 additiveFee
+    ) external nonReentrant whenNotPaused {
+        _updateMarket(account, address(0), makerAmount, takerAmount, collateral, referrer, additiveFee);
     }
 
     /// @notice Closes the account's position
@@ -275,7 +293,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             Fixed6Lib.ZERO,
             protect,
             true,
-            updateContext.orderReferralFee
+            updateContext.orderReferralFee,
+            UFixed6Lib.ZERO
         );
 
         Guarantee memory newGuarantee; // no guarantee is created for a market order
@@ -701,6 +720,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address orderReferrer,
         address guaranteeReferrer,
         UFixed6 guaranteeReferralFee,
+        UFixed6 additiveFee,
         UFixed6 collateralization,
         bool chargeTradeFee
     ) private {
@@ -716,7 +736,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             Fixed6Lib.ZERO,
             false,
             false,
-            updateContext.orderReferralFee
+            updateContext.orderReferralFee,
+            additiveFee
         );
         Guarantee memory newGuarantee = GuaranteeLib.from(
             newOrder,
@@ -734,7 +755,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Fixed6 makerAmount,
         Fixed6 takerAmount,
         Fixed6 collateral,
-        address referrer
+        address referrer,
+        UFixed6 additiveFee
     ) private {
         (Context memory context, UpdateContext memory updateContext) =
             _loadForUpdate(account, signer, referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
@@ -748,7 +770,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             collateral,
             false,
             true,
-            updateContext.orderReferralFee
+            updateContext.orderReferralFee,
+            additiveFee
         );
 
         // process update
@@ -826,7 +849,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address orderReferrer,
         address guaranteeReferrer
     ) private pure {
-        if (!newOrder.makerReferral.isZero() || !newOrder.takerReferral.isZero()) {
+        if (!newOrder.makerReferral.isZero() || !newOrder.takerReferral.isZero() || !newOrder.additiveFee.isZero()) {
             if (updateContext.orderReferrer == address(0)) updateContext.orderReferrer = orderReferrer;
             if (updateContext.orderReferrer != orderReferrer) revert MarketInvalidReferrerError();
         }
@@ -981,7 +1004,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         margin.updateCheckpoint(context.account, newOrder.timestamp, settlementContext.latestCheckpoint, pnl);
 
         _credit(liquidators[context.account][newOrderId], accumulationResponse.liquidationFee);
-        _credit(orderReferrers[context.account][newOrderId], accumulationResponse.subtractiveFee);
+        _credit(orderReferrers[context.account][newOrderId], accumulationResponse.subtractiveFee.add(accumulationResponse.additiveFee));
         _credit(guaranteeReferrers[context.account][newOrderId], accumulationResponse.solverFee);
     }
 

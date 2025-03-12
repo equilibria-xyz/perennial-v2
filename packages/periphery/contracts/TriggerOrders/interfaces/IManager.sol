@@ -4,7 +4,6 @@ pragma solidity ^0.8.13;
 import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 
 import { CancelOrderAction } from "../types/CancelOrderAction.sol";
-import { InterfaceFee } from "../types/InterfaceFee.sol";
 import { PlaceOrderAction, TriggerOrder } from "../types/PlaceOrderAction.sol";
 
 /// @notice Stores and executes trigger orders
@@ -33,12 +32,6 @@ interface IManager {
     /// @param order Change in position and conditions which were satisfied
     /// @param orderId Uniquely identifies the executed order
     event TriggerOrderExecuted(IMarket indexed market, address indexed account, TriggerOrder order, uint256 orderId);
-
-    /// @notice Emitted when an interface fee specified on a trigger order has been paid
-    /// @param account Actor who paid the fee
-    /// @param market Perennial market from which the fee was pulled
-    /// @param fee Details including the fee amount and recipient of the fee
-    event TriggerOrderInterfaceFeeCharged(address indexed account, IMarket indexed market, InterfaceFee fee);
 
     // sig: 0x955cc4b9
     /// @custom:error Order does not exist or was already cancelled or executed
@@ -108,9 +101,4 @@ interface IManager {
     /// @param account Actor whose position is to be changed
     /// @param orderId Uniquely identifies the order for an account
     function executeOrder(IMarket market, address account, uint256 orderId) external;
-
-    /// @notice withdraw DSU or unwrap DSU to withdraw USDC from this address to `account`
-    /// @param account Account to claim fees for
-    /// @param unwrap Wheather to wrap/unwrap collateral on withdrawal
-    function claim(address account, bool unwrap) external;
 }

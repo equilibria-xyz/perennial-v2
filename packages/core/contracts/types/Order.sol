@@ -51,6 +51,9 @@ struct Order {
 
     /// @dev The referral fee multiplied by the size applicable to the referral
     UFixed6 takerReferral;
+
+    /// @dev The additive fee multiplied by the size applicable to the additive fee
+    UFixed6 additiveFee;
 }
 using OrderLib for Order global;
 struct OrderStorageGlobal { uint256 slot0; uint256 slot1; uint256 slot2; } // SECURITY: must remain at (3) slots
@@ -80,8 +83,8 @@ library OrderLib {
     /// @param self The order object to update
     /// @param guarantee The guarantee to keep from invalidating
     function invalidate(Order memory self, Guarantee memory guarantee) internal pure {
-        (self.makerReferral, self.takerReferral) =
-            (UFixed6Lib.ZERO, guarantee.orderReferral);
+        (self.makerReferral, self.takerReferral, self.additiveFee) =
+            (UFixed6Lib.ZERO, guarantee.orderReferral, UFixed6Lib.ZERO);
         (self.makerPos, self.makerNeg, self.longPos, self.longNeg, self.shortPos, self.shortNeg) =
             (UFixed6Lib.ZERO, UFixed6Lib.ZERO, guarantee.longPos, guarantee.longNeg, guarantee.shortPos, guarantee.shortNeg);
     }
@@ -103,7 +106,8 @@ library OrderLib {
         Fixed6 collateral,
         bool protect,
         bool invalidatable,
-        UFixed6 referralFee
+        UFixed6 referralFee,
+        UFixed6 additiveFee
     ) internal pure returns (Order memory newOrder) {
         UFixed6 newMaker = UFixed6Lib.from(Fixed6Lib.from(position.maker).add(makerAmount));
         Fixed6 newTaker = position.skew().add(takerAmount);
@@ -117,7 +121,8 @@ library OrderLib {
             newTaker.min(Fixed6Lib.ZERO).abs(),
             protect,
             invalidatable,
-            referralFee
+            referralFee,
+            additiveFee
         );
     }
 
@@ -141,7 +146,8 @@ library OrderLib {
         UFixed6 newShort,
         bool protect,
         bool invalidatable,
-        UFixed6 referralFee
+        UFixed6 referralFee,
+        UFixed6 additiveFee
     ) internal pure returns (Order memory newOrder) {
         // compute side-based deltas from the current position and new position
         (Fixed6 makerAmount, Fixed6 longAmount, Fixed6 shortAmount) = (
@@ -161,6 +167,7 @@ library OrderLib {
         newOrder.shortNeg = _negativeComponent(shortAmount);
         newOrder.makerReferral = makerAmount.abs().mul(referralFee);
         newOrder.takerReferral = longAmount.abs().add(shortAmount.abs()).mul(referralFee);
+        newOrder.additiveFee = makerAmount.abs().add(longAmount.abs()).add(shortAmount.abs()).mul(additiveFee);
 
         // set the order and invalidation counts
         if (protect) newOrder.protection = 1;
@@ -390,13 +397,14 @@ library OrderLib {
     /// @param self The order object to update
     /// @param order The new order
     function add(Order memory self, Order memory order) internal pure {
-        (self.orders, self.collateral, self.protection, self.invalidation, self.makerReferral, self.takerReferral) = (
+        (self.orders, self.collateral, self.protection, self.invalidation, self.makerReferral, self.takerReferral, self.additiveFee) = (
             self.orders + order.orders,
             self.collateral.add(order.collateral),
             self.protection + order.protection,
             self.invalidation + order.invalidation,
             self.makerReferral.add(order.makerReferral),
-            self.takerReferral.add(order.takerReferral)
+            self.takerReferral.add(order.takerReferral),
+            self.additiveFee.add(order.additiveFee)
         );
 
         (self.makerPos, self.makerNeg, self.longPos, self.longNeg, self.shortPos, self.shortNeg) = (
@@ -413,13 +421,14 @@ library OrderLib {
     /// @param self The order object to update
     /// @param order The latest order
     function sub(Order memory self, Order memory order) internal pure {
-        (self.orders, self.collateral, self.protection, self.invalidation, self.makerReferral, self.takerReferral) = (
+        (self.orders, self.collateral, self.protection, self.invalidation, self.makerReferral, self.takerReferral, self.additiveFee) = (
             self.orders - order.orders,
             self.collateral.sub(order.collateral),
             self.protection - order.protection,
             self.invalidation - order.invalidation,
             self.makerReferral.sub(order.makerReferral),
-            self.takerReferral.sub(order.takerReferral)
+            self.takerReferral.sub(order.takerReferral),
+            self.additiveFee.sub(order.additiveFee)
         );
 
         (self.makerPos, self.makerNeg, self.longPos, self.longNeg, self.shortPos, self.shortNeg) = (
@@ -472,7 +481,8 @@ library OrderStorageGlobalLib {
             0,
             0,
             UFixed6.wrap(uint256(slot2 << (256 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot2 << (256 - 64 - 64)) >> (256 - 64))
+            UFixed6.wrap(uint256(slot2 << (256 - 64 - 64)) >> (256 - 64)),
+            UFixed6Lib.ZERO
         );
     }
 
@@ -521,6 +531,7 @@ library OrderStorageGlobalLib {
 ///         /* slot 2 */
 ///         uint64 takerReferral;
 ///         uint64 makerReferral;
+///         uint64 additiveFee;
 ///         uint1 protection;
 ///         uint8 invalidation;
 ///     }
@@ -539,10 +550,11 @@ library OrderStorageLocalLib {
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64)) >> (256 - 64)),
             UFixed6.wrap(uint256(slot1 << (256 - 64 - 64 - 64 - 64)) >> (256 - 64)),
-            uint256(slot2 << (256 - 64 - 64 - 1)) >> (256 - 1),
-            uint256(slot2 << (256 - 64 - 64 - 1 - 8)) >> (256 - 8),
+            uint256(slot2 << (256 - 64 - 64 - 64 - 1)) >> (256 - 1),
+            uint256(slot2 << (256 - 64 - 64 - 64 - 1 - 8)) >> (256 - 8),
             UFixed6.wrap(uint256(slot2 << (256 - 64)) >> (256 - 64)),
-            UFixed6.wrap(uint256(slot2 << (256 - 64 - 64)) >> (256 - 64))
+            UFixed6.wrap(uint256(slot2 << (256 - 64 - 64)) >> (256 - 64)),
+            UFixed6.wrap(uint256(slot2 << (256 - 64 - 64 - 64)) >> (256 - 64))
         );
     }
 
@@ -566,8 +578,9 @@ library OrderStorageLocalLib {
         uint256 encoded2 =
             uint256(UFixed6.unwrap(newValue.makerReferral) << (256 - 64)) >> (256 - 64) |
             uint256(UFixed6.unwrap(newValue.takerReferral) << (256 - 64)) >> (256 - 64 - 64) |
-            uint256(newValue.protection << (256 - 1)) >> (256 - 64 - 64 - 1) |
-            uint256(newValue.invalidation << (256 - 8)) >> (256 - 64 - 64 - 1 - 8);
+            uint256(newValue.protection << (256 - 1)) >> (256 - 64 - 64 - 64 - 1) |
+            uint256(newValue.invalidation << (256 - 8)) >> (256 - 64 - 64 - 64 - 1 - 8) |
+            uint256(UFixed6.unwrap(newValue.additiveFee) << (256 - 64)) >> (256 - 64 - 64 - 64);
 
         assembly {
             sstore(self.slot, encoded0)
@@ -594,5 +607,6 @@ library OrderStorageLib {
         if (newValue.longNeg.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
         if (newValue.shortPos.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
         if (newValue.shortNeg.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
+        if (newValue.additiveFee.gt(UFixed6.wrap(type(uint64).max))) revert OrderStorageLib.OrderStorageInvalidError();
     }
 }

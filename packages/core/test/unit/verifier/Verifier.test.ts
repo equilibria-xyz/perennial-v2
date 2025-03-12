@@ -105,6 +105,7 @@ describe('Verifier', () => {
         amount: parse6decimal('4'),
         price: parse6decimal('151'),
         fee: parse6decimal('0.25'),
+        additiveFee: parse6decimal('0.01'),
         originator: constants.AddressZero,
         solver: constants.AddressZero,
         collateralization: parse6decimal('0.3'),
@@ -351,6 +352,7 @@ describe('Verifier', () => {
       amount: parse6decimal('10'),
       price: parse6decimal('123'),
       fee: parse6decimal('0.5'),
+      additiveFee: parse6decimal('0.01'),
       originator: constants.AddressZero,
       solver: constants.AddressZero,
       collateralization: parse6decimal('0.1'),
@@ -618,6 +620,7 @@ describe('Verifier', () => {
     const DEFAULT_TAKE = {
       amount: parse6decimal('20'),
       referrer: constants.AddressZero,
+      additiveFee: parse6decimal('0'),
       common: {
         account: constants.AddressZero,
         signer: constants.AddressZero,

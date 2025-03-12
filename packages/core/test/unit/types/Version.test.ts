@@ -99,6 +99,7 @@ const ORDER: OrderStruct = {
   invalidation: 1,
   makerReferral: 10,
   takerReferral: 11,
+  additiveFee: 0,
 }
 
 const TIMESTAMP = 1636401093

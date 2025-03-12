@@ -22,6 +22,7 @@ import { IMargin, Market, Verifier__factory } from '../../../types/generated'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import {
   AccountPositionProcessedEventObject,
+  IntentStruct,
   PositionProcessedEventObject,
 } from '../../../types/generated/contracts/Market'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
@@ -1734,6 +1735,232 @@ describe('Fees', () => {
     })
   })
 
+  describe('additive fee', async () => {
+    const COLLATERAL = parse6decimal('600')
+    const POSITION = parse6decimal('3')
+
+    beforeEach(async () => {
+      const { user, userB, userC, userD, dsu } = instanceVars
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL.mul(2))
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
+      await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(2).mul(1e12))
+      await margin.connect(userC).deposit(userC.address, COLLATERAL.mul(2))
+      await dsu.connect(userD).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userD).deposit(userD.address, COLLATERAL)
+
+      const riskParameter = await market.riskParameter()
+      await market.updateRiskParameter({
+        ...riskParameter,
+        synBook: {
+          ...riskParameter.synBook,
+          scale: parse6decimal('1'),
+        },
+      })
+    })
+
+    it('charges user additive fee', async () => {
+      const { user, userB, dsu } = instanceVars
+
+      // userB creates a maker position, referred by user
+      await market
+        .connect(userB)
+        ['update(address,int256,int256,int256,address,uint256)'](
+          userB.address,
+          POSITION,
+          0,
+          COLLATERAL,
+          user.address,
+          parse6decimal('0.01'),
+        )
+      expectOrderEq(await market.pendingOrder(1), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        makerPos: POSITION,
+        collateral: COLLATERAL,
+        additiveFee: POSITION.div(100),
+      })
+      await nextWithConstantPrice()
+      await settle(market, user)
+      await settle(market, userB)
+
+      // ensure the proper amount of the base fee is claimable by the referrer
+      // additiveFee = position * additiveFee * price = 3 * 0.01 * 113.882975 = 3.416489
+      const expectedClaimable = parse6decimal('3.416489')
+      expectLocalEq(await market.locals(user.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 0,
+        latestId: 0,
+      })
+      expect(await margin.claimables(user.address)).to.equal(expectedClaimable)
+      await expect(margin.connect(user).claim(user.address, user.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
+        .withArgs(user.address, user.address, expectedClaimable)
+
+      // Ensure user is not able to claim fees twice
+      const userBalanceBefore = await dsu.balanceOf(user.address)
+      await expect(margin.connect(user).claim(user.address, user.address))
+      expect(await dsu.balanceOf(user.address)).to.equals(userBalanceBefore)
+    })
+
+    it('charges user additive and referral fee', async () => {
+      const { user, userB, marketFactory, owner } = instanceVars
+
+      const marketParameter = await market.parameter()
+      await market.updateParameter({
+        ...marketParameter,
+        takerFee: parse6decimal('0.025'),
+        makerFee: parse6decimal('0.05'),
+      })
+
+      // set default referral fee
+      const protocolParameters = await marketFactory.parameter()
+      await expect(
+        marketFactory.connect(owner).updateParameter({
+          ...protocolParameters,
+          referralFee: parse6decimal('0.12'),
+        }),
+      ).to.emit(marketFactory, 'ParameterUpdated')
+      expect((await marketFactory.parameter()).referralFee).to.equal(parse6decimal('0.12'))
+
+      // override referral fee for user
+      await expect(marketFactory.connect(owner).updateReferralFee(user.address, parse6decimal('0.15')))
+        .to.emit(marketFactory, 'ReferralFeeUpdated')
+        .withArgs(user.address, parse6decimal('0.15'))
+
+      // userB creates a maker position, referred by user
+      await market
+        .connect(userB)
+        ['update(address,int256,int256,int256,address,uint256)'](
+          userB.address,
+          POSITION,
+          0,
+          COLLATERAL,
+          user.address,
+          parse6decimal('0.01'),
+        )
+      const expectedReferral = parse6decimal('0.15').mul(3) // referralFee * position
+      expectOrderEq(await market.pendingOrder(1), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 1,
+        makerPos: POSITION,
+        collateral: COLLATERAL,
+        makerReferral: expectedReferral,
+        additiveFee: POSITION.div(100),
+      })
+      await nextWithConstantPrice()
+      await settle(market, user)
+      await settle(market, userB)
+
+      // ensure the proper amount of the base fee is claimable by the referrer
+      // makerFee = position * makerFee * price = 3 * 0.05 * 113.882975 = 17.082446
+      // referralFee = makerFee * referral / makerPos = 17.082446 * 0.45 / 3 = 2.562366
+      // additiveFee = position * additiveFee * price = 3 * 0.01 * 113.882975 = 3.416489
+      const expectedClaimable = parse6decimal('2.562367').add(parse6decimal('3.416489'))
+      expectLocalEq(await market.locals(user.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 0,
+        latestId: 0,
+      })
+      expect(await margin.claimables(user.address)).to.equal(expectedClaimable)
+      await expect(margin.connect(user).claim(user.address, user.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
+        .withArgs(user.address, user.address, expectedClaimable)
+    })
+
+    it('charges user additive fee for intent order', async () => {
+      const { user, userB, userC, marketFactory, verifier, dsu, margin } = instanceVars
+
+      const protocolParameter = { ...(await marketFactory.parameter()) }
+      protocolParameter.referralFee = parse6decimal('0.20')
+
+      await marketFactory.updateParameter(protocolParameter)
+
+      const POSITION = parse6decimal('10')
+      const COLLATERAL = parse6decimal('10000')
+
+      await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(user).deposit(user.address, COLLATERAL)
+
+      await market
+        .connect(user)
+        ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
+
+      await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userB).deposit(userB.address, COLLATERAL)
+
+      await market
+        .connect(userB)
+        ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
+
+      await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+      await margin.connect(userC).deposit(userC.address, COLLATERAL)
+
+      await market
+        .connect(userC)
+        ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
+
+      const intent: IntentStruct = {
+        amount: POSITION.div(2),
+        price: parse6decimal('125'),
+        fee: parse6decimal('0.5'),
+        additiveFee: parse6decimal('0.01'),
+        originator: user.address,
+        solver: userB.address,
+        collateralization: parse6decimal('0.01'),
+        common: {
+          account: userC.address,
+          signer: userC.address,
+          domain: market.address,
+          nonce: 0,
+          group: 0,
+          expiry: constants.MaxUint256,
+        },
+      }
+
+      const signature = await signIntent(userC, verifier, intent)
+
+      await market
+        .connect(user)
+        [
+          'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+        ](user.address, intent, signature)
+
+      const expectedReferral = parse6decimal('0.2').mul(5) // referralFee * position
+      expectOrderEq(await market.pendingOrder(1), {
+        ...DEFAULT_ORDER,
+        timestamp: TIMESTAMP_1,
+        orders: 3,
+        makerPos: POSITION,
+        shortPos: POSITION.div(2),
+        longPos: POSITION.div(2),
+        collateral: COLLATERAL.mul(3),
+        takerReferral: expectedReferral,
+        additiveFee: POSITION.div(100),
+      })
+      await nextWithConstantPrice()
+      await settle(market, user)
+      await settle(market, userB)
+      await settle(market, userC)
+
+      // ensure the additive fee is claimable by the referrer
+      // additiveFee = position * additiveFee * price = 5 * 0.01 * 113.882975 = 5.694148
+      const expectedClaimable = parse6decimal('5.694148')
+      expectLocalEq(await market.locals(user.address), {
+        ...DEFAULT_LOCAL,
+        currentId: 1,
+        latestId: 1,
+      })
+      expect(await margin.claimables(user.address)).to.equal(expectedClaimable)
+      await expect(margin.connect(user).claim(user.address, user.address))
+        .to.emit(margin, 'ClaimableWithdrawn')
+        .withArgs(user.address, user.address, expectedClaimable)
+    })
+  })
+
   describe('claim fee', async () => {
     beforeEach(async () => {
       const riskParameter = await market.riskParameter()
@@ -1936,6 +2163,7 @@ describe('Fees', () => {
         amount: POSITION.div(2),
         price: PRICE.add(0.5e6),
         fee: parse6decimal('0.5'),
+        additiveFee: 0,
         originator: userC.address,
         solver: owner.address,
         collateralization: parse6decimal('0.01'),
@@ -1956,10 +2184,9 @@ describe('Fees', () => {
       await market
         .connect(userC)
         [
-          'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+          'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
         ](userC.address, intent, signature)
 
-      console.log(5)
       expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
         ...DEFAULT_GUARANTEE,
         orders: 2,
