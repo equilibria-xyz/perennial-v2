@@ -12,9 +12,6 @@ import { IERC20, IFactory, IMarketFactory, IMarket, IOracleProvider } from '@per
 import {
   AggregatorV3Interface,
   ArbGasInfo,
-  IAccount,
-  IAccount__factory,
-  IController,
   IEmptySetReserve,
   IMargin,
   IOrderVerifier,
@@ -25,7 +22,6 @@ import {
 import { signCancelOrderAction, signCommon, signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
 import { OracleVersionStruct } from '../../../types/generated/contracts/TriggerOrders/test/TriggerOrderTester'
 import { Compare, compareOrders, DEFAULT_TRIGGER_ORDER, Side } from '../../helpers/TriggerOrders/order'
-import { deployController } from '../../helpers/setupHelpers'
 
 const { ethers } = HRE
 
@@ -387,59 +383,6 @@ describe('Manager', () => {
         orderPrice: parse6decimal('2002.052'),
         expectedResult: true,
       })
-    })
-  })
-
-  describe('#interface-fees', () => {
-    const FIXED_FEE_AMOUNT = parse6decimal('0.25')
-
-    beforeEach(async () => {
-      expect(await manager.claimable(userB.address)).to.equal(0)
-      // userA places an order with an interface fee
-      const orderId = advanceOrderId()
-      const makerOrderWithFee = {
-        ...MAKER_ORDER,
-        interfaceFee: {
-          amount: FIXED_FEE_AMOUNT,
-          receiver: userB.address,
-          fixedFee: true,
-          unwrap: false,
-        },
-      }
-      await manager.connect(userA).placeOrder(market.address, orderId, makerOrderWithFee)
-
-      // keeper executes the order, userB earns their fee
-      await manager.connect(keeper).executeOrder(market.address, userA.address, orderId)
-      expect(await manager.claimable(userB.address)).to.equal(FIXED_FEE_AMOUNT)
-    })
-
-    it('recipient can claim fee', async () => {
-      await manager.connect(userB).claim(userB.address, false)
-      expect(dsu.transfer).to.have.been.calledWith(userB.address, FIXED_FEE_AMOUNT.mul(1e12))
-    })
-
-    it('operator can claim fee', async () => {
-      marketFactory.operators.whenCalledWith(userB.address, userA.address).returns(true)
-      await manager.connect(userA).claim(userB.address, false)
-      expect(dsu.transfer).to.have.been.calledWith(userA.address, FIXED_FEE_AMOUNT.mul(1e12))
-    })
-
-    it('non-operator can not claim fee', async () => {
-      marketFactory.operators.whenCalledWith(userB.address, userA.address).returns(false)
-      await expect(manager.connect(userA).claim(userB.address, false)).to.be.revertedWithCustomError(
-        manager,
-        'ManagerNotOperatorError',
-      )
-    })
-
-    it('fee can be unwrapped', async () => {
-      usdc.balanceOf.reset()
-      usdc.balanceOf.returnsAtCall(0, 0)
-      usdc.balanceOf.returnsAtCall(1, FIXED_FEE_AMOUNT)
-      usdc.transfer.returns(true)
-      await manager.connect(userB).claim(userB.address, true)
-      expect(reserve.redeem).to.have.been.calledWith(FIXED_FEE_AMOUNT.mul(1e12))
-      expect(usdc.transfer).to.have.been.calledWith(userB.address, FIXED_FEE_AMOUNT)
     })
   })
 

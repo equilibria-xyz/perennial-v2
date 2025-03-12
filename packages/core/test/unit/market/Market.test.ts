@@ -114,6 +114,7 @@ const DEFAULT_LOCAL_ACCUMULATION_RESULT = {
   liquidationFee: 0,
   subtractiveFee: 0,
   solverFee: 0,
+  additiveFee: 0,
 }
 
 const DEFAULT_SYN_BOOK = {
@@ -171,10 +172,10 @@ const DEFAULT_SIGNATURE =
   '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef01'
 
 const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
-const INTENT_PROTOTYPE = `(int256,int256,uint256,address,address,uint256,${COMMON_PROTOTYPE})`
+const INTENT_PROTOTYPE = `(int256,int256,uint256,uint256,address,address,uint256,${COMMON_PROTOTYPE})`
 const MARKET_UPDATE_INTENT_PROTOTYPE = `update(address,${INTENT_PROTOTYPE},bytes)`
 const MARKET_UPDATE_FILL_PROTOTYPE = `update((${INTENT_PROTOTYPE},${COMMON_PROTOTYPE}),bytes,bytes)`
-const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,${COMMON_PROTOTYPE}),bytes)`
+const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,uint256,${COMMON_PROTOTYPE}),bytes)`
 
 // rate_0 = 0
 // rate_1 = rate_0 + (elapsed * skew / k)
@@ -14599,6 +14600,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('1250'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -14643,11 +14645,7 @@ describe('Market', () => {
             .returns([false, true, parse6decimal('0.20')])
 
           await expect(
-            market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent, DEFAULT_SIGNATURE),
+            market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
           ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
         })
 
@@ -14660,6 +14658,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('25'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -14704,11 +14703,7 @@ describe('Market', () => {
             .returns([false, true, parse6decimal('0.20')])
 
           await expect(
-            market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent, DEFAULT_SIGNATURE),
+            market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
           ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
         })
 
@@ -14717,6 +14712,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('136'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -14755,11 +14751,7 @@ describe('Market', () => {
             .returns([false, true, parse6decimal('0.20')])
 
           await expect(
-            market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent, DEFAULT_SIGNATURE),
+            market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
           ).to.be.revertedWithCustomError(market, 'MarketIntentPriceDeviationError')
         })
 
@@ -14768,6 +14760,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('110'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -14806,11 +14799,7 @@ describe('Market', () => {
             .returns([false, true, parse6decimal('0.20')])
 
           await expect(
-            market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent, DEFAULT_SIGNATURE),
+            market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
           ).to.be.revertedWithCustomError(market, 'MarketIntentPriceDeviationError')
         })
 
@@ -14835,6 +14824,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -14850,11 +14840,7 @@ describe('Market', () => {
 
           factory.paused.returns(true)
           await expect(
-            market
-              .connect(user)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](user.address, intent, '0x'),
+            market.connect(user)[MARKET_UPDATE_INTENT_PROTOTYPE](user.address, intent, '0x'),
           ).to.be.revertedWithCustomError(market, 'InstancePausedError')
           factory.paused.returns(false)
         })
@@ -15206,6 +15192,7 @@ describe('Market', () => {
           const message: TakeStruct = {
             amount: POSITION.div(2),
             referrer: owner.address,
+            additiveFee: BigNumber.from(0),
             common: {
               account: user.address,
               signer: userB.address,
@@ -15478,6 +15465,7 @@ describe('Market', () => {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -15495,6 +15483,7 @@ describe('Market', () => {
               amount: -POSITION.div(2),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -15540,21 +15529,13 @@ describe('Market', () => {
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
               .returns([false, true, parse6decimal('0.20')])
 
-            await market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent, DEFAULT_SIGNATURE)
+            await market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE)
 
             oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_1, ORACLE_VERSION_3.timestamp])
             oracle.request.returns()
 
-            await market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent2, DEFAULT_SIGNATURE)
+            await market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent2, DEFAULT_SIGNATURE)
 
             dsu.transfer.whenCalledWith(user.address, COLLATERAL.mul(1e12)).returns(true)
             await expect(
@@ -15583,6 +15564,7 @@ describe('Market', () => {
               amount: POSITION.div(2),
               price: parse6decimal('50'), // large price override gain (73 * 5) -> 365
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -15599,6 +15581,7 @@ describe('Market', () => {
               amount: -POSITION.div(2),
               price: parse6decimal('123'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -15661,16 +15644,8 @@ describe('Market', () => {
             await settle(market, userB)
 
             // pending price override
-            await market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent, DEFAULT_SIGNATURE)
-            await market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent2, DEFAULT_SIGNATURE)
+            await market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE)
+            await market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent2, DEFAULT_SIGNATURE)
 
             const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
@@ -15707,6 +15682,7 @@ describe('Market', () => {
               amount: POSITION.div(2),
               price: parse6decimal('143'), // large price override loss (20 * 5) -> 100
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -15723,6 +15699,7 @@ describe('Market', () => {
               amount: -POSITION.div(2),
               price: parse6decimal('123'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -15785,17 +15762,9 @@ describe('Market', () => {
             await settle(market, userB)
 
             // pending price override
-            await market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent2, DEFAULT_SIGNATURE)
+            await market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent2, DEFAULT_SIGNATURE)
 
-            await market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent, DEFAULT_SIGNATURE)
+            await market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE)
 
             const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
@@ -15828,6 +15797,7 @@ describe('Market', () => {
               amount: POSITION.div(2),
               price: parse6decimal('123'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -15844,6 +15814,7 @@ describe('Market', () => {
               amount: -POSITION.div(2),
               price: parse6decimal('123'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -15911,17 +15882,9 @@ describe('Market', () => {
             await market.updateParameter(marketParameter)
 
             // pending price override
-            await market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent2, DEFAULT_SIGNATURE)
+            await market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent2, DEFAULT_SIGNATURE)
 
-            await market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent, DEFAULT_SIGNATURE)
+            await market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE)
 
             const EXPECTED_LIQUIDATION_FEE = parse6decimal('10')
 
@@ -15976,6 +15939,7 @@ describe('Market', () => {
               amount: parse6decimal('0.3'),
               price: parse6decimal('123'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: liquidator.address,
               collateralization: parse6decimal('0.01'),
@@ -15993,6 +15957,7 @@ describe('Market', () => {
               amount: -parse6decimal('0.3'),
               price: parse6decimal('123'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: liquidator.address,
               collateralization: parse6decimal('0.01'),
@@ -16053,17 +16018,9 @@ describe('Market', () => {
               .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
               .returns([false, true, parse6decimal('0.20')])
 
-            await market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent, DEFAULT_SIGNATURE)
+            await market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE)
 
-            await market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent2, DEFAULT_SIGNATURE)
+            await market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent2, DEFAULT_SIGNATURE)
 
             const WITHDRAW_COLLATERAL = parse6decimal('500')
 
@@ -18368,6 +18325,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -18409,13 +18367,7 @@ describe('Market', () => {
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
             .returns([false, true, parse6decimal('0.20')])
 
-          await expect(
-            market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent, DEFAULT_SIGNATURE),
-          )
+          await expect(market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE))
             .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
@@ -19054,6 +19006,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -19095,13 +19048,7 @@ describe('Market', () => {
             .whenCalledWith(user.address, userC.address, liquidator.address, liquidator.address)
             .returns([false, true, parse6decimal('0.20')])
 
-          await expect(
-            market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent, DEFAULT_SIGNATURE),
-          )
+          await expect(market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE))
             .to.emit(market, 'OrderCreated')
             .withArgs(
               user.address,
@@ -19150,11 +19097,7 @@ describe('Market', () => {
           intent.solver = liquidator.address
 
           await expect(
-            market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent, DEFAULT_SIGNATURE),
+            market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
           ).to.revertedWithCustomError(market, 'MarketInvalidReferrerError')
 
           oracle.at
@@ -19289,6 +19232,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -19331,11 +19275,7 @@ describe('Market', () => {
             .returns([false, false, parse6decimal('0.20')])
 
           await expect(
-            market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent, DEFAULT_SIGNATURE),
+            market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
           ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
         })
 
@@ -19364,6 +19304,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: constants.AddressZero,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -20166,6 +20107,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -20183,6 +20125,7 @@ describe('Market', () => {
             amount: -POSITION,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -20517,6 +20460,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -20534,6 +20478,7 @@ describe('Market', () => {
             amount: -POSITION,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -20834,6 +20779,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -20851,6 +20797,7 @@ describe('Market', () => {
             amount: -POSITION,
             price: parse6decimal('121'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -21151,6 +21098,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -21168,6 +21116,7 @@ describe('Market', () => {
             amount: -POSITION,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -21546,6 +21495,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -21563,6 +21513,7 @@ describe('Market', () => {
             amount: POSITION.div(4),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -21580,6 +21531,7 @@ describe('Market', () => {
             amount: -POSITION,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -21597,6 +21549,7 @@ describe('Market', () => {
             amount: -POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -22082,6 +22035,7 @@ describe('Market', () => {
             amount: -POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -22132,6 +22086,7 @@ describe('Market', () => {
             amount: -POSITION,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -22182,6 +22137,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -22245,6 +22201,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -22292,6 +22249,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -22309,6 +22267,7 @@ describe('Market', () => {
             amount: -POSITION,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -22372,6 +22331,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -22389,6 +22349,7 @@ describe('Market', () => {
             amount: -POSITION,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -22436,6 +22397,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -22453,6 +22415,7 @@ describe('Market', () => {
             amount: -POSITION,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -22512,6 +22475,7 @@ describe('Market', () => {
             amount: -POSITION,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -22593,6 +22557,7 @@ describe('Market', () => {
             amount: -POSITION.div(2),
             price: parse6decimal('123'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -22610,6 +22575,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('123'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -22627,6 +22593,7 @@ describe('Market', () => {
             amount: -POSITION.div(10),
             price: parse6decimal('123'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -23146,6 +23113,427 @@ describe('Market', () => {
         })
       })
 
+      context('additive fee', async () => {
+        it('opens the position and settles later with fee', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxLiquidationFee: parse6decimal('20'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
+            minMinMaintenance: 0,
+          })
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.fundingFee = BigNumber.from(0)
+          await market.updateParameter(marketParameter)
+
+          const SETTLEMENT_FEE = parse6decimal('0.50')
+          const ADDITIVE_FEE = parse6decimal('12.3') // position * price * (0.01)
+
+          factory.authorization
+            .whenCalledWith(user.address, user.address, constants.AddressZero, liquidator.address)
+            .returns([false, true, 0])
+
+          await expect(
+            market
+              .connect(user)
+              ['update(address,int256,int256,int256,address,uint256)'](
+                user.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                liquidator.address,
+                parse6decimal('0.01'),
+              ),
+          )
+            .to.emit(market, 'OrderCreated')
+            .withArgs(
+              user.address,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                orders: 1,
+                makerPos: POSITION,
+                collateral: COLLATERAL,
+                invalidation: 1,
+                additiveFee: POSITION.div(100),
+              },
+              { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              liquidator.address,
+              constants.AddressZero,
+            )
+
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_2.timestamp)
+            .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_3.timestamp)
+            .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+
+          expectLocalEq(await market.locals(user.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 1,
+            latestId: 1,
+          })
+          expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+            COLLATERAL.sub(SETTLEMENT_FEE).sub(ADDITIVE_FEE),
+          )
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            makerPos: POSITION,
+            collateral: COLLATERAL,
+            additiveFee: POSITION.div(100),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+          expect(await margin.claimables(liquidator.address)).to.equal(ADDITIVE_FEE)
+          expectGlobalEq(await market.global(), {
+            ...DEFAULT_GLOBAL,
+            currentId: 1,
+            latestId: 1,
+            protocolFee: 0,
+            oracleFee: SETTLEMENT_FEE,
+            riskFee: 0,
+            latestPrice: PRICE,
+          })
+          expectPositionEq(await market.position(), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+          })
+          expectOrderEq(await market.pendingOrder(1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            makerPos: POSITION,
+            collateral: COLLATERAL,
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
+            price: PRICE,
+            liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
+          })
+        })
+
+        it('opens the position and settles later with additive and referral fee', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxLiquidationFee: parse6decimal('20'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
+            minMinMaintenance: 0,
+          })
+
+          const riskParameter = { ...(await market.riskParameter()) }
+          const marketParameter = { ...(await market.parameter()) }
+          marketParameter.fundingFee = BigNumber.from(0)
+          marketParameter.makerFee = parse6decimal('0.005')
+          await market.updateParameter(marketParameter)
+
+          const MAKER_FEE = parse6decimal('6.15') // position * (0.005) * price
+          const SETTLEMENT_FEE = parse6decimal('0.50')
+          const ADDITIVE_FEE = parse6decimal('12.3') // position * price * (0.01)
+
+          factory.authorization
+            .whenCalledWith(user.address, user.address, constants.AddressZero, liquidator.address)
+            .returns([false, true, parse6decimal('0.20')])
+
+          await expect(
+            market
+              .connect(user)
+              ['update(address,int256,int256,int256,address,uint256)'](
+                user.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                liquidator.address,
+                parse6decimal('0.01'),
+              ),
+          )
+            .to.emit(market, 'OrderCreated')
+            .withArgs(
+              user.address,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                orders: 1,
+                makerPos: POSITION,
+                collateral: COLLATERAL,
+                invalidation: 1,
+                makerReferral: POSITION.div(5),
+                additiveFee: POSITION.div(100),
+              },
+              { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              liquidator.address,
+              constants.AddressZero,
+            )
+
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_2.timestamp)
+            .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_3.timestamp)
+            .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+
+          expectLocalEq(await market.locals(user.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 1,
+            latestId: 1,
+          })
+          expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+            COLLATERAL.sub(MAKER_FEE).sub(SETTLEMENT_FEE).sub(ADDITIVE_FEE),
+          )
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            makerPos: POSITION,
+            collateral: COLLATERAL,
+            makerReferral: POSITION.div(5),
+            additiveFee: POSITION.div(100),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+          expect(await margin.claimables(liquidator.address)).to.equal(MAKER_FEE.mul(2).div(10).add(ADDITIVE_FEE))
+          const totalFee = MAKER_FEE.sub(MAKER_FEE.mul(2).div(10))
+          expectGlobalEq(await market.global(), {
+            ...DEFAULT_GLOBAL,
+            currentId: 1,
+            latestId: 1,
+            protocolFee: totalFee.mul(8).div(10).add(1), // loss of precision
+            oracleFee: totalFee.div(10).add(SETTLEMENT_FEE),
+            riskFee: totalFee.div(10).sub(1), // loss of precision
+            latestPrice: PRICE,
+          })
+          expectPositionEq(await market.position(), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+          })
+          expectOrderEq(await market.pendingOrder(1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            makerPos: POSITION,
+            collateral: COLLATERAL,
+            makerReferral: POSITION.div(5),
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
+            price: PRICE,
+            liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
+          })
+        })
+
+        it('opens the position and settles later with fee (self)', async () => {
+          factory.parameter.returns({
+            maxPendingIds: 5,
+            protocolFee: parse6decimal('0.50'),
+            maxFee: parse6decimal('0.01'),
+            maxLiquidationFee: parse6decimal('20'),
+            maxCut: parse6decimal('0.50'),
+            maxRate: parse6decimal('10.00'),
+            minMaintenance: parse6decimal('0.01'),
+            minEfficiency: parse6decimal('0.1'),
+            referralFee: parse6decimal('0.20'),
+            minScale: parse6decimal('0.001'),
+            maxStaleAfter: 14400,
+            minMinMaintenance: 0,
+          })
+
+          const riskParameter = { ...(await market.riskParameter()) }
+
+          const SETTLEMENT_FEE = parse6decimal('0.50')
+          const ADDITIVE_FEE = parse6decimal('6.15') // position * price * (0.01)
+
+          await market
+            .connect(userB)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
+
+          factory.authorization
+            .whenCalledWith(user.address, user.address, constants.AddressZero, user.address)
+            .returns([false, true, 0])
+
+          await expect(
+            market
+              .connect(user)
+              ['update(address,int256,int256,int256,address,uint256)'](
+                user.address,
+                0,
+                POSITION.div(2),
+                COLLATERAL,
+                user.address,
+                parse6decimal('0.01'),
+              ),
+          )
+            .to.emit(market, 'OrderCreated')
+            .withArgs(
+              user.address,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                orders: 1,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL,
+                invalidation: 1,
+                additiveFee: POSITION.div(200),
+              },
+              { ...DEFAULT_GUARANTEE },
+              constants.AddressZero,
+              user.address,
+              constants.AddressZero,
+            )
+
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_2.timestamp)
+            .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_3.timestamp)
+            .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          expectLocalEq(await market.locals(user.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 1,
+            latestId: 1,
+          })
+          expect(await margin.claimables(user.address)).to.equal(ADDITIVE_FEE)
+          expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+            COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
+              .sub(EXPECTED_INTEREST_5_123)
+              .sub(SETTLEMENT_FEE.div(2))
+              .sub(ADDITIVE_FEE),
+          )
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            long: POSITION.div(2),
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            longPos: POSITION.div(2),
+            collateral: COLLATERAL,
+            additiveFee: POSITION.div(200),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          expectLocalEq(await market.locals(userB.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 1,
+            latestId: 1,
+          })
+          expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+            COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+              .sub(SETTLEMENT_FEE.div(2))
+              .sub(8), // loss of precision
+          )
+          expectPositionEq(await market.positions(userB.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            makerPos: POSITION,
+            collateral: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
+          expectGlobalEq(await market.global(), {
+            ...DEFAULT_GLOBAL,
+            currentId: 1,
+            latestId: 1,
+            protocolFee: totalFee.mul(8).div(10).sub(2), // loss of precision
+            oracleFee: totalFee.div(10).sub(1).add(SETTLEMENT_FEE), // loss of precision
+            riskFee: totalFee.div(10).sub(1), // loss of precision
+            latestPrice: PRICE,
+          })
+          expectPositionEq(await market.position(), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+            long: POSITION.div(2),
+          })
+          expectOrderEq(await market.pendingOrder(1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 2,
+            makerPos: POSITION,
+            longPos: POSITION.div(2),
+            collateral: COLLATERAL.mul(2),
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
+            makerPreValue: {
+              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
+            },
+            longPreValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+            price: PRICE,
+            liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
+          })
+        })
+      })
+
       context('intent orders', async () => {
         context('opens position', async () => {
           it('fills the positions and settles later with fee (above / long)', async () => {
@@ -23179,6 +23567,7 @@ describe('Market', () => {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -23221,11 +23610,7 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -23428,6 +23813,7 @@ describe('Market', () => {
               amount: -POSITION.div(2),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -23470,11 +23856,7 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -23678,6 +24060,7 @@ describe('Market', () => {
               amount: POSITION.div(2),
               price: parse6decimal('121'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -23720,11 +24103,7 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -23928,6 +24307,7 @@ describe('Market', () => {
               amount: -POSITION.div(2),
               price: parse6decimal('121'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -23970,11 +24350,7 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -24178,6 +24554,7 @@ describe('Market', () => {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -24195,6 +24572,7 @@ describe('Market', () => {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: owner.address,
               solver: liquidator.address,
               collateralization: parse6decimal('0.01'),
@@ -24244,11 +24622,7 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent1, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent1, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -24295,11 +24669,7 @@ describe('Market', () => {
               )
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent2, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent2, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -24528,6 +24898,7 @@ describe('Market', () => {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -24570,11 +24941,7 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await expect(
-              market
-                .connect(userD)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userD)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -24777,6 +25144,7 @@ describe('Market', () => {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -24819,11 +25187,7 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -24870,11 +25234,7 @@ describe('Market', () => {
               )
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -24965,6 +25325,7 @@ describe('Market', () => {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -25009,11 +25370,7 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -25242,6 +25599,7 @@ describe('Market', () => {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -25290,11 +25648,7 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -25534,6 +25888,7 @@ describe('Market', () => {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -25576,11 +25931,7 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await expect(
-              market
-                .connect(userD)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userD)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -25782,6 +26133,7 @@ describe('Market', () => {
               amount: -POSITION.div(2),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -25839,11 +26191,7 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -26042,6 +26390,7 @@ describe('Market', () => {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -26099,11 +26448,7 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -26302,6 +26647,7 @@ describe('Market', () => {
               amount: -POSITION.div(2),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -26359,11 +26705,7 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -26564,6 +26906,7 @@ describe('Market', () => {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -26620,11 +26963,7 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -26825,6 +27164,7 @@ describe('Market', () => {
               amount: -POSITION.div(2),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -26886,11 +27226,7 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -27091,6 +27427,7 @@ describe('Market', () => {
               amount: POSITION.div(2),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -27152,11 +27489,7 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -27357,6 +27690,7 @@ describe('Market', () => {
               amount: POSITION.div(4),
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
+              additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
               collateralization: parse6decimal('0.01'),
@@ -27413,11 +27747,7 @@ describe('Market', () => {
               .returns([false, true, parse6decimal('0.20')])
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -27464,11 +27794,7 @@ describe('Market', () => {
               )
 
             await expect(
-              market
-                .connect(userC)
-                [
-                  'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-                ](userC.address, intent, DEFAULT_SIGNATURE),
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
             )
               .to.emit(market, 'OrderCreated')
               .withArgs(
@@ -27534,6 +27860,7 @@ describe('Market', () => {
             amount: parse6decimal('0.3'),
             price: parse6decimal('1250'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -27551,6 +27878,7 @@ describe('Market', () => {
             amount: parse6decimal('0.3'),
             price: parse6decimal('1250'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
             collateralization: parse6decimal('0.01'),
@@ -27611,18 +27939,10 @@ describe('Market', () => {
             .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
             .returns([false, true, parse6decimal('0.20')])
 
-          await market
-            .connect(userC)
-            [
-              'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-            ](userC.address, intent, DEFAULT_SIGNATURE)
+          await market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE)
 
           await expect(
-            market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent2, DEFAULT_SIGNATURE),
+            market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent2, DEFAULT_SIGNATURE),
           ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
         })
 
@@ -27650,6 +27970,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: 0,
+            additiveFee: 0,
             originator: liquidator.address,
             solver: constants.AddressZero,
             collateralization: parse6decimal('0.01'),
@@ -27683,11 +28004,7 @@ describe('Market', () => {
           verifier.verifyIntent.returns()
 
           await expect(
-            market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent, DEFAULT_SIGNATURE),
+            market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
           ).to.be.revertedWithCustomError(market, 'MarketOperatorNotAllowedError')
         })
 
@@ -27715,6 +28032,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('1.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: constants.AddressZero,
             collateralization: parse6decimal('0.01'),
@@ -27748,11 +28066,7 @@ describe('Market', () => {
           verifier.verifyIntent.returns()
 
           await expect(
-            market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent, DEFAULT_SIGNATURE),
+            market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
           ).to.be.revertedWithCustomError(market, 'MarketInvalidIntentFeeError')
         })
 
@@ -27780,6 +28094,7 @@ describe('Market', () => {
             amount: POSITION.div(2),
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
+            additiveFee: 0,
             originator: liquidator.address,
             solver: constants.AddressZero,
             collateralization: parse6decimal('20.0'), // 10_000 / 20 = 500 < 125 * 5
@@ -27822,11 +28137,7 @@ describe('Market', () => {
             .returns([false, true, parse6decimal('0.20')])
 
           await expect(
-            market
-              .connect(userC)
-              [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-              ](userC.address, intent, DEFAULT_SIGNATURE),
+            market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
           ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
         })
       })
@@ -28389,6 +28700,7 @@ describe('Market', () => {
           const message: TakeStruct = {
             amount: POSITION.div(2),
             referrer: owner.address,
+            additiveFee: BigNumber.from(0),
             common: {
               account: user.address,
               signer: user.address,
@@ -28534,6 +28846,184 @@ describe('Market', () => {
             price: PRICE,
             liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
           })
+        })
+
+        it('charges additive fee when opening long position with signature', async () => {
+          // user deposits some collateral with no position
+          await market
+            .connect(user)
+            ['update(address,int256,int256,int256,address)'](user.address, 0, 0, COLLATERAL, constants.AddressZero)
+
+          // userB adds maker liquidity to market
+          await market
+            .connect(userB)
+            ['update(address,int256,int256,int256,address)'](
+              userB.address,
+              POSITION,
+              0,
+              COLLATERAL,
+              constants.AddressZero,
+            )
+
+          // user signs message to open a long position
+          const message: TakeStruct = {
+            amount: POSITION.div(2),
+            referrer: owner.address,
+            additiveFee: parse6decimal('0.01'),
+            common: {
+              account: user.address,
+              signer: user.address,
+              domain: market.address,
+              nonce: 0,
+              group: 0,
+              expiry: constants.MaxUint256,
+            },
+          }
+
+          // userC executes the update on behalf of user
+          factory.authorization
+            .whenCalledWith(user.address, userC.address, user.address, owner.address)
+            .returns([false, true, parse6decimal('0.20')])
+          await expect(market.connect(userC)[MARKET_UPDATE_TAKE_PROTOTYPE](message, DEFAULT_SIGNATURE))
+            .to.emit(market, 'OrderCreated')
+            .withArgs(
+              user.address,
+              {
+                ...DEFAULT_ORDER,
+                timestamp: ORACLE_VERSION_2.timestamp,
+                orders: 1,
+                longPos: POSITION.div(2),
+                takerReferral: POSITION.div(2).mul(2).div(10),
+                invalidation: 1,
+                additiveFee: POSITION.div(2).div(100),
+              },
+              DEFAULT_GUARANTEE,
+              constants.AddressZero,
+              owner.address, // referrer
+              constants.AddressZero,
+            )
+
+          // settle
+          const SETTLEMENT_FEE = parse6decimal('0.50')
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_2.timestamp)
+            .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+          oracle.at
+            .whenCalledWith(ORACLE_VERSION_3.timestamp)
+            .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+          oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+          oracle.request.whenCalledWith(user.address).returns()
+
+          await settle(market, user)
+          await settle(market, userB)
+
+          const ADDITIVE_FEE = POSITION.div(2).div(100).mul(ORACLE_VERSION_3.price).div(1e6)
+
+          // check user state
+          expectLocalEq(await market.locals(user.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 1,
+            latestId: 1,
+          })
+          expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+            COLLATERAL.sub(EXPECTED_FUNDING_WITH_FEE_1_5_123)
+              .sub(EXPECTED_INTEREST_5_123)
+              .sub(SETTLEMENT_FEE.div(2))
+              .sub(ADDITIVE_FEE),
+          )
+          expectPositionEq(await market.positions(user.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            long: POSITION.div(2),
+          })
+          expectOrderEq(await market.pendingOrders(user.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            longPos: POSITION.div(2),
+            collateral: COLLATERAL,
+            takerReferral: POSITION.div(2).mul(2).div(10),
+            additiveFee: POSITION.div(2).div(100),
+          })
+          expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+
+          // check userB state
+          expectLocalEq(await market.locals(userB.address), {
+            ...DEFAULT_LOCAL,
+            currentId: 1,
+            latestId: 1,
+          })
+          expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+            COLLATERAL.add(EXPECTED_FUNDING_WITHOUT_FEE_1_5_123)
+              .add(EXPECTED_INTEREST_WITHOUT_FEE_5_123)
+              .sub(SETTLEMENT_FEE.div(2))
+              .sub(8), // loss of precision
+          )
+          expectPositionEq(await market.positions(userB.address), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+          })
+          expectOrderEq(await market.pendingOrders(userB.address, 1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 1,
+            makerPos: POSITION,
+            collateral: COLLATERAL,
+          })
+          expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+            ...DEFAULT_CHECKPOINT,
+          })
+          // check market state
+          const totalFee = EXPECTED_FUNDING_FEE_1_5_123.add(EXPECTED_INTEREST_FEE_5_123)
+          expectGlobalEq(await market.global(), {
+            ...DEFAULT_GLOBAL,
+            currentId: 1,
+            latestId: 1,
+            protocolFee: totalFee.mul(8).div(10).sub(2), // loss of precision
+            oracleFee: totalFee.div(10).add(SETTLEMENT_FEE).sub(1), // loss of precision
+            riskFee: totalFee.div(10).sub(1), // loss of precision
+            latestPrice: PRICE,
+          })
+          expectPositionEq(await market.position(), {
+            ...DEFAULT_POSITION,
+            timestamp: ORACLE_VERSION_3.timestamp,
+            maker: POSITION,
+            long: POSITION.div(2),
+          })
+          expectOrderEq(await market.pendingOrder(1), {
+            ...DEFAULT_ORDER,
+            timestamp: ORACLE_VERSION_2.timestamp,
+            orders: 2,
+            makerPos: POSITION,
+            longPos: POSITION.div(2),
+            collateral: COLLATERAL.mul(2),
+            takerReferral: POSITION.div(2).mul(2).div(10),
+            additiveFee: POSITION.div(2).div(100),
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
+            ...DEFAULT_VERSION,
+            price: PRICE,
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
+            ...DEFAULT_VERSION,
+            price: PRICE,
+            settlementFee: { _value: SETTLEMENT_FEE.div(2).mul(-1) },
+            liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
+          })
+          expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+            ...DEFAULT_VERSION,
+            makerPreValue: {
+              _value: EXPECTED_FUNDING_WITHOUT_FEE_1_5_123.add(EXPECTED_INTEREST_WITHOUT_FEE_5_123).div(10),
+            },
+            longPreValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
+            price: PRICE,
+            liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
+          })
+          // check additive fee
+          expect(await margin.claimables(owner.address)).to.equal(ADDITIVE_FEE)
         })
       })
     })

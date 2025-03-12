@@ -324,6 +324,7 @@ describe('Verifier', () => {
       const take: TakeStruct = {
         amount: parse6decimal('15'),
         referrer: userC.address,
+        additiveFee: parse6decimal('0'),
         common: {
           account: userB.address,
           signer: userB.address,
@@ -502,6 +503,7 @@ describe('Verifier', () => {
         amount: parse6decimal('15'),
         price: parse6decimal('3110'),
         fee: parse6decimal('0.5'),
+        additiveFee: 0,
         originator: constants.AddressZero,
         solver: constants.AddressZero,
         collateralization: parse6decimal('0.03'),

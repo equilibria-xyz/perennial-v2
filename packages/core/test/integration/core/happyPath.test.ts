@@ -51,9 +51,9 @@ export const PRICE_3 = parse6decimal('116.284753')
 export const PRICE_4 = parse6decimal('117.462552')
 
 const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
-const INTENT_PROTOTYPE = `(int256,int256,uint256,address,address,uint256,${COMMON_PROTOTYPE})`
+const INTENT_PROTOTYPE = `(int256,int256,uint256,uint256,address,address,uint256,${COMMON_PROTOTYPE})`
 const MARKET_UPDATE_FILL_PROTOTYPE = `update((${INTENT_PROTOTYPE},${COMMON_PROTOTYPE}),bytes,bytes)`
-const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,${COMMON_PROTOTYPE}),bytes)`
+const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,uint256,${COMMON_PROTOTYPE}),bytes)`
 const MARKET_UPDATE_TAKER_DELTA_PROTOTYPE = 'update(address,int256,int256,address)'
 const MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE = 'update(address,int256,int256,int256,address)'
 
@@ -1349,6 +1349,7 @@ describe('Happy Path', () => {
       amount: 0,
       price: 0,
       fee: 0,
+      additiveFee: 0,
       originator: constants.AddressZero,
       solver: constants.AddressZero,
       collateralization: 0,
@@ -1366,7 +1367,7 @@ describe('Happy Path', () => {
       market
         .connect(user)
         [
-          'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+          'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
         ](user.address, intent, '0x'),
     ).to.be.revertedWithCustomError(market, 'InstancePausedError')
   })
@@ -1733,6 +1734,7 @@ describe('Happy Path', () => {
       amount: POSITION.div(2),
       price: parse6decimal('125'),
       fee: parse6decimal('1.5'),
+      additiveFee: 0,
       originator: userC.address,
       solver: owner.address,
       collateralization: parse6decimal('0.01'),
@@ -1753,7 +1755,7 @@ describe('Happy Path', () => {
       market
         .connect(userC)
         [
-          'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+          'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
         ](userC.address, intent, signature),
     ).to.be.revertedWithCustomError(market, 'MarketInvalidIntentFeeError')
 
@@ -1764,7 +1766,7 @@ describe('Happy Path', () => {
     await market
       .connect(userC)
       [
-        'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+        'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
       ](userC.address, intent, signature)
 
     // userC is not allowed to sign messages for user
@@ -1778,7 +1780,7 @@ describe('Happy Path', () => {
       market
         .connect(userC)
         [
-          'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+          'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
         ](userC.address, intent, signature),
     ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
 
@@ -1826,7 +1828,7 @@ describe('Happy Path', () => {
       market
         .connect(userC)
         [
-          'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+          'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
         ](userC.address, intent, signature),
     ).to.revertedWithCustomError(market, 'MarketInvalidReferrerError')
   })
@@ -1898,6 +1900,7 @@ describe('Happy Path', () => {
       amount: POSITION.div(2),
       price: parse6decimal('125'),
       fee: parse6decimal('0.5'),
+      additiveFee: 0,
       originator: userC.address,
       solver: owner.address,
       collateralization: parse6decimal('0.01'),
@@ -1916,7 +1919,7 @@ describe('Happy Path', () => {
     await market
       .connect(userC)
       [
-        'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+        'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
       ](userC.address, intent, intentSignature)
 
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
@@ -1994,6 +1997,7 @@ describe('Happy Path', () => {
       amount: POSITION.div(2),
       price: parse6decimal('125'),
       fee: parse6decimal('0.5'),
+      additiveFee: 0,
       originator: userC.address,
       solver: owner.address,
       collateralization: parse6decimal('0.01'),
@@ -2012,7 +2016,7 @@ describe('Happy Path', () => {
     await market
       .connect(userC)
       [
-        'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+        'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
       ](userC.address, intent, signature)
 
     // disable userC as operator for user
@@ -2026,7 +2030,7 @@ describe('Happy Path', () => {
       market
         .connect(userC)
         [
-          'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+          'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
         ](userC.address, intent, signature),
     ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
 
@@ -2095,6 +2099,7 @@ describe('Happy Path', () => {
       amount: -POSITION.div(4),
       price: parse6decimal('125'),
       fee: parse6decimal('0.5'),
+      additiveFee: 0,
       originator: constants.AddressZero,
       solver: constants.AddressZero,
       collateralization: parse6decimal('0.03'),
@@ -2559,6 +2564,7 @@ describe('Happy Path', () => {
     let message: TakeStruct = {
       amount: initialPosition,
       referrer: owner.address,
+      additiveFee: parse6decimal('0'),
       common: {
         account: userB.address,
         signer: userB.address,
@@ -2623,13 +2629,19 @@ describe('Happy Path', () => {
       long: initialPosition,
     })
 
-    // userB signs message to reduce their long position
+    // userB signs message to reduce their long position with additive fee
     const positionDelta = POSITION.div(-3) // -3.333333
-    message = { ...message, amount: positionDelta, common: { ...message.common, nonce: 3 } }
+    message = {
+      ...message,
+      amount: positionDelta,
+      additiveFee: parse6decimal('0.01'),
+      common: { ...message.common, nonce: 3 },
+    }
     signature = await signTake(userB, verifier, message)
 
     // userC again executes the update
     expectedTakerReferral = parse6decimal('0.041666') // referralFee * takerAmount = 0.0125 * |positionDelta|
+    const expectedAdditiveFee = parse6decimal('3.876119') // additiveFee * takerAmount * price = 0.01 * |positionDelta| * 116.284753
     await expect(market.connect(userC)[MARKET_UPDATE_TAKE_PROTOTYPE](message, signature))
       .to.emit(market, 'OrderCreated')
       .withArgs(
@@ -2641,6 +2653,7 @@ describe('Happy Path', () => {
           longNeg: positionDelta.mul(-1),
           takerReferral: expectedTakerReferral,
           invalidation: 1,
+          additiveFee: positionDelta.mul(-1).div(100),
         },
         DEFAULT_GUARANTEE,
         constants.AddressZero,
@@ -2661,16 +2674,18 @@ describe('Happy Path', () => {
       currentId: 3,
       latestId: 3,
     })
-    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(collateral3)
+    expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(collateral3.sub(expectedAdditiveFee))
     expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_3), {
       ...DEFAULT_CHECKPOINT,
       collateral: collateral3,
+      tradeFee: expectedAdditiveFee,
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
       timestamp: TIMESTAMP_3,
       long: POSITION.div(3),
     })
+    expect(await margin.claimables(owner.address)).to.equal(expectedAdditiveFee)
 
     // userB signs message to close their position, this time with no referrer
     const currentPosition = (await market.positions(userB.address)).long // 3.333333
@@ -2678,6 +2693,7 @@ describe('Happy Path', () => {
       ...message,
       amount: currentPosition.mul(-1),
       referrer: constants.AddressZero,
+      additiveFee: BigNumber.from(0),
       common: { ...message.common, nonce: 4 },
     }
     signature = await signTake(userB, verifier, message)
@@ -2713,11 +2729,10 @@ describe('Happy Path', () => {
       currentId: 4,
       latestId: 4,
     })
-    expect(await margin.crossMarginBalances(userB.address)).to.equal(COLLATERAL.add(collateral4))
     expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_4), {
       ...DEFAULT_CHECKPOINT,
-      transfer: -collateral4, // deisolated on position close
-      collateral: collateral4,
+      transfer: collateral4.sub(expectedAdditiveFee).mul(-1),
+      collateral: collateral4.sub(expectedAdditiveFee),
     })
     expectPositionEq(await market.positions(userB.address), {
       ...DEFAULT_POSITION,
@@ -2737,6 +2752,7 @@ describe('Happy Path', () => {
       amount: POSITION.div(2),
       price: parse6decimal('125'),
       fee: parse6decimal('0.5'),
+      additiveFee: 0,
       originator: constants.AddressZero,
       solver: constants.AddressZero,
       collateralization: parse6decimal('0.01'),
@@ -2819,6 +2835,7 @@ describe('Happy Path', () => {
       amount: POSITION.div(2),
       price: parse6decimal('125'),
       fee: parse6decimal('0.5'),
+      additiveFee: 0,
       originator: userC.address,
       solver: owner.address,
       collateralization: parse6decimal('0.01'),
@@ -2837,7 +2854,7 @@ describe('Happy Path', () => {
     await market
       .connect(userC)
       [
-        'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+        'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
       ](userC.address, intent, signature)
 
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
@@ -2937,6 +2954,7 @@ describe('Happy Path', () => {
       amount: POSITION.div(2),
       price: parse6decimal('125'),
       fee: parse6decimal('0.5'),
+      additiveFee: 0,
       originator: userC.address,
       solver: owner.address,
       collateralization: parse6decimal('0.01'),
@@ -2955,7 +2973,7 @@ describe('Happy Path', () => {
     await market
       .connect(userC)
       [
-        'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+        'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
       ](userC.address, intent, signature)
 
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {

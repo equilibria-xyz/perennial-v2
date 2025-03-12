@@ -159,6 +159,7 @@ export async function signRelayedTake(
     Take: [
       { name: 'amount', type: 'int256' },
       { name: 'referrer', type: 'address' },
+      { name: 'additiveFee', type: 'uint256' },
       { name: 'common', type: 'Common' },
     ],
   }
@@ -186,6 +187,7 @@ export async function signRelayedFill(
       { name: 'amount', type: 'int256' },
       { name: 'price', type: 'int256' },
       { name: 'fee', type: 'uint256' },
+      { name: 'additiveFee', type: 'uint256' },
       { name: 'originator', type: 'address' },
       { name: 'solver', type: 'address' },
       { name: 'collateralization', type: 'uint256' },

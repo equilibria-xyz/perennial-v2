@@ -42,6 +42,7 @@ export interface Order {
   invalidation: BigNumberish
   makerReferral: BigNumberish
   takerReferral: BigNumberish
+  additiveFee: BigNumberish
 }
 
 export interface Guarantee {
@@ -192,6 +193,7 @@ export type Common = {
 export interface Take {
   amount: BigNumberish
   referrer: string
+  additiveFee: BigNumberish
   common: Common
 }
 
@@ -199,6 +201,7 @@ export interface Intent {
   amount: BigNumberish
   price: BigNumberish
   fee: BigNumberish
+  additiveFee: BigNumberish
   originator: string
   solver: string
   collateralization: BigNumberish
@@ -435,6 +438,7 @@ export const DEFAULT_ORDER: Order = {
   invalidation: 0,
   makerReferral: 0,
   takerReferral: 0,
+  additiveFee: 0,
 }
 
 export const DEFAULT_GUARANTEE: Guarantee = {
