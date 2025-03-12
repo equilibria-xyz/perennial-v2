@@ -22,7 +22,7 @@ library FillLib {
     bytes32 constant public STRUCT_HASH = keccak256(
         "Fill(Intent intent,Common common)"
         "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
-        "Intent(int256 amount,int256 price,uint256 fee,uint256 additiveFee,address originator,address solver,uint256 collateralization,Common common)"
+        "Intent(int256 amount,uint256 collateralAmount,int256 price,uint256 fee,uint256 additiveFee,address originator,address solver,uint256 collateralization,Common common)"
     );
 
     /// @dev Used to create a signed message
