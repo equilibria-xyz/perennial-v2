@@ -2956,7 +2956,6 @@ describe('Happy Path', () => {
     // user can close position if collateral is less than required margin
     await market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 0, false)
 
-    chainlink.updateParams(parse6decimal('1.0'), parse6decimal('0.1'))
     await chainlink.next()
 
     // user withdraws all collateral
