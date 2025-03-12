@@ -172,7 +172,7 @@ const DEFAULT_SIGNATURE =
   '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef01'
 
 const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
-const INTENT_PROTOTYPE = `(int256,int256,uint256,uint256,address,address,uint256,${COMMON_PROTOTYPE})`
+const INTENT_PROTOTYPE = `(int256,uint256,int256,uint256,uint256,address,address,uint256,${COMMON_PROTOTYPE})`
 const MARKET_UPDATE_INTENT_PROTOTYPE = `update(address,${INTENT_PROTOTYPE},bytes)`
 const MARKET_UPDATE_FILL_PROTOTYPE = `update((${INTENT_PROTOTYPE},${COMMON_PROTOTYPE}),bytes,bytes)`
 const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,uint256,${COMMON_PROTOTYPE}),bytes)`
@@ -14598,6 +14598,7 @@ describe('Market', () => {
 
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('1250'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -14656,6 +14657,7 @@ describe('Market', () => {
 
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('25'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -14710,6 +14712,7 @@ describe('Market', () => {
         it('reverts if above price deviation (higher)', async () => {
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('136'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -14758,6 +14761,7 @@ describe('Market', () => {
         it('reverts if above price deviation (lower)', async () => {
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('110'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -14822,6 +14826,7 @@ describe('Market', () => {
         it('reverts if paused (intent)', async () => {
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -15463,6 +15468,7 @@ describe('Market', () => {
 
             const intent = {
               amount: POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -15481,6 +15487,7 @@ describe('Market', () => {
 
             const intent2 = {
               amount: -POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -15562,6 +15569,7 @@ describe('Market', () => {
 
             const intent = {
               amount: POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('50'), // large price override gain (73 * 5) -> 365
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -15579,6 +15587,7 @@ describe('Market', () => {
             }
             const intent2 = {
               amount: -POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('123'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -15680,6 +15689,7 @@ describe('Market', () => {
 
             const intent = {
               amount: POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('143'), // large price override loss (20 * 5) -> 100
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -15697,6 +15707,7 @@ describe('Market', () => {
             }
             const intent2 = {
               amount: -POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('123'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -15795,6 +15806,7 @@ describe('Market', () => {
 
             const intent = {
               amount: POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('123'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -15812,6 +15824,7 @@ describe('Market', () => {
             }
             const intent2 = {
               amount: -POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('123'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -15937,6 +15950,7 @@ describe('Market', () => {
 
             const intent = {
               amount: parse6decimal('0.3'),
+              collateral: 0,
               price: parse6decimal('123'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -15955,6 +15969,7 @@ describe('Market', () => {
 
             const intent2 = {
               amount: -parse6decimal('0.3'),
+              collateral: 0,
               price: parse6decimal('123'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -18323,6 +18338,7 @@ describe('Market', () => {
 
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -19004,6 +19020,7 @@ describe('Market', () => {
 
           const intent: IntentStruct = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -19230,6 +19247,7 @@ describe('Market', () => {
         it('reverts when not operator', async () => {
           const intent: IntentStruct = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -19302,6 +19320,7 @@ describe('Market', () => {
           // trader (user) signs an intent to open a long position
           const intent: IntentStruct = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -20105,6 +20124,7 @@ describe('Market', () => {
 
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -20123,6 +20143,7 @@ describe('Market', () => {
 
           const intent2 = {
             amount: -POSITION,
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -20458,6 +20479,7 @@ describe('Market', () => {
 
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -20476,6 +20498,7 @@ describe('Market', () => {
 
           const intent2 = {
             amount: -POSITION,
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -20777,6 +20800,7 @@ describe('Market', () => {
 
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -20795,6 +20819,7 @@ describe('Market', () => {
 
           const intent2 = {
             amount: -POSITION,
+            collateral: 0,
             price: parse6decimal('121'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -21096,6 +21121,7 @@ describe('Market', () => {
 
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -21114,6 +21140,7 @@ describe('Market', () => {
 
           const intent2 = {
             amount: -POSITION,
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -21159,7 +21186,7 @@ describe('Market', () => {
             market
               .connect(userC)
               [
-                'update(address,(int256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+                'update(address,(int256,uint256,int256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
               ](userC.address, intent, DEFAULT_SIGNATURE),
           )
             .to.emit(market, 'OrderCreated')
@@ -21493,6 +21520,7 @@ describe('Market', () => {
 
           const intentA = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -21511,6 +21539,7 @@ describe('Market', () => {
 
           const intentB = {
             amount: POSITION.div(4),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -21529,6 +21558,7 @@ describe('Market', () => {
 
           const intent2A = {
             amount: -POSITION,
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -21547,6 +21577,7 @@ describe('Market', () => {
 
           const intent2B = {
             amount: -POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -22033,6 +22064,7 @@ describe('Market', () => {
 
           const intent = {
             amount: -POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -22084,6 +22116,7 @@ describe('Market', () => {
 
           const intent = {
             amount: -POSITION,
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -22135,6 +22168,7 @@ describe('Market', () => {
 
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -22199,6 +22233,7 @@ describe('Market', () => {
 
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -22247,6 +22282,7 @@ describe('Market', () => {
 
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -22265,6 +22301,7 @@ describe('Market', () => {
 
           const intent2 = {
             amount: -POSITION,
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -22329,6 +22366,7 @@ describe('Market', () => {
 
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -22347,6 +22385,7 @@ describe('Market', () => {
 
           const intent2 = {
             amount: -POSITION,
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -22395,6 +22434,7 @@ describe('Market', () => {
 
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -22413,6 +22453,7 @@ describe('Market', () => {
 
           const intent2 = {
             amount: -POSITION,
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -22473,6 +22514,7 @@ describe('Market', () => {
 
           const intent = {
             amount: -POSITION,
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -22555,6 +22597,7 @@ describe('Market', () => {
 
           const intent = {
             amount: -POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('123'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -22573,6 +22616,7 @@ describe('Market', () => {
 
           const intent2 = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('123'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -22591,6 +22635,7 @@ describe('Market', () => {
 
           const intent3 = {
             amount: -POSITION.div(10),
+            collateral: 0,
             price: parse6decimal('123'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -23536,6 +23581,252 @@ describe('Market', () => {
 
       context('intent orders', async () => {
         context('opens position', async () => {
+          it('fills intent order with collateral isolation and settles later with fee (above / long)', async () => {
+            factory.parameter.returns({
+              maxPendingIds: 5,
+              protocolFee: parse6decimal('0.50'),
+              maxFee: parse6decimal('0.01'),
+              maxLiquidationFee: parse6decimal('20'),
+              maxCut: parse6decimal('0.50'),
+              maxRate: parse6decimal('10.00'),
+              minMaintenance: parse6decimal('0.01'),
+              minEfficiency: parse6decimal('0.1'),
+              referralFee: parse6decimal('0.20'),
+              minScale: parse6decimal('0.001'),
+              maxStaleAfter: 14400,
+              minMinMaintenance: 0,
+            })
+
+            const marketParameter = { ...(await market.parameter()) }
+            marketParameter.takerFee = parse6decimal('0.01')
+            await market.updateParameter(marketParameter)
+
+            const riskParameter = { ...(await market.riskParameter()) }
+            await updateSynBook(market, DEFAULT_SYN_BOOK)
+
+            const EXPECTED_PNL = parse6decimal('10') // position * (125-123)
+            const TAKER_FEE = parse6decimal('6.15') // position * (0.01) * price
+            const SETTLEMENT_FEE = parse6decimal('0.50')
+
+            // intent order with collateral isolation
+            const intent = {
+              amount: POSITION.div(2),
+              collateral: COLLATERAL,
+              price: parse6decimal('125'),
+              fee: parse6decimal('0.5'),
+              additiveFee: 0,
+              originator: liquidator.address,
+              solver: owner.address,
+              collateralization: parse6decimal('0.01'),
+              common: {
+                account: user.address,
+                signer: user.address,
+                domain: market.address,
+                nonce: 0,
+                group: 0,
+                expiry: 0,
+              },
+            }
+
+            await market
+              .connect(userB)
+              ['update(address,int256,int256,int256,address)'](
+                userB.address,
+                POSITION,
+                0,
+                COLLATERAL,
+                constants.AddressZero,
+              )
+
+            await market
+              .connect(userC)
+              ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
+
+            verifier.verifyIntent.returns()
+
+            // solver
+            factory.authorization
+              .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
+              .returns([true, true, BigNumber.from(0)])
+            // taker
+            factory.authorization
+              .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
+              .returns([false, true, parse6decimal('0.20')])
+
+            await expect(
+              market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
+            )
+              .to.emit(market, 'OrderCreated')
+              .withArgs(
+                user.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  longPos: POSITION.div(2),
+                  takerReferral: POSITION.div(2).mul(2).div(10),
+                  collateral: COLLATERAL,
+                },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 1,
+                  longPos: POSITION.div(2),
+                  notional: POSITION.div(2).mul(125),
+                  takerFee: 0,
+                  orderReferral: POSITION.div(10),
+                  solverReferral: POSITION.div(2).div(10),
+                },
+                constants.AddressZero,
+                liquidator.address, // originator
+                owner.address, // solver
+              )
+              .to.emit(market, 'OrderCreated')
+              .withArgs(
+                userC.address,
+                {
+                  ...DEFAULT_ORDER,
+                  timestamp: ORACLE_VERSION_2.timestamp,
+                  orders: 1,
+                  shortPos: POSITION.div(2),
+                },
+                {
+                  ...DEFAULT_GUARANTEE,
+                  orders: 1,
+                  shortPos: POSITION.div(2),
+                  notional: -POSITION.div(2).mul(125),
+                  takerFee: POSITION.div(2),
+                },
+                constants.AddressZero,
+                constants.AddressZero,
+                constants.AddressZero,
+              )
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_2.timestamp)
+              .returns([ORACLE_VERSION_2, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+
+            oracle.at
+              .whenCalledWith(ORACLE_VERSION_3.timestamp)
+              .returns([ORACLE_VERSION_3, { ...INITIALIZED_ORACLE_RECEIPT, settlementFee: SETTLEMENT_FEE }])
+            oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
+            oracle.request.whenCalledWith(user.address).returns()
+
+            await settle(market, user)
+            await settle(market, userB)
+            await settle(market, userC)
+
+            expectLocalEq(await market.locals(user.address), {
+              ...DEFAULT_LOCAL,
+              currentId: 1,
+              latestId: 1,
+            })
+            expect(await margin.isolatedBalances(user.address, market.address)).to.equal(
+              COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).sub(EXPECTED_PNL).sub(TAKER_FEE),
+            )
+            expectPositionEq(await market.positions(user.address), {
+              ...DEFAULT_POSITION,
+              timestamp: ORACLE_VERSION_3.timestamp,
+              long: POSITION.div(2),
+            })
+            expectOrderEq(await market.pendingOrders(user.address, 1), {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              orders: 1,
+              longPos: POSITION.div(2),
+              takerReferral: POSITION.div(2).mul(2).div(10),
+              collateral: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
+            })
+            expectLocalEq(await market.locals(userB.address), {
+              ...DEFAULT_LOCAL,
+              currentId: 1,
+              latestId: 1,
+            })
+            expect(await margin.isolatedBalances(userB.address, market.address)).to.equal(
+              COLLATERAL.add(EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF).sub(SETTLEMENT_FEE).sub(4),
+            ) // loss of precision
+            expectPositionEq(await market.positions(userB.address), {
+              ...DEFAULT_POSITION,
+              timestamp: ORACLE_VERSION_3.timestamp,
+              maker: POSITION,
+            })
+            expectOrderEq(await market.pendingOrders(userB.address, 1), {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              orders: 1,
+              makerPos: POSITION,
+              collateral: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
+            })
+            expectLocalEq(await market.locals(userC.address), {
+              ...DEFAULT_LOCAL,
+              currentId: 1,
+              latestId: 1,
+            })
+            expect(await margin.isolatedBalances(userC.address, market.address)).to.equal(
+              COLLATERAL.sub(EXPECTED_INTEREST_10_123_EFF.div(2)).add(EXPECTED_PNL),
+            )
+            expectPositionEq(await market.positions(userC.address), {
+              ...DEFAULT_POSITION,
+              timestamp: ORACLE_VERSION_3.timestamp,
+              short: POSITION.div(2),
+            })
+            expectOrderEq(await market.pendingOrders(userC.address, 1), {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              orders: 1,
+              shortPos: POSITION.div(2),
+              collateral: COLLATERAL,
+            })
+            expectCheckpointEq(await market.checkpoints(userC.address, ORACLE_VERSION_4.timestamp), {
+              ...DEFAULT_CHECKPOINT,
+            })
+            expectLocalEq(await market.locals(liquidator.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(liquidator.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
+            expectLocalEq(await market.locals(owner.address), DEFAULT_LOCAL)
+            expect(await margin.claimables(owner.address)).to.equal(TAKER_FEE.mul(2).div(10).div(2))
+            const totalFee = EXPECTED_INTEREST_FEE_10_123_EFF.add(TAKER_FEE.sub(TAKER_FEE.mul(2).div(10)))
+            expectGlobalEq(await market.global(), {
+              ...DEFAULT_GLOBAL,
+              currentId: 1,
+              latestId: 1,
+              protocolFee: totalFee.mul(8).div(10).add(3), // loss of precision
+              oracleFee: totalFee.div(10).add(SETTLEMENT_FEE), // loss of precision
+              riskFee: totalFee.div(10).sub(1), // loss of precision
+              latestPrice: PRICE,
+            })
+            expectPositionEq(await market.position(), {
+              ...DEFAULT_POSITION,
+              timestamp: ORACLE_VERSION_3.timestamp,
+              maker: POSITION,
+              long: POSITION.div(2),
+              short: POSITION.div(2),
+            })
+            expectOrderEq(await market.pendingOrder(1), {
+              ...DEFAULT_ORDER,
+              timestamp: ORACLE_VERSION_2.timestamp,
+              orders: 3,
+              makerPos: POSITION,
+              shortPos: POSITION.div(2),
+              longPos: POSITION.div(2),
+              takerReferral: POSITION.div(2).mul(2).div(10),
+              collateral: COLLATERAL.mul(3),
+            })
+            expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
+              ...DEFAULT_VERSION,
+              makerPreValue: {
+                _value: EXPECTED_INTEREST_WITHOUT_FEE_10_123_EFF.div(10),
+              },
+              longPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+              shortPreValue: { _value: EXPECTED_INTEREST_10_123_EFF.div(2).div(5).mul(-1) },
+              price: PRICE,
+              liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
+            })
+          })
+
           it('fills the positions and settles later with fee (above / long)', async () => {
             factory.parameter.returns({
               maxPendingIds: 5,
@@ -23565,6 +23856,7 @@ describe('Market', () => {
 
             const intent = {
               amount: POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -23811,6 +24103,7 @@ describe('Market', () => {
 
             const intent = {
               amount: -POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -24058,6 +24351,7 @@ describe('Market', () => {
 
             const intent = {
               amount: POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('121'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -24305,6 +24599,7 @@ describe('Market', () => {
 
             const intent = {
               amount: -POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('121'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -24552,6 +24847,7 @@ describe('Market', () => {
 
             const intent1 = {
               amount: POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -24570,6 +24866,7 @@ describe('Market', () => {
 
             const intent2 = {
               amount: POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -24896,6 +25193,7 @@ describe('Market', () => {
 
             const intent = {
               amount: POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -25142,6 +25440,7 @@ describe('Market', () => {
 
             const intent = {
               amount: POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -25323,6 +25622,7 @@ describe('Market', () => {
 
             const intent = {
               amount: POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -25597,6 +25897,7 @@ describe('Market', () => {
 
             const intent = {
               amount: POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -25886,6 +26187,7 @@ describe('Market', () => {
 
             const intent = {
               amount: POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -26131,6 +26433,7 @@ describe('Market', () => {
 
             const intent = {
               amount: -POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -26388,6 +26691,7 @@ describe('Market', () => {
 
             const intent = {
               amount: POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -26645,6 +26949,7 @@ describe('Market', () => {
 
             const intent = {
               amount: -POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -26904,6 +27209,7 @@ describe('Market', () => {
 
             const intent = {
               amount: POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -27162,6 +27468,7 @@ describe('Market', () => {
 
             const intent = {
               amount: -POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -27425,6 +27732,7 @@ describe('Market', () => {
 
             const intent = {
               amount: POSITION.div(2),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -27688,6 +27996,7 @@ describe('Market', () => {
 
             const intent = {
               amount: POSITION.div(4),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
@@ -27858,6 +28167,7 @@ describe('Market', () => {
 
           const intent = {
             amount: parse6decimal('0.3'),
+            collateral: 0,
             price: parse6decimal('1250'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -27876,6 +28186,7 @@ describe('Market', () => {
 
           const intent2 = {
             amount: parse6decimal('0.3'),
+            collateral: 0,
             price: parse6decimal('1250'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,
@@ -27968,6 +28279,7 @@ describe('Market', () => {
 
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: 0,
             additiveFee: 0,
@@ -28030,6 +28342,7 @@ describe('Market', () => {
 
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('1.5'),
             additiveFee: 0,
@@ -28092,6 +28405,7 @@ describe('Market', () => {
 
           const intent = {
             amount: POSITION.div(2),
+            collateral: 0,
             price: parse6decimal('125'),
             fee: parse6decimal('0.5'),
             additiveFee: 0,

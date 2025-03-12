@@ -142,9 +142,11 @@ describe('SolverVault', () => {
     amount: BigNumber,
     price: BigNumber,
     nonce: number,
+    collateral = 0,
   ) {
     const intent: IntentStruct = {
       amount,
+      collateral,
       price,
       fee: parse6decimal('0.5'),
       additiveFee: 0,
@@ -169,7 +171,7 @@ describe('SolverVault', () => {
     await market
       .connect(maker)
       [
-        'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+        'update(address,(int256,uint256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
       ](vault.address, intent, signature)
   }
 

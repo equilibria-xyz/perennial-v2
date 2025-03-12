@@ -704,6 +704,7 @@ export function RunInvokerTests(
 
             const intent = {
               amount: parse6decimal('1'),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
