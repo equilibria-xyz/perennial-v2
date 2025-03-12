@@ -48,6 +48,7 @@ const triggerOrderType = {
     { name: 'comparison', type: 'int8' },
     { name: 'price', type: 'int64' },
     { name: 'delta', type: 'int64' },
+    { name: 'collateral', type: 'int64' },
     { name: 'maxFee', type: 'uint64' },
     { name: 'isSpent', type: 'bool' },
     { name: 'referrer', type: 'address' },
