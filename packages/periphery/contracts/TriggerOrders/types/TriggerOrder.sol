@@ -149,7 +149,7 @@ using TriggerOrderStorageLib for TriggerOrderStorage global;
 library TriggerOrderStorageLib {
     /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
-        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 collateral,uint64 maxFee,bool isSpent,address referrer,uint24 additiveFee)"
+        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,int64 collateral,uint64 maxFee,bool isSpent,address referrer,uint24 additiveFee)"
     );
 
     // sig: 0xf3469aa7
@@ -181,6 +181,7 @@ library TriggerOrderStorageLib {
         if (newValue.delta.lt(Fixed6.wrap(type(int64).min))) revert TriggerOrderStorageInvalidError();
         if (newValue.maxFee.gt(UFixed6.wrap(type(uint64).max))) revert TriggerOrderStorageInvalidError();
         if (newValue.additiveFee.gt(UFixed6.wrap(type(uint24).max))) revert TriggerOrderStorageInvalidError();
+        if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert TriggerOrderStorageInvalidError();
 
         self.value = StoredTriggerOrder(
             uint8(newValue.side),
