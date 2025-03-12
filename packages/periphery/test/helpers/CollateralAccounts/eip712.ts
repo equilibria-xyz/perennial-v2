@@ -185,6 +185,7 @@ export async function signRelayedFill(
     ],
     Intent: [
       { name: 'amount', type: 'int256' },
+      { name: 'collateral', type: 'uint256' },
       { name: 'price', type: 'int256' },
       { name: 'fee', type: 'uint256' },
       { name: 'additiveFee', type: 'uint256' },
