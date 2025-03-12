@@ -380,7 +380,7 @@ jobs:
       - name: Run tests with coverage on Base
         env:
           MOCHA_REPORTER: dot
-          ARBITRUM_NODE_URL: ${{ secrets.ARBITRUM_NODE_URL }}
+          BASE_NODE_URL: ${{ secrets.BASE_NODE_URL }}
         run: |
           yarn workspace @perennial/v2-periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationBase' || 'test:integrationBase' }}
       - name: Upload lcov file
