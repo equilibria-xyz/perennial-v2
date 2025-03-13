@@ -86,7 +86,7 @@ library InvariantLib {
         ) revert IMarket.MarketExceedsPendingIdLimitError();
 
         if (
-            (newOrder.increasesPosition() || !newOrder.collateral.eq(Fixed6Lib.ZERO)) &&   // the order is increasing position or modifying collateral
+            (newOrder.increasesPosition() || newOrder.collateral.gt(Fixed6Lib.ZERO)) &&   // the order is increasing position or collateral
             !PositionLib.margined(
                 _worstCasePendingLocal(context, updateContext),
                 context.latestOracleVersion,
