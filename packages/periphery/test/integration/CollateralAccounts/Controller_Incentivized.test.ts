@@ -935,6 +935,7 @@ export function RunIncentivizedTests(
         await marketFactory.connect(userA).updateSigner(userD.address, true, TX_OVERRIDES)
         const intent: Intent = {
           amount: -POSITION_C.div(4),
+          collateral: 0,
           price: parse6decimal('3110'),
           fee: parse6decimal('0.5'),
           additiveFee: 0,

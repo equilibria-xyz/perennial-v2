@@ -12,6 +12,9 @@ struct Intent {
     ///       - To close, open an order in the opposite direction
     Fixed6 amount;
 
+    /// @dev The amount of collateral to isolate for the order
+    UFixed6 collateral;
+
     /// @dev The price to execute the order at
     Fixed6 price;
 
@@ -39,11 +42,11 @@ using IntentLib for Intent global;
 /// @notice Library for Intent logic and data.
 library IntentLib {
     bytes32 constant public STRUCT_HASH = keccak256(
-        "Intent(int256 amount,int256 price,uint256 fee,uint256 additiveFee,address originator,address solver,uint256 collateralization,Common common)"
+        "Intent(int256 amount,uint256 collateral,int256 price,uint256 fee,uint256 additiveFee,address originator,address solver,uint256 collateralization,Common common)"
         "Common(address account,address signer,address domain,uint256 nonce,uint256 group,uint256 expiry)"
     );
 
     function hash(Intent memory self) internal pure returns (bytes32) {
-        return keccak256(abi.encode(STRUCT_HASH, self.amount, self.price, self.fee, self.additiveFee, self.originator, self.solver, self.collateralization, CommonLib.hash(self.common)));
+        return keccak256(abi.encode(STRUCT_HASH, self.amount, self.collateral, self.price, self.fee, self.additiveFee, self.originator, self.solver, self.collateralization, CommonLib.hash(self.common)));
     }
 }

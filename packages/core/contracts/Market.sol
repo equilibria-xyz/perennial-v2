@@ -138,28 +138,34 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         verifier.verifyIntent(intent, signature);
 
         _updateIntent(
-            account,
-            msg.sender,
-            intent.amount.mul(Fixed6Lib.NEG_ONE),
-            intent.price,
-            address(0),
-            address(0),
-            UFixed6Lib.ZERO,
-            UFixed6Lib.ZERO,
-            UFixed6Lib.ZERO,
-            false
+            UpdateIntentParams({
+                account: account,
+                signer: msg.sender,
+                amount: intent.amount.mul(Fixed6Lib.NEG_ONE),
+                collateral: UFixed6Lib.ZERO,
+                price: intent.price,
+                orderReferrer: address(0),
+                guaranteeReferrer: address(0),
+                guaranteeReferralFee: UFixed6Lib.ZERO,
+                additiveFee: UFixed6Lib.ZERO,
+                collateralization: UFixed6Lib.ZERO,
+                chargeTradeFee: false
+            })
         ); // account
         _updateIntent(
-            intent.common.account,
-            intent.common.signer,
-            intent.amount,
-            intent.price,
-            intent.originator,
-            intent.solver,
-            intent.fee,
-            intent.additiveFee,
-            intent.collateralization,
-            true
+            UpdateIntentParams({
+                account: intent.common.account,
+                signer: intent.common.signer,
+                amount: intent.amount,
+                collateral: intent.collateral,
+                price: intent.price,
+                orderReferrer: intent.originator,
+                guaranteeReferrer: intent.solver,
+                guaranteeReferralFee: intent.fee,
+                additiveFee: intent.additiveFee,
+                collateralization: intent.collateralization,
+                chargeTradeFee: true
+            })
         ); // signer
     }
 
@@ -179,28 +185,34 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         verifier.verifyFill(fill, solverSignature);
 
         _updateIntent(
-            fill.common.account,
-            fill.common.signer,
-            fill.intent.amount.mul(Fixed6Lib.NEG_ONE),
-            fill.intent.price,
-            address(0),
-            address(0),
-            UFixed6Lib.ZERO,
-            UFixed6Lib.ZERO,
-            UFixed6Lib.ZERO,
-            false
+            UpdateIntentParams({
+                account: fill.common.account,
+                signer: fill.common.signer,
+                amount: fill.intent.amount.mul(Fixed6Lib.NEG_ONE),
+                collateral: UFixed6Lib.ZERO,
+                price: fill.intent.price,
+                orderReferrer: address(0),
+                guaranteeReferrer: address(0),
+                guaranteeReferralFee: UFixed6Lib.ZERO,
+                additiveFee: UFixed6Lib.ZERO,
+                collateralization: UFixed6Lib.ZERO,
+                chargeTradeFee: false
+            })
         ); // solver
         _updateIntent(
-            fill.intent.common.account,
-            fill.intent.common.signer,
-            fill.intent.amount,
-            fill.intent.price,
-            fill.intent.originator,
-            fill.intent.solver,
-            fill.intent.fee,
-            fill.intent.additiveFee,
-            fill.intent.collateralization,
-            true
+            UpdateIntentParams({
+                account: fill.intent.common.account,
+                signer: fill.intent.common.signer,
+                amount: fill.intent.amount,
+                collateral: fill.intent.collateral,
+                price: fill.intent.price,
+                orderReferrer: fill.intent.originator,
+                guaranteeReferrer: fill.intent.solver,
+                guaranteeReferralFee: fill.intent.fee,
+                additiveFee: fill.intent.additiveFee,
+                collateralization: fill.intent.collateralization,
+                chargeTradeFee: true
+            })
         ); // trader
     }
 
@@ -703,50 +715,33 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     }
 
     /// @notice Updates the account's position for an intent order
-    /// @param account The account to operate on
-    /// @param signer The signer of the order
-    /// @param amount The size and direction of the order being opened
-    /// @param price The price to execute the order at
-    /// @param orderReferrer The referrer of the order
-    /// @param guaranteeReferrer The referrer of the guarantee
-    /// @param guaranteeReferralFee The referral fee for the guarantee
-    /// @param collateralization The minimum collateralization ratio that must be maintained after the order is executed
-    /// @param chargeTradeFee Whether to charge the trade fee
+    /// @param params The parameters for the intent order
     function _updateIntent(
-        address account,
-        address signer,
-        Fixed6 amount,
-        Fixed6 price,
-        address orderReferrer,
-        address guaranteeReferrer,
-        UFixed6 guaranteeReferralFee,
-        UFixed6 additiveFee,
-        UFixed6 collateralization,
-        bool chargeTradeFee
+        UpdateIntentParams memory params
     ) private {
         (Context memory context, UpdateContext memory updateContext) =
-            _loadForUpdate(account, signer, orderReferrer, guaranteeReferrer, guaranteeReferralFee, collateralization);
+            _loadForUpdate(params.account, params.signer, params.orderReferrer, params.guaranteeReferrer, params.guaranteeReferralFee, params.collateralization);
 
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(
             context.currentTimestamp,
             updateContext.currentPositionLocal,
             Fixed6Lib.ZERO,
-            amount,
-            Fixed6Lib.ZERO,
+            params.amount,
+            Fixed6Lib.from(params.collateral),
             false,
             false,
             updateContext.orderReferralFee,
-            additiveFee
+            params.additiveFee
         );
         Guarantee memory newGuarantee = GuaranteeLib.from(
             newOrder,
-            price,
+            params.price,
             updateContext.guaranteeReferralFee,
-            chargeTradeFee
+            params.chargeTradeFee
         );
 
-        _updateAndStore(context, updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
+        _updateAndStore(context, updateContext, newOrder, newGuarantee, params.orderReferrer, params.guaranteeReferrer);
     }
 
     function _updateMarket(
