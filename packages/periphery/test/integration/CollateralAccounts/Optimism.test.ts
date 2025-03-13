@@ -1,5 +1,4 @@
-import { smock } from '@defi-wonderland/smock'
-import { CallOverrides, constants } from 'ethers'
+import { CallOverrides } from 'ethers'
 import HRE from 'hardhat'
 
 import {
@@ -8,7 +7,6 @@ import {
   IAccountVerifier,
   IMargin,
   IMarket__factory,
-  OptGasInfo,
 } from '../../../types/generated'
 import {
   createFactoriesForChain,
@@ -17,6 +15,7 @@ import {
   fundWalletUSDC,
   getDSUReserve,
   getStablecoins,
+  mockGasInfo,
 } from '../../helpers/baseHelpers'
 import { createMarketBTC as setupMarketBTC, createMarketETH as setupMarketETH } from '../../helpers/setupHelpers'
 import { RunIncentivizedTests } from './Controller_Incentivized.test'
@@ -72,21 +71,21 @@ async function deployController(
 
   const keepConfig = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 175_000, // buffer for handling the keeper fee
+    bufferBase: 200_000, // buffer for handling the keeper fee
     multiplierCalldata: ethers.utils.parseEther('1'),
-    bufferCalldata: 0,
+    bufferCalldata: 544, // applicable calldata between 384 and 704 bytes
   }
   const keepConfigBuffered = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 1_500_000, // for price commitment
+    bufferBase: 750_000, // for price commitment
     multiplierCalldata: ethers.utils.parseEther('1'),
-    bufferCalldata: 500,
+    bufferCalldata: 64,
   }
   const keepConfigWithdrawal = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 750_000,
+    bufferBase: 625_000,
     multiplierCalldata: ethers.utils.parseEther('1'),
-    bufferCalldata: 2000,
+    bufferCalldata: 448,
   }
 
   const accountVerifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address, {
@@ -103,16 +102,6 @@ async function deployController(
   )
 
   return [controller, accountVerifier]
-}
-
-async function mockGasInfo() {
-  const gasInfo = await smock.fake<OptGasInfo>('OptGasInfo', {
-    address: '0x420000000000000000000000000000000000000F',
-  })
-  gasInfo.getL1GasUsed.returns(440)
-  gasInfo.l1BaseFee.returns(2640000000)
-  gasInfo.baseFeeScalar.returns(5214379)
-  gasInfo.decimals.returns(6)
 }
 
 if (process.env.FORK_NETWORK === 'base') {
