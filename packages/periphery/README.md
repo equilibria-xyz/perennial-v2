@@ -69,7 +69,7 @@ Messages may be relayed to `MarketFactory` and other extensions for purposes of 
 // TODO: document interactions with relayer and controller
 
 ### Deployment
-Generally a subclass such as `Controller_Arbitrum` will be deployed to the target chain. The base `Controller` has no facilities for keeper compensation or message relaying but is not abstract. It may be deployed for testing purposes or to self-process signed messages.
+A chain-specific subclass will be deployed to the target chain. The base `Controller` has no facilities for keeper compensation or message relaying but is not abstract. It may be deployed for testing purposes or to self-process signed messages.
 
 ## Trigger Orders
 
@@ -129,7 +129,7 @@ Keepers should:
     - Place order requests
 
 ### Deployment
-`Manager_Arbitrum` and `Verifier` will be deployed to the target chain.
+`Manager_Optimism` and `Verifier` will be deployed to the target chain.
 
 
 ## Coordinator

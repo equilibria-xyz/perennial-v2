@@ -23,7 +23,7 @@ const multiInvokerOverrides = {
 }
 
 export const solidityOverrides = {
-  'contracts/Controller_Arbitrum.sol': controllerOverrides,
+  'contracts/Controller_Optimism.sol': controllerOverrides,
   'contracts/MultiInvoker.sol': multiInvokerOverrides,
 }
 const config = defaultConfig({

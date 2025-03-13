@@ -331,6 +331,7 @@ jobs:
           name: periphery_unit_test_coverage
           path: ./packages/periphery/coverage/lcov.info
   periphery-integration-test:
+    # mainnet tests for covering MultiInvoker with batcher
     name: '[Periphery] Mainnet Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -360,6 +361,7 @@ jobs:
           name: periphery_integration_test_coverage
           path: ./packages/periphery/coverage/lcov.info
   periphery-integrationL2-test:
+    # base tests cover all components, including MultiInvoker, but not with batcher
     name: '[Periphery] L2 Integration Tests w/ Coverage'
     runs-on: ubuntu-latest
     steps:
@@ -377,23 +379,17 @@ jobs:
         run: yarn --frozen-lockfile
       - name: Compile
         run: yarn workspaces run compile # compile all packages
-      - name: Run tests with coverage on Arbitrum
-        env:
-          MOCHA_REPORTER: dot
-          ARBITRUM_NODE_URL: ${{ secrets.ARBITRUM_NODE_URL }}
-        run: |
-          yarn workspace @perennial/v2-periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationArbitrum' || 'test:integrationArbitrum' }}
-      - name: Upload lcov file
-        uses: actions/upload-artifact@v4
-        with:
-          name: periphery_arbitrum_integration_test_coverage
-          path: ./packages/periphery/coverage/lcov.info
-      - name: Run tests on Base
+      - name: Run tests with coverage on Base
         env:
           MOCHA_REPORTER: dot
           BASE_NODE_URL: ${{ secrets.BASE_NODE_URL }}
         run: |
-          yarn workspace @perennial/v2-periphery run test:integrationBase
+          yarn workspace @perennial/v2-periphery run ${{ env.PARSER_BROKEN != 'true' && 'coverage:integrationBase' || 'test:integrationBase' }}
+      - name: Upload lcov file
+        uses: actions/upload-artifact@v4
+        with:
+          name: periphery_base_integration_test_coverage
+          path: ./packages/periphery/coverage/lcov.info
 
   # [PERIPHERY UNIT COVERAGE]
   periphery-unit-test-coverage:
@@ -481,8 +477,8 @@ jobs:
       - name: Download periphery arbitrum integration test coverage file
         uses: actions/download-artifact@v4
         with:
-          name: periphery_arbitrum_integration_test_coverage
-          path: periphery_arbitrum_integration_test_coverage
+          name: periphery_base_integration_test_coverage
+          path: periphery_base_integration_test_coverage
       - name: Install lcov
         run: sudo apt-get update && sudo apt-get install lcov
       - name: Combine integration test coverage
@@ -490,7 +486,7 @@ jobs:
           -a oracle_sepolia_integration_test_coverage/lcov.info
           -a vault_integration_test_coverage/lcov.info
           -a periphery_integration_test_coverage/lcov.info
-          -a periphery_arbitrum_integration_test_coverage/lcov.info
+          -a periphery_base_integration_test_coverage/lcov.info
           --output-file periphery_integration_coverage.info
       - name: Upload combined integration test lcov file
         uses: actions/upload-artifact@v4
