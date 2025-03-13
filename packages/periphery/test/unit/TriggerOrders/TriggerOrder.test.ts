@@ -299,5 +299,14 @@ describe('TriggerOrder', () => {
         'TriggerOrderStorageInvalidError',
       )
     })
+
+    it('reverts storing order with collateral overflow', async () => {
+      const badOrder = { ...ORDER_SHORT }
+      badOrder.collateral = BigNumber.from(2).pow(64)
+      await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
+        orderTester,
+        'TriggerOrderStorageInvalidError',
+      )
+    })
   })
 })
