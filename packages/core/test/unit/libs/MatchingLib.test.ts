@@ -4,7 +4,7 @@ import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
 import { MatchingLibTester, MatchingLibTester__factory } from '../../../types/generated'
-import { BigNumber, utils } from 'ethers'
+import { utils } from 'ethers'
 
 const { ethers } = HRE
 use(smock.matchers)

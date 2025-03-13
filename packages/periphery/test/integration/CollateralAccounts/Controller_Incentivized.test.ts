@@ -160,13 +160,10 @@ export function RunIncentivizedTests(
       let keeperEthSpentOnGas = keeperEthBalanceBefore.sub(await keeper.getBalance())
 
       // if TXes in test required outside price commitments, compensate the keeper for them
-      // TODO: This amount is for an Arbitrum price committment; should make this chain-specific
-      // once we know the cost of a Base price committment.
-      keeperEthSpentOnGas = keeperEthSpentOnGas.add(utils.parseEther('0.0000644306').mul(priceCommitments))
+      keeperEthSpentOnGas = keeperEthSpentOnGas.add(utils.parseEther('0.00002021').mul(priceCommitments))
 
       // cost of transaction
-      // TODO: Support different ETH price on different chains (currently 2620 on Base fork)
-      const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2603)
+      const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2619)
       // keeper should be compensated between 100-125% of actual gas cost
       // please retain below for debugging purposes
       /*console.log(
@@ -177,7 +174,7 @@ export function RunIncentivizedTests(
         'keeperGasUpperLimit',
         keeperGasCostInUSD.mul(125).div(100e9).toNumber() / 1e9,
       )*/
-      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(15).div(10))
+      expect(keeperFeesPaid).to.be.within(keeperGasCostInUSD, keeperGasCostInUSD.mul(125).div(100))
     }
 
     // create a serial nonce for testing purposes; real users may choose a nonce however they please

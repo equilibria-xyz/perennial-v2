@@ -110,8 +110,9 @@ export async function mockGasInfo() {
   const gasInfo = await smock.fake<OptGasInfo>('OptGasInfo', {
     address: '0x420000000000000000000000000000000000000F',
   })
-  gasInfo.getL1GasUsed.returns(1600)
-  gasInfo.l1BaseFee.returns(96617457705)
-  gasInfo.baseFeeScalar.returns(13841697)
+  // using Base TX 0xe402eda84661d8f9756f157d9ad60c8dcbb0cdef202e346b2b2f36fd02b12f4a as example
+  gasInfo.getL1GasUsed.returns(19715) // transaction-dependent; example is price committment
+  gasInfo.l1BaseFee.returns(12846693375) // mainnet block 21446268 base fee
+  gasInfo.baseFeeScalar.returns(2269) // hardcoded - https://basescan.org/address/0x420000000000000000000000000000000000000F#readProxyContract#F3
   gasInfo.decimals.returns(6)
 }
