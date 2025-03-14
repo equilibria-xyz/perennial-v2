@@ -23,7 +23,7 @@
     "test": "hardhat test test/unit/**/*",
     "test:integration": "FORK_ENABLED=true FORK_BLOCK_NUMBER=17433230 hardhat test test/integration/**/*",
     "test:integrationSepolia": "FORK_NETWORK=arbitrumSepolia FORK_ENABLED=true FORK_BLOCK_NUMBER=2588160 hardhat test test/integrationSepolia/**/*",
-    "test:integrationPerennial": "FORK_NETWORK=perennial FORK_ENABLED=true FORK_BLOCK_NUMBER=439861 hardhat test test/integrationPerennial/**/*",
+    "test:integrationPerennial": "FORK_NETWORK=perennial FORK_ENABLED=true FORK_BLOCK_NUMBER=439761 hardhat test test/integrationPerennial/**/*",
     "coverage": "hardhat coverage --testfiles 'test/unit/**/*'",
     "coverage:integration": "FORK_ENABLED=true FORK_BLOCK_NUMBER=17433230 hardhat coverage --testfiles 'test/integration/**/*'",
     "coverage:integrationSepolia": "FORK_NETWORK=arbitrumSepolia FORK_ENABLED=true FORK_BLOCK_NUMBER=2588160 hardhat coverage --testfiles test/integrationSepolia/**/*",

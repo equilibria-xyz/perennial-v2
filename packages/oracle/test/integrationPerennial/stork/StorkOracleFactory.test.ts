@@ -23,6 +23,8 @@ import {
   StorkFactory,
   StorkFactory__factory,
   GasOracle__factory,
+  IMargin,
+  IMargin__factory,
 } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { smock } from '@defi-wonderland/smock'
@@ -155,6 +157,8 @@ export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress)
 }
 
 testOracles.forEach(testOracle => {
+  const BATCHED_TIMESTAMP = 1739221742
+
   describe(testOracle.name, () => {
     let owner: SignerWithAddress
     let user: SignerWithAddress
@@ -166,6 +170,7 @@ testOracles.forEach(testOracle => {
     let oracleFactory: OracleFactory
     let marketFactory: MarketFactory
     let market: IMarket
+    let margin: IMargin
     let dsu: IERC20Metadata
     let factorySigner: SignerWithAddress
 
@@ -308,7 +313,8 @@ testOracles.forEach(testOracle => {
       await keeperOracle.register(oracle.address)
       await oracle.register(market.address)
 
-      await dsu.connect(user).approve(market.address, constants.MaxUint256)
+      margin = IMargin__factory.connect(await market.margin(), owner)
+      await dsu.connect(user).approve(margin.address, constants.MaxUint256)
 
       factorySigner = await impersonateWithBalance(storkOracleFactory.address, utils.parseEther('10'))
 
@@ -317,7 +323,6 @@ testOracles.forEach(testOracle => {
 
     describe('without initial price', async () => {
       const MIN_DELAY = 4
-      const BATCHED_TIMESTAMP = 1739221742
 
       beforeEach(async () => {
         await loadFixture(fixture)
@@ -380,12 +385,12 @@ testOracles.forEach(testOracle => {
     })
 
     describe('with initial price', async () => {
-      const BATCHED_TIMESTAMP = 1739221742
       const OTHER_BATCHED_TIMESTAMP = 1739222192
       beforeEach(async () => {
         await loadFixture(fixture)
 
         await time.includeAt(async () => {
+          await margin.connect(user).deposit(user.address, parse6decimal('10'))
           await storkOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
           await storkOracleFactory.commit([STORK_ETH_USD_PRICE_FEED], BATCHED_TIMESTAMP - 4, UPDATE_DATA)
         }, BATCHED_TIMESTAMP)
