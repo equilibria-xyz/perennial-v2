@@ -48,10 +48,10 @@ const config = defaultConfig({
       ...vaultOverrides['contracts/SolverVault.sol'],
     },
     '@perennial/v2-periphery/contracts/MultiInvoker/MultiInvoker.sol': {
-      ...peripheryOverrides['contracts/MultiInvoker/MultiInvoker.sol'],
+      ...peripheryOverrides['contracts/MultiInvoker.sol'],
     },
     '@perennial/v2-periphery/contracts/CollateralAccounts/Controller_Optimism.sol': {
-      ...peripheryOverrides['contracts/CollateralAccounts/Controller_Optimism.sol'],
+      ...peripheryOverrides['contracts/Controller_Optimism.sol'],
     },
   },
 })
