@@ -19,3 +19,5 @@ export * from './v2.3_migration/02_setupOracles'
 export * from './v2.3_migration/03_associateMarketToOracle'
 export * from './v2.3_migration/04_updateVaultParameters'
 export * from './v2.3_migration/verifyMarketLatest'
+
+export * from './approveMultiInvokerTargets'

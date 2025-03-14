@@ -5,7 +5,7 @@ const controllerOverrides = {
   settings: {
     optimizer: {
       enabled: OPTIMIZER_ENABLED,
-      runs: 80000,
+      runs: 1,
     },
     viaIR: OPTIMIZER_ENABLED,
   },
@@ -16,7 +16,7 @@ const multiInvokerOverrides = {
   settings: {
     optimizer: {
       enabled: OPTIMIZER_ENABLED,
-      runs: 27500,
+      runs: 1,
     },
     viaIR: OPTIMIZER_ENABLED,
   },

@@ -15,7 +15,8 @@
     "verify": "hardhat etherscan-verify --sleep --solc-input",
     "test:verification:arbitrum": "FORK_USE_REAL_ACCOUNT=true FORK_ENABLED=true FORK_NETWORK=arbitrum FORK_USE_REAL_DEPLOYS=true FORK_BLOCK_NUMBER=267036153 hardhat test test/verification/arbitrum/**/*",
     "test:verification:arbitrumSepolia": "FORK_USE_REAL_ACCOUNT=true FORK_ENABLED=true FORK_NETWORK=arbitrumSepolia FORK_USE_REAL_DEPLOYS=true FORK_BLOCK_NUMBER=40238474 hardhat test test/verification/arbitrum/**/*",
-    "test:verification:base": "FORK_USE_REAL_ACCOUNT=true FORK_ENABLED=true FORK_NETWORK=base FORK_USE_REAL_DEPLOYS=true hardhat test test/verification/base/**/*",
+    "test:verification:base": "FORK_USE_REAL_ACCOUNT=true FORK_ENABLED=true FORK_NETWORK=base FORK_USE_REAL_DEPLOYS=true FORK_BLOCK_NUMBER=267036153 hardhat test test/verification/base/**/*",
+    "test:verification:perennial": "FORK_USE_REAL_ACCOUNT=true FORK_ENABLED=true FORK_NETWORK=perennial FORK_USE_REAL_DEPLOYS=true FORK_BLOCK_NUMBER=2477000 hardhat test test/verification/perennial/**/*",
     "lint": "eslint --fix --ext '.ts,.js' ./",
     "format": "prettier -w .",
     "clean": "rm -rf cache artifacts types/generated dist deployments/localhost",
@@ -27,7 +28,9 @@
     "node:fork:arbitrum": "FORK_ENABLED=true FORK_NETWORK=arbitrum NODE_INTERVAL_MINING=250 hardhat node",
     "deploy:fork:arbitrum": "OPTIMIZER_ENABLED=true  FORK_ENABLED=true FORK_NETWORK=arbitrum hardhat deploy --network localhost",
     "node:fork:base": "FORK_ENABLED=true FORK_NETWORK=base NODE_INTERVAL_MINING=250 hardhat node",
-    "deploy:fork:base": "OPTIMIZER_ENABLED=true  FORK_ENABLED=true FORK_NETWORK=base hardhat deploy --network localhost"
+    "deploy:fork:base": "OPTIMIZER_ENABLED=true  FORK_ENABLED=true FORK_NETWORK=base hardhat deploy --network localhost",
+    "node:fork:perennialSepolia": "FORK_ENABLED=true FORK_NETWORK=perennialSepolia NODE_INTERVAL_MINING=250 hardhat node",
+    "deploy:fork:perennialSepolia": "OPTIMIZER_ENABLED=true  FORK_ENABLED=true FORK_NETWORK=perennialSepolia hardhat deploy --network localhost"
   },
   "author": "",
   "license": "APACHE-2.0",
