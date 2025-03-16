@@ -18,6 +18,12 @@ struct Checkpoint {
 
     /// @dev The collateral at the time of the checkpoint settlement
     Fixed6 collateral;
+
+    /// @dev The quantity of settlements that are still pending
+    uint256 pending;
+
+    /// @dev Whether the checkpoint has been initialized
+    bool initialized;
 }
 struct CheckpointStorage { uint256 slot0; }
 using CheckpointStorageLib for CheckpointStorage global;
@@ -31,6 +37,8 @@ using CheckpointStorageLib for CheckpointStorage global;
 ///         uint48 settlementFee;
 ///         int64 transfer;
 ///         int64 collateral;
+///         uint8 pending;
+///         uint8 initialized; (bool)
 ///     }
 ///
 library CheckpointStorageLib {
@@ -40,10 +48,12 @@ library CheckpointStorageLib {
     function read(CheckpointStorage storage self) internal view returns (Checkpoint memory) {
         uint256 slot0 = self.slot0;
         return Checkpoint(
-            Fixed6.wrap(int256(slot0 << (256 - 48)) >> (256 - 48)),
-            UFixed6.wrap(uint256(slot0 << (256 - 48 - 48)) >> (256 - 48)),
-            Fixed6.wrap(int256(slot0 << (256 - 48 - 48 - 64)) >> (256 - 64)),
-            Fixed6.wrap(int256(slot0 << (256 - 48 - 48 - 64 - 64)) >> (256 - 64))
+            Fixed6.wrap(int256(     slot0 << (256 - 48)) >> (256 - 48)),
+            UFixed6.wrap(uint256(   slot0 << (256 - 48 - 48)) >> (256 - 48)),
+            Fixed6.wrap(int256(     slot0 << (256 - 48 - 48 - 64)) >> (256 - 64)),
+            Fixed6.wrap(int256(     slot0 << (256 - 48 - 48 - 64 - 64)) >> (256 - 64)),
+            uint8(                  slot0 << (256 - 48 - 48 - 64 - 64 - 8)) >> (256 - 8),
+            (uint8(                 slot0 << (256 - 48 - 48 - 64 - 64 - 8 - 8)) >> (256 - 8)) != 0
         );
     }
 
@@ -55,12 +65,15 @@ library CheckpointStorageLib {
         if (newValue.transfer.lt(Fixed6.wrap(type(int64).min))) revert CheckpointStorageInvalidError();
         if (newValue.collateral.gt(Fixed6.wrap(type(int64).max))) revert CheckpointStorageInvalidError();
         if (newValue.collateral.lt(Fixed6.wrap(type(int64).min))) revert CheckpointStorageInvalidError();
+        if (newValue.pending > type(uint8).max) revert CheckpointStorageInvalidError();
 
         uint256 encoded0 =
             uint256(Fixed6.unwrap(newValue.tradeFee)        << (256 - 48)) >> (256 - 48) |
             uint256(UFixed6.unwrap(newValue.settlementFee)  << (256 - 48)) >> (256 - 48 - 48) |
             uint256(Fixed6.unwrap(newValue.transfer)        << (256 - 64)) >> (256 - 48 - 48 - 64) |
-            uint256(Fixed6.unwrap(newValue.collateral)      << (256 - 64)) >> (256 - 48 - 48 - 64 - 64);
+            uint256(Fixed6.unwrap(newValue.collateral)      << (256 - 64)) >> (256 - 48 - 48 - 64 - 64) |
+            uint256(newValue.pending                        << (256 - 8))  >> (256 - 48 - 48 - 64 - 64 - 8) |
+            uint256(newValue.initialized ? 1 : 0              << (256 - 8))  >> (256 - 48 - 48 - 64 - 64 - 8 - 8);
 
         assembly {
             sstore(self.slot, encoded0)

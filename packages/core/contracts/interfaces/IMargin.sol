@@ -22,15 +22,8 @@ interface IMargin is IInstance {
     /// @param amount Quantity of DSU withdrawn
     event ClaimableWithdrawn(address indexed account, address indexed receiver, UFixed6 amount);
 
-    /// @notice Emitted when DSU is transferred into the margin contract, increasing the cross-margin balance
-    /// @param account User credited
-    /// @param amount Quantity of DSU deposited
-    event FundsDeposited(address indexed account, UFixed6 amount);
-
-    /// @notice Emitted when DSU is transferred out of the margin contract, decreasing the cross-margin balance
-    /// @param account User debited
-    /// @param amount Quantity of DSU withdrawn
-    event FundsWithdrawn(address indexed account, UFixed6 amount);
+    /// @notice TODO
+    event Updated(address indexed account, Fixed6 amount);
 
     /// @notice Emitted when cross-margin (non-isolated) balance has been adjusted
     /// @param account User whose cross-margin balance has changed
@@ -90,15 +83,8 @@ interface IMargin is IInstance {
     /// @notice Retrieves the factory identifying the Perennial deployment
     function marketFactory() external view returns (IMarketFactory);
 
-    /// @notice Pull DSU funds from sender and add to a cross-margin account
-    /// @param account Account to be credited
-    /// @param amount Quantity of DSU to pull from sender
-    function deposit(address account, UFixed6 amount) external;
-
-    /// @notice Remove DSU funds from the msg.sender's cross-margin account
-    /// @param account Account to be debited, for which sender is authorized
-    /// @param amount Quantity of DSU to push to sender
-    function withdraw(address account, UFixed6 amount) external;
+    /// @notice TODO
+    function update(address account, Fixed6 amount) external;
 
     /// @notice Adjust specified amount of collateral isolated to a specific market,
     /// positive for isolation, negative for deisolation.
@@ -106,7 +92,7 @@ interface IMargin is IInstance {
     /// @param account User whose isolated balance will be adjusted
     /// @param amount Quantity of collateral to designate as isolated
     /// @param market Identifies where isolated balance should be adjusted
-    function isolate(address account, IMarket market, Fixed6 amount) external;
+    function preUpdate(address account, IMarket market, Fixed6 amount) external;
 
     /// @notice Withdraws claimable balance
     /// @param account User whose claimable balance will be withdrawn
@@ -114,31 +100,13 @@ interface IMargin is IInstance {
     /// @param feeReceived Amount of DSU transferred to receiver
     function claim(address account, address receiver) external returns (UFixed6 feeReceived);
 
-    /// @notice Disables auto-deisolation on close position for a user
-    /// @param account User whose auto-deisolation will be disabled
-    /// @param disabled True to disable auto-deisolation, false to enable (default)
-    function disableAutoDeisolate(address account, bool disabled) external;
-
-    /// @dev Called by market to check maintenance requirements upon market update
-    /// @param account User whose maintenance requirement will be checked
-    /// @return isMaintained True if margin requirement met, otherwise false
-    function maintained(
-        address account
-    ) external view returns (bool isMaintained);
-
-    /// @dev Called by market to check margin requirements upon market update
-    /// @param account User whose margin requirement will be checked
-    /// @param minCollateralization Minimum collateralization specified on an intent, 0 if none
-    /// @return isMargined True if margin requirement met, otherwise false
-    function margined(
-        address account,
-        UFixed6 minCollateralization
-    ) external view returns (bool isMargined);
-
     /// @dev Called by market when Market.update is called, used to adjust isolated collateral balance for market
     /// @param account User intending to adjust isolated collateral for market
     /// @param collateralDelta Change in collateral requested by order prepared by market
     function preUpdate(address account, Fixed6 collateralDelta) external;
+
+    /// @dev TODO
+    function postUpdate(address account, Fixed6 transfer, bool protected) external;
 
     /// @dev Called by market when Market.settle is called, used to implicitly deisolate when positions are closed.
     /// @param account User who was settled

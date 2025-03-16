@@ -81,20 +81,54 @@ library CheckpointLib {
         result.liquidationFee = _accumulateLiquidationFee(order, toVersion);
 
         // update checkpoint
-        next.collateral = settlementContext.latestCheckpoint.collateral
-            .sub(settlementContext.latestCheckpoint.tradeFee)                       // trade fee processed post settlement
-            .sub(Fixed6Lib.from(settlementContext.latestCheckpoint.settlementFee)); // settlement / liquidation fee processed post settlement
-        next.collateral = next.collateral
-            .add(settlementContext.latestCheckpoint.transfer)                       // deposit / withdrawal processed post settlement
-            .add(result.collateral)                                                 // incorporate collateral change at this settlement
-            .add(result.priceOverride);                                             // incorporate price override pnl at this settlement
-        next.transfer = order.collateral;
-        next.tradeFee = Fixed6Lib.from(result.tradeFee).add(result.spread);
-        next.settlementFee = result.settlementFee.add(result.liquidationFee);
+        initialize(next, settlementContext.latestCheckpoint);
+        incorporate(
+            next,
+            order.collateral,
+            result.collateral.add(result.priceOverride),
+            Fixed6Lib.from(result.tradeFee).add(result.spread),
+            result.settlementFee.add(result.liquidationFee)
+        );
 
         emit IMarket.AccountPositionProcessed(context.account, orderId, order, result);
 
         return (next, _response(result));
+    }
+
+    /// @dev Initialize the checkpoint's cumulative data, with the previous checkpoint
+    function initialize(Checkpoint memory self, Checkpoint memory latestCheckpoint) internal pure {
+        self.collateral = latestCheckpoint.collateral
+            .sub(latestCheckpoint.tradeFee)                       // trade fee processed post settlement
+            .sub(Fixed6Lib.from(latestCheckpoint.settlementFee))  // settlement / liquidation fee processed post settlement
+            .add(latestCheckpoint.transfer);                      // deposit / withdrawal processed post settlement
+        self.initialized = true;
+    }
+
+    /// @dev Apply a settlement result to the checkpoint
+    /// @param self The checkpoint to update
+    /// @param transfer The amount of collateral deposited or withdrawn at this settlement
+    /// @param collateral The amount of collateral change and price override pnl at this settlement
+    /// @param tradeFee The amount of trade fees and spread accumulated at this settlement
+    /// @param settlementFee The amount of settlement fees and liquidation fees accumulated at this settlement
+    function incorporate(
+        Checkpoint memory self,
+        Fixed6 transfer,
+        Fixed6 collateral,
+        Fixed6 tradeFee,
+        UFixed6 settlementFee
+    ) internal pure {
+        self.collateral = self.collateral.add(collateral);      // incorporate collateral and price override pnl change at this settlement
+        self.transfer = self.transfer.add(transfer);
+        self.tradeFee = self.tradeFee.add(tradeFee);
+        self.settlementFee = self.settlementFee.add(settlementFee);
+        self.pending = self.pending - 1;
+    }
+
+    /// @notice Returns whether the checkpoint has not yet been created
+    /// @param self The checkpoint to check
+    /// @return Whether the checkpoint is empty
+    function empty(Checkpoint memory self) internal pure returns (bool) {
+        return self.initialized == false && self.pending == 0;
     }
 
     /// @dev Used by Margin contract to update cross-margin checkpoints from locals produced by markets
@@ -161,7 +195,7 @@ library CheckpointLib {
             .add(toVersion.longPreValue.accumulated(fromVersion.longPreValue, fromPosition.long))
             .add(toVersion.shortPreValue.accumulated(fromVersion.shortPreValue, fromPosition.short));
 
-       // collateral change after applying closing portion of order
+        // collateral change after applying closing portion of order
         collateral = collateral
             .add(toVersion.makerCloseValue.accumulated(fromVersion.makerCloseValue, closedPosition.maker))
             .add(toVersion.longCloseValue.accumulated(fromVersion.longCloseValue, closedPosition.long))

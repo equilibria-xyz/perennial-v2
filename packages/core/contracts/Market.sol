@@ -122,7 +122,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         _storeContext(context);
 
-        margin.postSettlement(context.account, context.latestPositionLocal.timestamp);
+        margin.postSettlement(context.account, context.latestPositionLocal.timestamp); // TODO: move?
     }
 
     /// @notice Updates both the long and short positions of an intent order
@@ -283,14 +283,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // process update
         _updateAndStore(context, updateContext, newOrder, newGuarantee, referrer, address(0));
-
-        // when liquidating, ensure maintenance requirements are not met
-        if (newOrder.protected() && ( // TODO: is this is the most updated check? can we move this to a liquidation only function?
-            context.pendingLocal.neg().lt(context.latestPositionLocal.magnitude()) ||  // total pending close is not equal to latest position
-            margin.maintained(context.account) ||                                      // latest position is properly maintained
-            !newOrder.collateral.eq(Fixed6Lib.ZERO) ||                                 // TODO: can eliminate because close method doesn't touch collateral
-            !newOrder.pos().eq(UFixed6Lib.ZERO))                                       // TODO: can eliminate because close orders cannot increase position
-        ) revert IMarket.MarketInvalidProtectionError();
     }
 
     /// @notice Updates the coordinator of the market
@@ -344,34 +336,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             margin.updateClaimable(msg.sender, feeReceived);
             emit FeeClaimed(account, msg.sender, feeReceived);
         }
-    }
-
-    /// @inheritdoc IMarket
-    function noOpUpdate(address account, Fixed6 collateral) external onlyMargin {
-        // don't implicitly settle to avoid invoking Margin::handleMarketSettle
-        Context memory context =_loadContext(account);
-        UpdateContext memory updateContext = _loadUpdateContext(
-            context,
-            address(0), address(0), address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
-
-        // create empty order to advance id and timestamp
-        Order memory newOrder = OrderLib.from(
-            context.currentTimestamp,
-            updateContext.currentPositionLocal,
-            Fixed6Lib.ZERO,
-            Fixed6Lib.ZERO,
-            collateral,
-            false,
-            false,
-            UFixed6Lib.ZERO
-        );
-        // console.log("   Market::noOpUpdate created order at %s with collateral ", context.currentTimestamp);
-        // console.logInt(Fixed6.unwrap(newOrder.collateral));
-
-        // don't invoke Margin::handleMarketUpdate
-        // FIXME: This won't work in settle-only mode, which seems undesirable.
-        _update(context, updateContext, newOrder, GuaranteeLib.fresh(), address(0), address(0));
-        _storeContext(context);
     }
 
     /// @notice Returns the current parameter set
@@ -535,7 +499,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
             : current.magnitude().max(maxPendingMagnitude); // does not contain an amm order, use max pending magnitude
     }
 
-
     /// @inheritdoc IMarket
     function stale() public view returns (bool isStale) {
         (OracleVersion memory latest, uint256 currentTimestamp) = oracle.status();
@@ -694,11 +657,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         address guaranteeReferrer
     ) private {
         // update collateral in margin contract
-        if (!newOrder.collateral.isZero() && // sender is modifying isolated collateral
-            !updateContext.signer &&     // sender is not relaying the account's signed intention
-            !updateContext.operator      // sender is not operator approved for account
+        if (!newOrder.collateral.isZero() &&    // sender is modifying isolated collateral
+            !updateContext.signer &&            // sender is not relaying the account's signed intention
+            !updateContext.operator             // sender is not operator approved for account
         ) revert IMarket.MarketOperatorNotAllowedError();
-        if (!newOrder.protected()) margin.isolate(context.account, IMarket(this), newOrder.collateral);
+
+        if (!newOrder.protected() && !newOrder.collateral.isZero()) // avoid recursion by skipping isolate on no-up updates
+            margin.preUpdate(context.account, newOrder.collateral); // TODO: we need this always so we can register the new checkpoint
 
         // process update
         _update(context, updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
@@ -706,18 +671,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         // store updated state
         _storeContext(context);
 
-        // TODO: consider updating these three checks into a post-save invariant;
-        // perhaps moving into a new InvariantLib function to reduce contract size
-
-        // TODO: This doesn't need to be done post-save; keeping adjacent to maintenance/margin checks for future refactoring.
-        if (
-            !(context.latestPositionLocal.magnitude().isZero() && context.pendingLocal.isEmpty()) &&        // sender has no position
-            _stale(context.latestOracleVersion, context.currentTimestamp, context.riskParameter.staleAfter)                                                                                                          // price is not stale
-        ) revert IMarket.MarketStalePriceError();
-
-        // check margin
-        if (!newOrder.protected() && !margin.margined(context.account))
-            revert IMarket.MarketInsufficientMarginError();
+        if (msg.sender != address(margin)) // avoid recursion by skipping isolate on no-up updates
+            margin.postUpdate(context.account, newOrder.collateral, newOrder.protected());
     }
 
     /// @notice Updates the account's position for an intent order
@@ -931,6 +886,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
                 context.latestOracleVersion.timestamp,
                 _pendingOrders[context.account][context.local.latestId].read()
             );
+
+        // TODO: insert fuill withdrawal into checkpoint and local collateral? if closed
     }
 
     /// @notice Processes the given global pending position into the latest position
