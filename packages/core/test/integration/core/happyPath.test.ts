@@ -1748,6 +1748,9 @@ describe('Happy Path', () => {
 
     const signature = await signIntent(userC, verifier, intent)
 
+    // Check isolated balance is 0
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(0)
+
     await market
       .connect(userC)
       [
@@ -1786,6 +1789,9 @@ describe('Happy Path', () => {
       longPos: POSITION.div(2),
       takerReferral: parse6decimal('1'),
     })
+
+    // Check isolated balance is increased with intent order
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
   })
 
   it('opens intent order w/ signer', async () => {
