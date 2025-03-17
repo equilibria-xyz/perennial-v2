@@ -148,7 +148,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
                 guaranteeReferrer: address(0),
                 guaranteeReferralFee: UFixed6Lib.ZERO,
                 additiveFee: UFixed6Lib.ZERO,
-                collateralization: UFixed6Lib.ZERO,
                 chargeTradeFee: false
             })
         ); // account
@@ -163,7 +162,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
                 guaranteeReferrer: intent.solver,
                 guaranteeReferralFee: intent.fee,
                 additiveFee: intent.additiveFee,
-                collateralization: intent.collateralization,
                 chargeTradeFee: true
             })
         ); // signer
@@ -195,7 +193,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
                 guaranteeReferrer: address(0),
                 guaranteeReferralFee: UFixed6Lib.ZERO,
                 additiveFee: UFixed6Lib.ZERO,
-                collateralization: UFixed6Lib.ZERO,
                 chargeTradeFee: false
             })
         ); // solver
@@ -210,7 +207,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
                 guaranteeReferrer: fill.intent.solver,
                 guaranteeReferralFee: fill.intent.fee,
                 additiveFee: fill.intent.additiveFee,
-                collateralization: fill.intent.collateralization,
                 chargeTradeFee: true
             })
         ); // trader
@@ -281,7 +277,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param referrer The referrer of the order
     function close(address account, bool protect, address referrer) external {
         (Context memory context, UpdateContext memory updateContext) =
-            _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+            _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO);
 
         Fixed6 makerAmount;
         Fixed6 takerAmount;
@@ -580,15 +576,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param orderReferrer The order referrer to load for
     /// @param guaranteeReferrer The guarantee referrer to load for
     /// @param guaranteeReferralFee The guarantee referral fee to load for
-    /// @param collateralization The collateralization to load for
     /// @return updateContext The update context
     function _loadUpdateContext(
         Context memory context,
         address signer,
         address orderReferrer,
         address guaranteeReferrer,
-        UFixed6 guaranteeReferralFee,
-        UFixed6 collateralization
+        UFixed6 guaranteeReferralFee
     ) private view returns (UpdateContext memory updateContext) {
         // load current position
         updateContext.currentPositionGlobal = context.latestPositionGlobal.clone();
@@ -606,7 +600,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         updateContext.liquidator = liquidators[context.account][context.local.currentId];
         updateContext.orderReferrer = orderReferrers[context.account][context.local.currentId];
         updateContext.guaranteeReferrer = guaranteeReferrers[context.account][context.local.currentId];
-        updateContext.collateralization = collateralization;
 
         // load factory metadata
         (updateContext.operator, updateContext.signer, updateContext.orderReferralFee) =
@@ -649,14 +642,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param orderReferrer The order referrer, if one exists
     /// @param guaranteeReferrer The guarantee referrer, if one exists
     /// @param guaranteeReferralFee The guarantee referral fee, if one exists
-    /// @param collateralization The collateralization override for the order, if one exists
     function _loadForUpdate(
         address account,
         address signer,
         address orderReferrer,
         address guaranteeReferrer,
-        UFixed6 guaranteeReferralFee,
-        UFixed6 collateralization
+        UFixed6 guaranteeReferralFee
     ) private returns (Context memory context, UpdateContext memory updateContext) {
         // settle market & account
         context = _loadContext(account);
@@ -664,7 +655,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // load update context
         updateContext =
-            _loadUpdateContext(context, signer, orderReferrer, guaranteeReferrer, guaranteeReferralFee, collateralization);
+            _loadUpdateContext(context, signer, orderReferrer, guaranteeReferrer, guaranteeReferralFee);
     }
 
     /// @notice Updates the account's position and collateral, and stores the resulting context in state
@@ -720,7 +711,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         UpdateIntentParams memory params
     ) private {
         (Context memory context, UpdateContext memory updateContext) =
-            _loadForUpdate(params.account, params.signer, params.orderReferrer, params.guaranteeReferrer, params.guaranteeReferralFee, params.collateralization);
+            _loadForUpdate(params.account, params.signer, params.orderReferrer, params.guaranteeReferrer, params.guaranteeReferralFee);
 
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(
@@ -754,7 +745,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         UFixed6 additiveFee
     ) private {
         (Context memory context, UpdateContext memory updateContext) =
-            _loadForUpdate(account, signer, referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+            _loadForUpdate(account, signer, referrer, address(0), UFixed6Lib.ZERO);
 
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(

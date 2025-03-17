@@ -93,9 +93,6 @@ interface IMarket is IInstance {
         /// @dev The additional fee for the order
         UFixed6 additiveFee;
 
-        /// @dev The minimum collateralization ratio that must be maintained after the order is executed
-        UFixed6 collateralization;
-
         /// @dev Whether to charge the trade fee
         bool chargeTradeFee;
     }
