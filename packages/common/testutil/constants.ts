@@ -1,4 +1,4 @@
-import { isArbitrum, isBase, isEthereum, isMainnet, isTestnet } from './network'
+import { isArbitrum, isBase, isEthereum, isMainnet, isPerennial, isTestnet } from './network'
 
 export function getMultisigAddress(networkName: string): string | null {
   if (isMainnet(networkName)) {

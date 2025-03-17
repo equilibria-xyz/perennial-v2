@@ -5,7 +5,7 @@ const controllerOverrides = {
   settings: {
     optimizer: {
       enabled: OPTIMIZER_ENABLED,
-      runs: 80000,
+      runs: 1,
     },
     viaIR: OPTIMIZER_ENABLED,
   },
@@ -16,14 +16,14 @@ const multiInvokerOverrides = {
   settings: {
     optimizer: {
       enabled: OPTIMIZER_ENABLED,
-      runs: 27500,
+      runs: 1,
     },
     viaIR: OPTIMIZER_ENABLED,
   },
 }
 
 export const solidityOverrides = {
-  'contracts/Controller_Arbitrum.sol': controllerOverrides,
+  'contracts/Controller_Optimism.sol': controllerOverrides,
   'contracts/MultiInvoker.sol': multiInvokerOverrides,
 }
 const config = defaultConfig({
