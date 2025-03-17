@@ -2948,9 +2948,9 @@ describe('Happy Path', () => {
     // Settle the market with a new oracle version
     await chainlink.nextWithPriceModification(price => price.mul(2))
 
-    // deposit a small amount of collateral to check margin
+    // withdraw a small amount of collateral to check margin
     await expect(
-      market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, 1, false),
+      market.connect(user)['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 0, 0, 0, -1, false),
     ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
 
     // user can close position if collateral is less than required margin
