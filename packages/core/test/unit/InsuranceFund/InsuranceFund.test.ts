@@ -5,14 +5,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
-import {
-  IERC20Metadata,
-  IMargin,
-  IMarket,
-  IMarketFactory,
-  InsuranceFund,
-  InsuranceFund__factory,
-} from '../../../types/generated'
+import { IMargin, IMarket, IMarketFactory, InsuranceFund, InsuranceFund__factory } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 
 const { ethers } = HRE
