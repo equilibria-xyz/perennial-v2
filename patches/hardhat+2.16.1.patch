@@ -1,0 +1,40 @@
+diff --git a/node_modules/hardhat/internal/hardhat-network/.DS_Store b/node_modules/hardhat/internal/hardhat-network/.DS_Store
+new file mode 100644
+index 0000000..c1c6c9c
+Binary files /dev/null and b/node_modules/hardhat/internal/hardhat-network/.DS_Store differ
+diff --git a/node_modules/hardhat/internal/hardhat-network/jsonrpc/client.js b/node_modules/hardhat/internal/hardhat-network/jsonrpc/client.js
+index 79148bd..5c980a9 100644
+--- a/node_modules/hardhat/internal/hardhat-network/jsonrpc/client.js
++++ b/node_modules/hardhat/internal/hardhat-network/jsonrpc/client.js
+@@ -162,6 +162,7 @@ class JsonRpcClient {
+             }
+         }
+         const rawResult = await this._send(method, params);
++        this._dummyTotalDifficultyField(method, rawResult);
+         const decodedResult = (0, decodeJsonRpcResponse_1.decodeJsonRpcResponse)(rawResult, tType);
+         const blockNumber = getMaxAffectedBlockNumber(decodedResult);
+         if (this._canBeCached(blockNumber)) {
+@@ -190,7 +191,10 @@ class JsonRpcClient {
+             }
+         }
+         const rawResults = await this._sendBatch(batch);
+-        const decodedResults = rawResults.map((result, i) => (0, decodeJsonRpcResponse_1.decodeJsonRpcResponse)(result, batch[i].tType));
++        const decodedResults = rawResults.map((result, i) => {
++            this._dummyTotalDifficultyField(batch[i].method, result);
++            return (0, decodeJsonRpcResponse_1.decodeJsonRpcResponse)(result, batch[i].tType);
++        });
+         const blockNumber = getMaxAffectedBlockNumber(decodedResults);
+         if (this._canBeCached(blockNumber)) {
+             this._storeInCache(cacheKey, decodedResults);
+@@ -305,6 +309,11 @@ class JsonRpcClient {
+         const maxSafeBlockNumber = this._latestBlockNumberOnCreation - this._maxReorg;
+         return blockNumber > maxSafeBlockNumber;
+     }
++    _dummyTotalDifficultyField(method, rawResult) {
++        if (method.startsWith("eth_getBlock") && rawResult && rawResult.difficulty !== undefined && rawResult.totalDifficulty === undefined) {
++            rawResult.totalDifficulty = "0x0";
++        }
++    }
+ }
+ exports.JsonRpcClient = JsonRpcClient;
+ //# sourceMappingURL=client.js.map
