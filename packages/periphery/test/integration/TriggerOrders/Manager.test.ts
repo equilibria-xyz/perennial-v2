@@ -593,9 +593,10 @@ export function RunManagerTests(
         await executeOrder(userA, 510)
         await commitPrice()
 
-        // validate positions is closed
+        // validate positions is closed and no collateral is isolated
         await market.settle(userA.address, TX_OVERRIDES)
         await ensureNoPosition(userA)
+        expect(await margin.isolatedBalances(userA.address, market.address)).to.equal(constants.Zero)
       })
     })
 
