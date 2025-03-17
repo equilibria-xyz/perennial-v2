@@ -941,7 +941,6 @@ export function RunIncentivizedTests(
           additiveFee: 0,
           originator: constants.AddressZero,
           solver: constants.AddressZero,
-          collateralization: parse6decimal('0.03'),
           common: {
             account: userA.address,
             signer: userD.address,

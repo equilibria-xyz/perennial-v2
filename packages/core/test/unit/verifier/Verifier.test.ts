@@ -110,7 +110,6 @@ describe('Verifier', () => {
         additiveFee: parse6decimal('0.01'),
         originator: constants.AddressZero,
         solver: constants.AddressZero,
-        collateralization: parse6decimal('0.3'),
         common: DEFAULT_COMMON,
       },
       common: DEFAULT_COMMON,
@@ -358,7 +357,6 @@ describe('Verifier', () => {
       additiveFee: parse6decimal('0.01'),
       originator: constants.AddressZero,
       solver: constants.AddressZero,
-      collateralization: parse6decimal('0.1'),
       common: {
         account: constants.AddressZero,
         signer: constants.AddressZero,

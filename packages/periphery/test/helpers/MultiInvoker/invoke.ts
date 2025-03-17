@@ -78,7 +78,6 @@ export const buildUpdateIntent = async ({
             intent.additiveFee,
             intent.originator,
             intent.solver,
-            intent.collateralization,
             [
               intent.common.account,
               intent.common.signer,

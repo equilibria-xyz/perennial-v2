@@ -172,7 +172,7 @@ const DEFAULT_SIGNATURE =
   '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef01'
 
 const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
-const INTENT_PROTOTYPE = `(int256,uint256,int256,uint256,uint256,address,address,uint256,${COMMON_PROTOTYPE})`
+const INTENT_PROTOTYPE = `(int256,uint256,int256,uint256,uint256,address,address,${COMMON_PROTOTYPE})`
 const MARKET_UPDATE_INTENT_PROTOTYPE = `update(address,${INTENT_PROTOTYPE},bytes)`
 const MARKET_UPDATE_FILL_PROTOTYPE = `update((${INTENT_PROTOTYPE},${COMMON_PROTOTYPE}),bytes,bytes)`
 const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,uint256,${COMMON_PROTOTYPE}),bytes)`
@@ -14604,7 +14604,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -14663,7 +14662,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -14718,7 +14716,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -14767,7 +14764,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -14832,7 +14828,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -15474,7 +15469,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -15493,7 +15487,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -15575,7 +15568,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -15593,7 +15585,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -15695,7 +15686,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -15713,7 +15703,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -15812,7 +15801,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -15830,7 +15818,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -15956,7 +15943,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: liquidator.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -15975,7 +15961,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: liquidator.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -18344,7 +18329,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -19026,7 +19010,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: liquidator.address,
@@ -19253,7 +19236,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: liquidator.address,
@@ -19326,7 +19308,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: constants.AddressZero,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -20130,7 +20111,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -20149,7 +20129,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -20485,7 +20464,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -20504,7 +20482,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -20806,7 +20783,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -20825,7 +20801,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -21127,7 +21102,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -21146,7 +21120,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -21526,7 +21499,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -21545,7 +21517,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: userC.address,
               signer: userC.address,
@@ -21564,7 +21535,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -21583,7 +21553,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: userC.address,
               signer: userC.address,
@@ -22070,7 +22039,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -22122,7 +22090,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -22174,7 +22141,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -22239,7 +22205,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -22288,7 +22253,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -22307,7 +22271,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -22372,7 +22335,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -22391,7 +22353,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -22440,7 +22401,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -22459,7 +22419,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -22520,7 +22479,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -22603,7 +22561,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -22622,7 +22579,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -22641,7 +22597,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -23617,7 +23572,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -23862,7 +23816,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -24109,7 +24062,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -24357,7 +24309,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -24605,7 +24556,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -24853,7 +24803,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -24872,7 +24821,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: owner.address,
               solver: liquidator.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: userD.address,
                 signer: userD.address,
@@ -25199,7 +25147,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -25446,7 +25393,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -25628,7 +25574,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -25903,7 +25848,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -26193,7 +26137,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -26439,7 +26382,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -26697,7 +26639,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -26955,7 +26896,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -27215,7 +27155,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -27474,7 +27413,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -27738,7 +27676,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -28002,7 +27939,6 @@ describe('Market', () => {
               additiveFee: 0,
               originator: liquidator.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: user.address,
                 signer: user.address,
@@ -28173,7 +28109,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -28192,7 +28127,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: owner.address,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -28285,7 +28219,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: constants.AddressZero,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: userB.address,
@@ -28348,7 +28281,6 @@ describe('Market', () => {
             additiveFee: 0,
             originator: liquidator.address,
             solver: constants.AddressZero,
-            collateralization: parse6decimal('0.01'),
             common: {
               account: user.address,
               signer: user.address,
@@ -28381,78 +28313,6 @@ describe('Market', () => {
           await expect(
             market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
           ).to.be.revertedWithCustomError(market, 'MarketInvalidIntentFeeError')
-        })
-
-        it('reverts if collateralization is too low', async () => {
-          factory.parameter.returns({
-            maxPendingIds: 5,
-            protocolFee: parse6decimal('0.50'),
-            maxFee: parse6decimal('0.01'),
-            maxLiquidationFee: parse6decimal('20'),
-            maxCut: parse6decimal('0.50'),
-            maxRate: parse6decimal('10.00'),
-            minMaintenance: parse6decimal('0.01'),
-            minEfficiency: parse6decimal('0.1'),
-            referralFee: parse6decimal('0.20'),
-            minScale: parse6decimal('0.001'),
-            maxStaleAfter: 14400,
-            minMinMaintenance: 0,
-          })
-
-          const marketParameter = { ...(await market.parameter()) }
-          marketParameter.takerFee = parse6decimal('0.01')
-          await market.updateParameter(marketParameter)
-
-          const intent = {
-            amount: POSITION.div(2),
-            collateral: 0,
-            price: parse6decimal('125'),
-            fee: parse6decimal('0.5'),
-            additiveFee: 0,
-            originator: liquidator.address,
-            solver: constants.AddressZero,
-            collateralization: parse6decimal('20.0'), // 10_000 / 20 = 500 < 125 * 5
-            common: {
-              account: user.address,
-              signer: user.address,
-              domain: market.address,
-              nonce: 0,
-              group: 0,
-              expiry: 0,
-            },
-          }
-
-          await market
-            .connect(userB)
-            ['update(address,int256,int256,int256,address)'](
-              userB.address,
-              POSITION,
-              0,
-              COLLATERAL,
-              constants.AddressZero,
-            )
-
-          await market
-            .connect(user)
-            ['update(address,int256,int256,address)'](user.address, 0, COLLATERAL, constants.AddressZero)
-          await market
-            .connect(userC)
-            ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
-
-          verifier.verifyIntent.returns()
-
-          // maker
-          factory.authorization
-            .whenCalledWith(userC.address, userC.address, userC.address, constants.AddressZero)
-            .returns([true, true, BigNumber.from(0)])
-          // taker
-          factory.authorization
-            .whenCalledWith(user.address, userC.address, user.address, liquidator.address)
-            .returns([false, true, parse6decimal('0.20')])
-
-          await expect(
-            market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, DEFAULT_SIGNATURE),
-          ).to.be.revertedWithCustomError(market, 'MarketInsufficientMarginError')
         })
       })
 

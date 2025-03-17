@@ -152,7 +152,6 @@ describe('SolverVault', () => {
       additiveFee: 0,
       originator: constants.AddressZero,
       solver: constants.AddressZero,
-      collateralization: 0,
       common: {
         account: taker.address,
         signer: taker.address,
@@ -171,7 +170,7 @@ describe('SolverVault', () => {
     await market
       .connect(maker)
       [
-        'update(address,(int256,uint256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+        'update(address,(int256,uint256,int256,uint256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
       ](vault.address, intent, signature)
   }
 

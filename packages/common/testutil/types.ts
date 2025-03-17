@@ -205,7 +205,6 @@ export interface Intent {
   additiveFee: BigNumberish
   originator: string
   solver: string
-  collateralization: BigNumberish
   common: Common
 }
 
@@ -340,7 +339,6 @@ export function expectIntentEq(a: Intent, b: Intent): void {
   expect(a.fee).to.equal(b.fee, 'Intent:Fee')
   expect(a.originator).to.equal(b.originator, 'Intent:Originator')
   expect(a.solver).to.equal(b.solver, 'Intent:Solver')
-  expect(a.collateralization).to.equal(b.collateralization, 'Intent:Collateralization')
   expectCommonEq(a.common, b.common)
 }
 
