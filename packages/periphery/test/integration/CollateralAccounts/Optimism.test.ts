@@ -1,10 +1,11 @@
 import { CallOverrides } from 'ethers'
-import HRE from 'hardhat'
+import HRE, { deployments } from 'hardhat'
 
 import {
   AccountVerifier__factory,
   AggregatorV3Interface,
   IAccountVerifier,
+  IEmptySetReserve__factory,
   IMargin,
   IMarket__factory,
 } from '../../../types/generated'
@@ -13,7 +14,6 @@ import {
   deployControllerOptimism,
   fundWalletDSU,
   fundWalletUSDC,
-  getDSUReserve,
   getStablecoins,
   mockGasInfo,
 } from '../../helpers/baseHelpers'
@@ -36,6 +36,7 @@ async function deployProtocol(
 ): Promise<DeploymentVars> {
   const [oracleFactory, marketFactory, pythOracleFactory, chainlinkKeptFeed] = await createFactoriesForChain(owner)
   const [dsu, usdc] = await getStablecoins(owner)
+  const dsuReserve = IEmptySetReserve__factory.connect((await deployments.get('DSUReserve')).address, owner)
   const marketImpl: IMarket = IMarket__factory.connect(await marketFactory.implementation(), owner)
   const margin: IMargin = IMargin__factory.connect(await marketImpl.margin(), owner)
 
@@ -53,7 +54,7 @@ async function deployProtocol(
       ? await setupMarketBTC(owner, oracleFactory, pythOracleFactory, marketFactory, overrides)
       : undefined,
     chainlinkKeptFeed,
-    dsuReserve: getDSUReserve(owner),
+    dsuReserve,
     fundWalletDSU,
     fundWalletUSDC,
   }

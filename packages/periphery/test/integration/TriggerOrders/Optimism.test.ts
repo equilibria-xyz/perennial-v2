@@ -10,25 +10,17 @@ import {
 import { createMarketETH, deployController, deployProtocol } from '../../helpers/setupHelpers'
 import { RunManagerTests } from './Manager.test'
 import { FixtureVars } from './setupTypes'
-import {
-  CHAINLINK_ETH_USD_FEED,
-  DSU_ADDRESS,
-  DSU_RESERVE,
-  fundWalletDSU,
-  mockGasInfo,
-  PYTH_ADDRESS,
-  USDC_ADDRESS,
-} from '../../helpers/baseHelpers'
+import { CHAINLINK_ETH_USD_FEED, fundWalletDSU, mockGasInfo, PYTH_ADDRESS } from '../../helpers/baseHelpers'
 import { deployPythOracleFactory } from '../../helpers/oracleHelpers'
 
-const { ethers } = HRE
+const { deployments, ethers } = HRE
 
 const fixture = async (): Promise<FixtureVars> => {
   // deploy the protocol and create a market
   const [owner, userA, userB, userC, userD, keeper, oracleFeeReceiver] = await ethers.getSigners()
-  const [marketFactory, dsu, oracleFactory] = await deployProtocol(owner, DSU_ADDRESS)
-  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, owner)
-  const reserve = IEmptySetReserve__factory.connect(DSU_RESERVE, owner)
+  const [marketFactory, dsu, oracleFactory] = await deployProtocol(owner)
+  const usdc = IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
+  const reserve = IEmptySetReserve__factory.connect((await deployments.get('DSU')).address, owner)
   const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED)
   const marketWithOracle = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory)
   const market = marketWithOracle.market
@@ -37,9 +29,9 @@ const fixture = async (): Promise<FixtureVars> => {
   const verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
   const controller = await deployController(owner, usdc.address, dsu.address, reserve.address, marketFactory.address)
   const manager = await new Manager_Optimism__factory(owner).deploy(
-    USDC_ADDRESS,
+    usdc.address,
     dsu.address,
-    DSU_RESERVE,
+    reserve.address,
     marketFactory.address,
     verifier.address,
     await market.margin(),

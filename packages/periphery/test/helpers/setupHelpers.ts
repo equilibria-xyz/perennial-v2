@@ -2,6 +2,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Address } from 'hardhat-deploy/dist/types'
 import { CallOverrides, constants } from 'ethers'
 import { parse6decimal } from '../../../common/testutil/types'
+import { deployments } from 'hardhat'
 
 import {
   Account__factory,
@@ -48,12 +49,11 @@ export async function createFactories(
   owner: SignerWithAddress,
   pythAddress: Address,
   chainLinkFeedAddress: Address,
-  dsuAddress: Address,
 ): Promise<[IOracleFactory, IMarketFactory, PythFactory, AggregatorV3Interface]> {
   // Deploy the oracle factory, which markets created by the market factory will query
   const oracleFactory = await deployOracleFactory(owner)
   // Deploy the market factory and authorize it with the oracle factory
-  const dsu = IERC20Metadata__factory.connect(dsuAddress, owner)
+  const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
   const marketFactory = await deployProtocolForOracle(owner, oracleFactory, dsu)
   // Connect the Chainlink ETH feed used for keeper compensation
   const chainlinkKeptFeed = AggregatorV3Interface__factory.connect(chainLinkFeedAddress, owner)
@@ -127,10 +127,9 @@ export async function deployController(
 // Deploys OracleFactory and then MarketFactory
 export async function deployProtocol(
   owner: SignerWithAddress,
-  dsuAddress: Address,
 ): Promise<[IMarketFactory, IERC20Metadata, IOracleFactory]> {
   // Deploy the oracle factory, which markets created by the market factory will query
-  const dsu = IERC20Metadata__factory.connect(dsuAddress, owner)
+  const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
   const oracleFactory = await deployOracleFactory(owner)
 
   // Deploy the market factory and authorize it with the oracle factory

@@ -1,5 +1,5 @@
-import { ethers } from 'hardhat'
-import { BigNumber, constants, utils } from 'ethers'
+import { deployments, ethers } from 'hardhat'
+import { BigNumber, utils } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { parse6decimal } from '../../../../common/testutil/types'
 
@@ -13,13 +13,10 @@ import { RunPythOracleTests } from './Pyth.test'
 import { createInvoker, deployProtocol, InstanceVars } from './setupHelpers'
 import {
   CHAINLINK_ETH_USD_FEED,
-  DSU_ADDRESS,
   DSU_BATCHER,
-  DSU_RESERVE,
   fundWalletDSU,
   fundWalletUSDC,
   PYTH_ADDRESS,
-  USDC_ADDRESS,
 } from '../../helpers/mainnetHelpers'
 import { createPythOracle, PYTH_ETH_USD_PRICE_FEED } from '../../helpers/oracleHelpers'
 import { deployPythOracleFactory } from '../../helpers/oracleHelpers'
@@ -44,10 +41,18 @@ let vars: InstanceVars
 const fixture = async (): Promise<InstanceVars> => {
   // get users and token addresses
   const [owner, , user, userB, userC, userD, liquidator, perennialUser] = await ethers.getSigners()
-  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
-  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, owner)
+  const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
+  const usdc = IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
   // deploy perennial core factories
-  vars = await deployProtocol(dsu, usdc, DSU_BATCHER, DSU_RESERVE, CHAINLINK_ETH_USD_FEED)
+  vars = await deployProtocol(
+    dsu,
+    usdc,
+    DSU_BATCHER,
+    (
+      await deployments.get('DSUReserve')
+    ).address,
+    CHAINLINK_ETH_USD_FEED,
+  )
 
   // fund wallets used in the tests
   await fundWalletDSU(user, utils.parseEther('2000000'))
