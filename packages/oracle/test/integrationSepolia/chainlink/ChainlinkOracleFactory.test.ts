@@ -1,9 +1,12 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect } from 'chai'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
+import { smock } from '@defi-wonderland/smock'
 import { utils, BigNumber, constants } from 'ethers'
 import HRE from 'hardhat'
+
 import { time } from '../../../../common/testutil'
+import { parse6decimal } from '../../../../common/testutil/types'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 import {
   ArbGasInfo,
@@ -27,18 +30,15 @@ import {
   IMargin,
   IMargin__factory,
 } from '../../../types/generated'
-import { parse6decimal } from '../../../../common/testutil/types'
-import { smock } from '@defi-wonderland/smock'
 import { deployMarketFactory } from '../../setupHelpers'
 
-const { ethers } = HRE
+const { deployments, ethers } = HRE
 
 const CHAINLINK_VERIFIER_PROXY_ADDRESS = '0x2ff010DEbC1297f19579B4246cad07bd24F2488A'
 const FEE_MANAGER_ADDRESS = '0x226D04b3a60beE1C2d522F63a87340220b8F9D6B'
 const WETH_ADDRESS = '0x980B62Da83eFf3D4576C647993b0c1D7faf17c73'
 const CHAINLINK_ETH_USD_PRICE_FEED = '0x00027bbaff688c906a3e20a34fe951715d1018d262a5b66e38eda027a674cd1b'
 const CHAINLINK_BTC_USD_PRICE_FEED = '0x00020ffa644e6c585a5bec0e25ca476b9538198259e22b6240957720dcba0e14'
-const DSU_ADDRESS = '0x5FA881826AD000D010977645450292701bc2f56D'
 const CHAINLINK_ETH_USD_FEED = '0xd30e2101a97dcbAeBCBC04F14C3f624E67A35165'
 const RESERVE_ADDRESS = '0x841d7C994aC0Bb17CcD65a021E686e3cFafE2118'
 
@@ -177,7 +177,7 @@ testOracles.forEach(testOracle => {
       await time.reset()
       ;[owner, user] = await ethers.getSigners()
 
-      dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
+      dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
       await fundWallet(dsu, user)
 
       powerTwoPayoff = await new PowerTwo__factory(owner).deploy()

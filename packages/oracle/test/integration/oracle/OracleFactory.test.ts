@@ -3,6 +3,7 @@ import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { utils } from 'ethers'
 import HRE from 'hardhat'
+
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 import {
   IERC20Metadata,
@@ -17,11 +18,10 @@ import {
   GasOracle__factory,
 } from '../../../types/generated'
 
-const { ethers } = HRE
+const { deployments, ethers } = HRE
 
 const PYTH_ADDRESS = '0x4305FB66699C3B2702D4d05CF36551390A4c69C6'
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
-const DSU_ADDRESS = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
 const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
 const DSU_HOLDER = '0x2d264EBDb6632A06A1726193D4d37FeF1E5dbDcd'
 
@@ -37,7 +37,7 @@ describe('OracleFactory', () => {
   const fixture = async () => {
     ;[owner, user] = await ethers.getSigners()
 
-    dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
+    dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
 
     const oracleImpl = await new Oracle__factory(owner).deploy()
     oracleFactory = await new OracleFactory__factory(owner).deploy(oracleImpl.address)
