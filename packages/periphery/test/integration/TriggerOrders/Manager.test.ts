@@ -574,11 +574,16 @@ export function RunManagerTests(
 
         // execute maker order
         await executeOrder(userA, 509)
+
+        // check collateral is isolated
+        expect(await margin.isolatedBalances(userA.address, market.address)).to.equal(parse6decimal('90000'))
+
         await commitPrice()
 
         // validate positions and collateral
         expect(await getPendingPosition(userA, Side.MAKER)).to.equal(parse6decimal('55'))
         expect((await market.pendings(userA.address)).collateral).to.equal(parse6decimal('90000'))
+
         await market.connect(userA).settle(userA.address, TX_OVERRIDES)
 
         // userA places another order to close their position
