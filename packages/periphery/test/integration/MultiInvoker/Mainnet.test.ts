@@ -11,13 +11,7 @@ import { IERC20Metadata__factory, IOracle__factory, KeeperOracle, PythFactory } 
 import { RunInvokerTests } from './Invoke.test'
 import { RunPythOracleTests } from './Pyth.test'
 import { createInvoker, deployProtocol, InstanceVars } from './setupHelpers'
-import {
-  CHAINLINK_ETH_USD_FEED,
-  DSU_BATCHER,
-  fundWalletDSU,
-  fundWalletUSDC,
-  PYTH_ADDRESS,
-} from '../../helpers/mainnetHelpers'
+import { CHAINLINK_ETH_USD_FEED, fundWalletDSU, fundWalletUSDC, PYTH_ADDRESS } from '../../helpers/mainnetHelpers'
 import { createPythOracle, PYTH_ETH_USD_PRICE_FEED } from '../../helpers/oracleHelpers'
 import { deployPythOracleFactory } from '../../helpers/oracleHelpers'
 
@@ -47,7 +41,9 @@ const fixture = async (): Promise<InstanceVars> => {
   vars = await deployProtocol(
     dsu,
     usdc,
-    DSU_BATCHER,
+    (
+      await deployments.get('Batcher')
+    ).address,
     (
       await deployments.get('DSUReserve')
     ).address,
