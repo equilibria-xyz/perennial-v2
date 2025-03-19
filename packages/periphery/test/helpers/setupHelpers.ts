@@ -189,3 +189,9 @@ async function deployMarketFactory(
 
   return marketFactory
 }
+
+export async function getStablecoins(owner: SignerWithAddress): Promise<[IERC20Metadata, IERC20Metadata]> {
+  const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
+  const usdc = IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
+  return [dsu, usdc]
+}

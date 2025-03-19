@@ -21,7 +21,7 @@ import {
   RiskParameterStorageLib__factory,
   VersionLib__factory,
   VersionStorageLib__factory,
-  IERC20Metadata__factory,
+  IERC20Metadata,
 } from '../types/generated'
 
 // Deploys Verifier, Market implementation, and MarketFactory

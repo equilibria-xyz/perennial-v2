@@ -14,10 +14,13 @@ import {
   deployControllerOptimism,
   fundWalletDSU,
   fundWalletUSDC,
-  getStablecoins,
   mockGasInfo,
 } from '../../helpers/baseHelpers'
-import { createMarketBTC as setupMarketBTC, createMarketETH as setupMarketETH } from '../../helpers/setupHelpers'
+import {
+  createMarketBTC as setupMarketBTC,
+  createMarketETH as setupMarketETH,
+  getStablecoins,
+} from '../../helpers/setupHelpers'
 import { RunIncentivizedTests } from './Controller_Incentivized.test'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Controller_Incentivized, IMarketFactory } from '../../../types/generated'

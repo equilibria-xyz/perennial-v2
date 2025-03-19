@@ -60,7 +60,7 @@ import { advanceToPrice } from '../../helpers/oracleHelpers'
 import {
   RelayedTakeStruct,
   RelayedFillStruct,
-} from '../../../../types/generated/contracts/CollateralAccounts/AccountVerifier'
+} from '../../../types/generated/contracts/CollateralAccounts/AccountVerifier'
 
 const { ethers } = HRE
 

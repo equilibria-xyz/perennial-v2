@@ -24,10 +24,10 @@ import {
 } from '@perennial/v2-core/types/generated'
 import { IOracle } from '@perennial/v2-oracle/types/generated'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
-import { IERC20Metadata, IOracleProvider, IVerifier } from '../../types/generated'
+import { IERC20Metadata, IOracleProvider, IVerifier, Market } from '../../types/generated'
 import { parse6decimal } from '../../../common/testutil/types'
 import { MarketParameterStruct, RiskParameterStruct } from '@perennial/v2-core/types/generated/contracts/Market'
-import { MockContract, smock } from '@defi-wonderland/smock'
+import { FakeContract, MockContract, smock } from '@defi-wonderland/smock'
 import { impersonateWithBalance } from '../../../common/testutil/impersonate'
 
 export async function createMarket(
@@ -113,40 +113,7 @@ export async function deployMarketImplementation(
 
   if (!verifier) verifier = await new Verifier__factory(owner).deploy()
 
-  const marketImpl = await new Market__factory(
-    {
-      'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
-      'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
-      'contracts/libs/VersionLib.sol:VersionLib': (await new VersionLib__factory(owner).deploy()).address,
-      'contracts/types/Global.sol:GlobalStorageLib': (await new GlobalStorageLib__factory(owner).deploy()).address,
-      'contracts/types/MarketParameter.sol:MarketParameterStorageLib': (
-        await new MarketParameterStorageLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Position.sol:PositionStorageGlobalLib': (
-        await new PositionStorageGlobalLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Position.sol:PositionStorageLocalLib': (
-        await new PositionStorageLocalLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/RiskParameter.sol:RiskParameterStorageLib': (
-        await new RiskParameterStorageLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Version.sol:VersionStorageLib': (await new VersionStorageLib__factory(owner).deploy()).address,
-      'contracts/types/Guarantee.sol:GuaranteeStorageLocalLib': (
-        await new GuaranteeStorageLocalLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Guarantee.sol:GuaranteeStorageGlobalLib': (
-        await new GuaranteeStorageGlobalLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Order.sol:OrderStorageLocalLib': (
-        await new OrderStorageLocalLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Order.sol:OrderStorageGlobalLib': (
-        await new OrderStorageGlobalLib__factory(owner).deploy()
-      ).address,
-    },
-    owner,
-  ).deploy(verifier.address, margin.address)
+  const marketImpl = await deployMarketImpl(owner, verifier, margin)
   return [marketImpl, margin]
 }
 
@@ -174,7 +141,18 @@ export async function mockMarket(): Promise<IMarket> {
   await margin.initialize(factory.address)
 
   // deploy market
-  const market = await new Market__factory(
+  const market = await deployMarketImpl(owner, verifier, margin)
+
+  await market.connect(factorySigner).initialize(oracle.address)
+  return market
+}
+
+async function deployMarketImpl(
+  owner: SignerWithAddress,
+  verifier: IVerifier | FakeContract<IVerifier>,
+  margin: Margin,
+): Promise<Market> {
+  return new Market__factory(
     {
       'contracts/libs/CheckpointLib.sol:CheckpointLib': (await new CheckpointLib__factory(owner).deploy()).address,
       'contracts/libs/InvariantLib.sol:InvariantLib': (await new InvariantLib__factory(owner).deploy()).address,
@@ -199,16 +177,11 @@ export async function mockMarket(): Promise<IMarket> {
       'contracts/types/Guarantee.sol:GuaranteeStorageGlobalLib': (
         await new GuaranteeStorageGlobalLib__factory(owner).deploy()
       ).address,
-      'contracts/types/Order.sol:OrderStorageLocalLib': (
-        await new OrderStorageLocalLib__factory(owner).deploy()
-      ).address,
-      'contracts/types/Order.sol:OrderStorageGlobalLib': (
-        await new OrderStorageGlobalLib__factory(owner).deploy()
-      ).address,
+      'contracts/types/Order.sol:OrderStorageLocalLib': (await new OrderStorageLocalLib__factory(owner).deploy())
+        .address,
+      'contracts/types/Order.sol:OrderStorageGlobalLib': (await new OrderStorageGlobalLib__factory(owner).deploy())
+        .address,
     },
     owner,
   ).deploy(verifier.address, margin.address)
-
-  await market.connect(factorySigner).initialize(oracle.address)
-  return market
 }

@@ -5,7 +5,7 @@ import { smock } from '@defi-wonderland/smock'
 import { deployments } from 'hardhat'
 
 import { impersonate } from '../../../common/testutil'
-import { createFactories, deployController } from './setupHelpers'
+import { createFactories, deployController, getStablecoins } from './setupHelpers'
 import { IOracleFactory, PythFactory } from '@perennial/v2-oracle/types/generated'
 import {
   Account__factory,
@@ -107,12 +107,6 @@ export async function fundWalletUSDC(
 
   expect(await usdc.balanceOf(USDC_HOLDER)).to.be.greaterThan(amount)
   await usdc.transfer(wallet.address, amount, overrides ?? {})
-}
-
-export async function getStablecoins(owner: SignerWithAddress): Promise<[IERC20Metadata, IERC20Metadata]> {
-  const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
-  const usdc = IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
-  return [dsu, usdc]
 }
 
 export async function mockGasInfo() {
