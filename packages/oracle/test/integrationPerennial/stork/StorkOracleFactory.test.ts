@@ -34,7 +34,6 @@ import { deployMarketFactory } from '../../setupHelpers'
 const { deployments, ethers } = HRE
 const { constants } = ethers
 
-const STORK_ADDRESS = '0xacC0a0cF13571d30B4b8637996F5D6D774d4fd62'
 const STORK_ETH_USD_PRICE_FEED = '0x59102b37de83bdda9f38ac8254e596f0d9ac61d2035c07936675e87342817160'
 const STORK_BTC_USD_PRICE_FEED = '0x7404e3d104ea7841c3d9e6fd20adfe99b4ad586bc08d8f3bd3afef894cf184de'
 const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
@@ -218,7 +217,9 @@ testOracles.forEach(testOracle => {
       )
       const keeperOracleImpl = await new testOracle.Oracle(owner).deploy(60)
       storkOracleFactory = await new StorkFactory__factory(owner).deploy(
-        STORK_ADDRESS,
+        (
+          await deployments.get('Stork')
+        ).address,
         commitmentGasOracle.address,
         settlementGasOracle.address,
         keeperOracleImpl.address,
@@ -399,7 +400,9 @@ testOracles.forEach(testOracle => {
         context('#initialize', async () => {
           it('reverts if already initialized', async () => {
             const storkOracleFactory2 = await new StorkFactory__factory(owner).deploy(
-              STORK_ADDRESS,
+              (
+                await deployments.get('Stork')
+              ).address,
               commitmentGasOracle.address,
               settlementGasOracle.address,
               await storkOracleFactory.implementation(),
