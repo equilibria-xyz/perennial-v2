@@ -263,25 +263,48 @@ library OrderLib {
         Guarantee memory guarantee,
         Version memory version
     ) internal pure returns (UFixed6 exposurePos, UFixed6 exposureNeg) {
-        // taker
-        (exposurePos, exposureNeg) = (
-            version.longPosExposure.abs().mul(self.longPos.sub(guarantee.longPos))
-                .add(version.shortNegExposure.abs().mul(self.shortNeg.sub(guarantee.shortNeg))),
-             version.longNegExposure.abs().mul(self.longNeg.sub(guarantee.longNeg))
-                .add(version.shortPosExposure.abs().mul(self.shortPos.sub(guarantee.shortPos)))
-        );
+        // taker exposure
+        (UFixed6 takerExposurePos, UFixed6 takerExposureNeg) = takerExposure(self, version, guarantee);
+
+        // maker exposure
+        (UFixed6 makerExposurePos, UFixed6 makerExposureNeg) = makerExposure(self, version);
 
         // maker close
-        if (version.makerNegExposure.gt(Fixed6Lib.ZERO))
-            exposureNeg = exposureNeg.add(self.makerNeg.mul(version.makerNegExposure.abs()));
-        else
-            exposurePos = exposurePos.add(self.makerNeg.mul(version.makerNegExposure.abs()));
+        if (version.makerNegExposure.gt(Fixed6Lib.ZERO)) {
+            exposureNeg = takerExposureNeg.add(makerExposureNeg);
+        } else {
+            exposurePos = takerExposurePos.add(makerExposureNeg);
+        }
 
         // maker open
-        if (version.makerPosExposure.gt(Fixed6Lib.ZERO))
-            exposurePos = exposurePos.add(self.makerPos.mul(version.makerPosExposure.abs()));
-        else
-            exposureNeg = exposureNeg.add(self.makerPos.mul(version.makerPosExposure.abs()));
+        if (version.makerPosExposure.gt(Fixed6Lib.ZERO)) {
+            exposurePos = takerExposurePos.add(makerExposurePos);
+        } else {
+            exposureNeg = takerExposureNeg.add(makerExposurePos);
+        }
+    }
+
+    /// @notice Returns the maker exposure for the order
+    /// @param self The order object to check
+    /// @param version The version where exposure is recorded
+    /// @return exposurePos The maker exposure of the positive component of the order
+    /// @return exposureNeg The maker exposure of the negative component of the order
+    function makerExposure(Order memory self, Version memory version) internal pure returns (UFixed6 exposurePos, UFixed6 exposureNeg) {
+        exposurePos = version.makerPosExposure.abs().mul(self.makerPos);
+        exposureNeg = version.makerNegExposure.abs().mul(self.makerNeg);
+    }
+
+    /// @notice Returns the taker exposure for the order
+    /// @param self The order object to check
+    /// @param version The version where exposure is recorded
+    /// @param guarantee The guarantee object
+    /// @return exposurePos The taker exposure of the positive component of the order
+    /// @return exposureNeg The taker exposure of the negative component of the order
+    function takerExposure(Order memory self, Version memory version, Guarantee memory guarantee) internal pure returns (UFixed6 exposurePos, UFixed6 exposureNeg) {
+        exposurePos = version.longPosExposure.abs().mul(self.longPos.sub(guarantee.longPos))
+            .add(version.shortNegExposure.abs().mul(self.shortNeg.sub(guarantee.shortNeg)));
+        exposureNeg = version.longNegExposure.abs().mul(self.longNeg.sub(guarantee.longNeg))
+            .add(version.shortPosExposure.abs().mul(self.shortPos.sub(guarantee.shortPos)));
     }
 
     /// @notice Returns the maker fee for the order
