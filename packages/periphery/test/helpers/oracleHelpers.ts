@@ -17,6 +17,7 @@ import {
 import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
 import { GasOracle__factory, PythFactory__factory } from '../../types/generated'
 import { Address } from 'hardhat-deploy/dist/types'
+import { deployments } from 'hardhat'
 
 // feed ids are chain-agnostic
 export const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
@@ -100,7 +101,6 @@ export async function deployOracleFactory(owner: SignerWithAddress): Promise<Ora
 export async function deployPythOracleFactory(
   owner: SignerWithAddress,
   oracleFactory: IOracleFactory,
-  pythAddress: Address,
   chainlinkFeedAddress: Address,
 ): Promise<PythFactory> {
   const commitmentGasOracle = await new GasOracle__factory(owner).deploy(
@@ -127,7 +127,9 @@ export async function deployPythOracleFactory(
   // Deploy a Pyth keeper oracle factory, which we'll need to meddle with prices
   const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
   const pythOracleFactory = await new PythFactory__factory(owner).deploy(
-    pythAddress,
+    (
+      await deployments.get('Pyth')
+    ).address,
     commitmentGasOracle.address,
     settlementGasOracle.address,
     keeperOracleImpl.address,

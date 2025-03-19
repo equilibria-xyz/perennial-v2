@@ -21,16 +21,14 @@ import {
   OptGasInfo,
 } from '../../types/generated'
 
-export const PYTH_ADDRESS = '0x8250f4aF4B972684F7b336503E2D6dFeDeB1487a'
 export const CHAINLINK_ETH_USD_FEED = '0x71041dddad3595F9CEd3DcCFBe3D1F4b0a16Bb70'
-
 export const USDC_HOLDER = '0xF977814e90dA44bFA03b6295A0616a897441aceC' // EOA has 302mm USDC at height 21067741
 
 // deploys protocol
 export async function createFactoriesForChain(
   owner: SignerWithAddress,
 ): Promise<[IOracleFactory, IMarketFactory, PythFactory, AggregatorV3Interface]> {
-  return createFactories(owner, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED)
+  return createFactories(owner, CHAINLINK_ETH_USD_FEED)
 }
 
 // connects to Base stablecoins and deploys a non-incentivized controller configured for them

@@ -10,7 +10,7 @@ import { parse6decimal } from '../../../../common/testutil/types'
 
 import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@perennial/v2-core/types/generated'
 import { IKeeperOracle, IMargin__factory } from '@perennial/v2-oracle/types/generated'
-import { IController, IManager, IMargin, IOrderVerifier } from '../../../types/generated'
+import { IManager, IMargin, IOrderVerifier } from '../../../types/generated'
 import { PlaceOrderActionStruct } from '../../../types/generated/contracts/TriggerOrders/Manager'
 
 import { signAction, signCancelOrderAction, signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
@@ -40,7 +40,6 @@ export function RunManagerTests(
 ): void {
   describe(name, () => {
     let dsu: IERC20Metadata
-    let usdc: IERC20Metadata
     let keeperOracle: IKeeperOracle
     let manager: IManager
     let margin: IMargin
@@ -48,7 +47,6 @@ export function RunManagerTests(
     let market: IMarket
     let oracle: IOracleProvider
     let verifier: IOrderVerifier
-    let controller: IController
     let owner: SignerWithAddress
     let userA: SignerWithAddress
     let userB: SignerWithAddress
@@ -287,14 +285,12 @@ export function RunManagerTests(
       currentTime = BigNumber.from(await currentBlockTimestamp())
       const fixture = await getFixture(TX_OVERRIDES)
       dsu = fixture.dsu
-      usdc = fixture.usdc
       keeperOracle = fixture.keeperOracle
       manager = fixture.manager
       marketFactory = fixture.marketFactory
       market = fixture.market
       oracle = fixture.oracle
       verifier = fixture.verifier
-      controller = fixture.controller
       owner = fixture.owner
       userA = fixture.userA
       userB = fixture.userB

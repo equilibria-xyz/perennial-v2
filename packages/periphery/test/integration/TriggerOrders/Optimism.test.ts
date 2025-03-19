@@ -10,7 +10,7 @@ import {
 import { createMarketETH, deployController, deployProtocol } from '../../helpers/setupHelpers'
 import { RunManagerTests } from './Manager.test'
 import { FixtureVars } from './setupTypes'
-import { CHAINLINK_ETH_USD_FEED, fundWalletDSU, mockGasInfo, PYTH_ADDRESS } from '../../helpers/baseHelpers'
+import { CHAINLINK_ETH_USD_FEED, fundWalletDSU, mockGasInfo } from '../../helpers/baseHelpers'
 import { deployPythOracleFactory } from '../../helpers/oracleHelpers'
 
 const { deployments, ethers } = HRE
@@ -21,7 +21,7 @@ const fixture = async (): Promise<FixtureVars> => {
   const [marketFactory, dsu, oracleFactory] = await deployProtocol(owner)
   const usdc = IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
   const reserve = IEmptySetReserve__factory.connect((await deployments.get('DSU')).address, owner)
-  const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED)
+  const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory, CHAINLINK_ETH_USD_FEED)
   const marketWithOracle = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory)
   const market = marketWithOracle.market
 

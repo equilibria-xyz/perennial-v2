@@ -20,7 +20,6 @@ import {
 
 const { deployments, ethers } = HRE
 
-const PYTH_ADDRESS = '0x4305FB66699C3B2702D4d05CF36551390A4c69C6'
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
 const DSU_HOLDER = '0x2d264EBDb6632A06A1726193D4d37FeF1E5dbDcd'
@@ -66,7 +65,9 @@ describe('OracleFactory', () => {
 
     const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
     pythOracleFactory = await new PythFactory__factory(owner).deploy(
-      PYTH_ADDRESS,
+      (
+        await deployments.get('Pyth')
+      ).address,
       commitmentGasOracle.address,
       settlementGasOracle.address,
       keeperOracleImpl.address,
@@ -94,7 +95,9 @@ describe('OracleFactory', () => {
     it('can update the price id', async () => {
       const keeperOracleImpl2 = await new KeeperOracle__factory(owner).deploy(60)
       const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(
-        PYTH_ADDRESS,
+        (
+          await deployments.get('Pyth')
+        ).address,
         commitmentGasOracle.address,
         settlementGasOracle.address,
         keeperOracleImpl2.address,

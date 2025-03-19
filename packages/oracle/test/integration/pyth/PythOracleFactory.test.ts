@@ -36,7 +36,6 @@ import { deployMarketFactory } from '../../setupHelpers'
 const { deployments, ethers } = HRE
 const { constants } = ethers
 
-const PYTH_ADDRESS = '0x4305FB66699C3B2702D4d05CF36551390A4c69C6'
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 const PYTH_BTC_USD_PRICE_FEED = '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
 const PYTH_USDC_USD_PRICE_FEED = '0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a'
@@ -164,7 +163,9 @@ testOracles.forEach(testOracle => {
       )
       const keeperOracleImpl = await new testOracle.Oracle(owner).deploy(60)
       pythOracleFactory = await new PythFactory__factory(owner).deploy(
-        PYTH_ADDRESS,
+        (
+          await deployments.get('Pyth')
+        ).address,
         commitmentGasOracle.address,
         settlementGasOracle.address,
         keeperOracleImpl.address,
@@ -476,7 +477,9 @@ testOracles.forEach(testOracle => {
         context('#initialize', async () => {
           it('reverts if already initialized', async () => {
             const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(
-              PYTH_ADDRESS,
+              (
+                await deployments.get('Pyth')
+              ).address,
               commitmentGasOracle.address,
               settlementGasOracle.address,
               await pythOracleFactory.implementation(),

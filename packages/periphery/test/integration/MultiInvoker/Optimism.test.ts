@@ -9,14 +9,7 @@ import { IERC20Metadata__factory, IKeeperOracle, KeeperOracle, PythFactory } fro
 import { RunInvokerTests } from './Invoke.test'
 import { RunPythOracleTests } from './Pyth.test'
 import { createInvoker, deployProtocol, InstanceVars } from './setupHelpers'
-import {
-  CHAINLINK_ETH_USD_FEED,
-  fundWalletDSU,
-  fundWalletUSDC,
-  mockGasInfo,
-  PYTH_ADDRESS,
-  USDC_ADDRESS,
-} from '../../helpers/baseHelpers'
+import { CHAINLINK_ETH_USD_FEED, fundWalletDSU, fundWalletUSDC, mockGasInfo } from '../../helpers/baseHelpers'
 import {
   advanceToPrice as advanceToPriceImpl,
   createPythOracle,
@@ -69,7 +62,7 @@ const fixture = async (): Promise<InstanceVars> => {
   await fundWalletDSU(perennialUser, utils.parseEther('14000000'))
 
   // configure this deployment with a pyth oracle
-  pythOracleFactory = await deployPythOracleFactory(owner, vars.oracleFactory, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED)
+  pythOracleFactory = await deployPythOracleFactory(owner, vars.oracleFactory, CHAINLINK_ETH_USD_FEED)
   await vars.oracleFactory.connect(owner).register(pythOracleFactory.address)
   const [keeperOracle_, oracle] = await createPythOracle(
     owner,

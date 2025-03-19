@@ -47,7 +47,6 @@ export interface MarketWithOracle {
 // deploys market and oracle factories
 export async function createFactories(
   owner: SignerWithAddress,
-  pythAddress: Address,
   chainLinkFeedAddress: Address,
 ): Promise<[IOracleFactory, IMarketFactory, PythFactory, AggregatorV3Interface]> {
   // Deploy the oracle factory, which markets created by the market factory will query
@@ -58,7 +57,7 @@ export async function createFactories(
   // Connect the Chainlink ETH feed used for keeper compensation
   const chainlinkKeptFeed = AggregatorV3Interface__factory.connect(chainLinkFeedAddress, owner)
   // Deploy a Pyth keeper oracle factory, which we'll need to meddle with prices
-  const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory, pythAddress, chainlinkKeptFeed.address)
+  const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory, chainlinkKeptFeed.address)
 
   return [oracleFactory, marketFactory, pythOracleFactory, chainlinkKeptFeed]
 }

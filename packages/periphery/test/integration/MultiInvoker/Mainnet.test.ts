@@ -11,7 +11,7 @@ import { IERC20Metadata__factory, IOracle__factory, KeeperOracle, PythFactory } 
 import { RunInvokerTests } from './Invoke.test'
 import { RunPythOracleTests } from './Pyth.test'
 import { createInvoker, deployProtocol, InstanceVars } from './setupHelpers'
-import { CHAINLINK_ETH_USD_FEED, fundWalletDSU, fundWalletUSDC, PYTH_ADDRESS } from '../../helpers/mainnetHelpers'
+import { CHAINLINK_ETH_USD_FEED, fundWalletDSU, fundWalletUSDC } from '../../helpers/mainnetHelpers'
 import { createPythOracle, PYTH_ETH_USD_PRICE_FEED } from '../../helpers/oracleHelpers'
 import { deployPythOracleFactory } from '../../helpers/oracleHelpers'
 
@@ -88,12 +88,7 @@ async function getFixture(): Promise<InstanceVars> {
 async function getKeeperOracle(): Promise<[PythFactory, KeeperOracle]> {
   if (!vars.oracleFactory || !vars.owner) throw new Error('Fixture not yet created')
 
-  const pythOracleFactory = await deployPythOracleFactory(
-    vars.owner,
-    vars.oracleFactory,
-    PYTH_ADDRESS,
-    CHAINLINK_ETH_USD_FEED,
-  )
+  const pythOracleFactory = await deployPythOracleFactory(vars.owner, vars.oracleFactory, CHAINLINK_ETH_USD_FEED)
   const [keeperOracle, oracle_] = await createPythOracle(
     vars.owner,
     vars.oracleFactory,

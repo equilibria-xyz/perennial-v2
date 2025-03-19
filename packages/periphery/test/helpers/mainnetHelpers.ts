@@ -6,7 +6,6 @@ import { impersonate } from '../../../common/testutil'
 import { IERC20Metadata__factory } from '../../types/generated'
 
 export const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419' // chainlink eth oracle
-export const PYTH_ADDRESS = '0x4305FB66699C3B2702D4d05CF36551390A4c69C6'
 
 export const USDC_HOLDER = '0x0A59649758aa4d66E25f08Dd01271e891fe52199' // Maker PSM has 520mm USDC at height 17433155
 
