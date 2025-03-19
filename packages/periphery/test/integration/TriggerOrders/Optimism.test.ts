@@ -1,12 +1,17 @@
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import HRE from 'hardhat'
 
-import { Manager_Optimism__factory, OptGasInfo, OrderVerifier__factory } from '../../../types/generated'
+import { Manager_Optimism__factory, OrderVerifier__factory } from '../../../types/generated'
 import { createMarketETH, deployProtocol } from '../../helpers/setupHelpers'
 import { RunManagerTests } from './Manager.test'
 import { FixtureVars } from './setupTypes'
-import { CHAINLINK_ETH_USD_FEED, DSU_ADDRESS, fundWalletDSU, PYTH_ADDRESS } from '../../helpers/baseHelpers'
-import { smock } from '@defi-wonderland/smock'
+import {
+  CHAINLINK_ETH_USD_FEED,
+  DSU_ADDRESS,
+  fundWalletDSU,
+  mockGasInfo,
+  PYTH_ADDRESS,
+} from '../../helpers/baseHelpers'
 import { deployPythOracleFactory } from '../../helpers/oracleHelpers'
 
 const { ethers } = HRE
@@ -29,15 +34,15 @@ const fixture = async (): Promise<FixtureVars> => {
   )
 
   const keepConfig = {
-    multiplierBase: ethers.utils.parseEther('0.01'),
-    bufferBase: 50_000, // buffer for withdrawing keeper fee from margin contract
-    multiplierCalldata: ethers.utils.parseEther('0.01'),
+    multiplierBase: ethers.utils.parseEther('1'),
+    bufferBase: 250_000, // buffer for withdrawing keeper fee from margin contract
+    multiplierCalldata: ethers.utils.parseEther('1'),
     bufferCalldata: 0,
   }
   const keepConfigBuffered = {
-    multiplierBase: ethers.utils.parseEther('0.05'),
+    multiplierBase: ethers.utils.parseEther('1'),
     bufferBase: 1_500_000, // for price commitment
-    multiplierCalldata: ethers.utils.parseEther('0.05'),
+    multiplierCalldata: ethers.utils.parseEther('1'),
     bufferCalldata: 0,
   }
   await manager.initialize(CHAINLINK_ETH_USD_FEED, keepConfig, keepConfigBuffered)
@@ -65,16 +70,6 @@ const fixture = async (): Promise<FixtureVars> => {
 async function getFixture(): Promise<FixtureVars> {
   const vars = loadFixture(fixture)
   return vars
-}
-
-async function mockGasInfo() {
-  const gasInfo = await smock.fake<OptGasInfo>('OptGasInfo', {
-    address: '0x420000000000000000000000000000000000000F',
-  })
-  gasInfo.getL1GasUsed.returns(1600)
-  gasInfo.l1BaseFee.returns(96617457705)
-  gasInfo.baseFeeScalar.returns(13841697)
-  gasInfo.decimals.returns(6)
 }
 
 if (process.env.FORK_NETWORK === 'base') RunManagerTests('Manager_Optimism', getFixture, fundWalletDSU)

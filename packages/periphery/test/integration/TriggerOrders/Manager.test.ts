@@ -71,7 +71,7 @@ export function RunManagerTests(
 
       // If TXes in test required outside price commitments, compensate the keeper for them.
       // Note that calls to `commitPrice` in this module do not consume keeper gas.
-      keeperEthSpentOnGas = keeperEthSpentOnGas.add(utils.parseEther('0.0000644306').mul(priceCommitments))
+      keeperEthSpentOnGas = keeperEthSpentOnGas.add(utils.parseEther('0.00002021').mul(priceCommitments))
 
       // cost of transaction
       const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2603)
