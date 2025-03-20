@@ -59,12 +59,10 @@ const fixture = async (): Promise<InstanceVars> => {
   await fundWalletDSU(perennialUser, parse6decimal('14000000'))
 
   // configure this deployment with a chainlink oracle
-  chainlink = await new ChainlinkContext(
-    CHAINLINK_CUSTOM_CURRENCIES.ETH,
-    CHAINLINK_CUSTOM_CURRENCIES.USD,
-    { provider: vars.payoff, decimals: -5 },
-    1,
-  ).init(BigNumber.from(0), BigNumber.from(0))
+  chainlink = await new ChainlinkContext({ provider: vars.payoff, decimals: -5 }, 1).init(
+    BigNumber.from(0),
+    BigNumber.from(0),
+  )
   await vars.oracleFactory.connect(owner).register(chainlink.oracleFactory.address)
   vars.oracle = IOracle__factory.connect(
     await vars.oracleFactory.connect(owner).callStatic.create(chainlink.id, chainlink.oracleFactory.address, 'ETH-USD'),

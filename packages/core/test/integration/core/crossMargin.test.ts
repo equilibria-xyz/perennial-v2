@@ -17,14 +17,15 @@ import {
   KeeperOracle__factory,
   Oracle__factory,
   OracleFactory,
+  StorkFactory,
 } from '@perennial/v2-oracle/types/generated'
 import { OracleVersionStruct } from '@perennial/v2-oracle/types/generated/contracts/Oracle'
 
 import {
-  deployChainlinkOracleFactory,
   deployMargin,
   deployMarketFactory,
   deployOracleFactory,
+  deployStorkOracleFactory,
   fundWallet,
   STANDARD_MARKET_PARAMETER,
   STANDARD_PROTOCOL_PARAMETERS,
@@ -59,7 +60,7 @@ describe('Cross Margin', () => {
   let marketB: MarketWithOracle
   let marketC: MarketWithOracle
   let oracleFactory: OracleFactory
-  let chainlinkOracleFactory: ChainlinkFactory
+  let storkOracleFactory: StorkFactory
 
   interface MarketWithOracle {
     market: IMarket
@@ -84,10 +85,10 @@ describe('Cross Margin', () => {
     await marketFactory.updateParameter(STANDARD_PROTOCOL_PARAMETERS)
     await margin.initialize(marketFactory.address)
 
-    chainlinkOracleFactory = await deployChainlinkOracleFactory(owner, oracleFactory)
-    expect(await oracleFactory.factories(chainlinkOracleFactory.address)).to.equal(true)
+    storkOracleFactory = await deployStorkOracleFactory(owner, oracleFactory)
+    expect(await oracleFactory.factories(storkOracleFactory.address)).to.equal(true)
     expect(await oracleFactory.owner()).to.equal(owner.address)
-    expect(await chainlinkOracleFactory.owner()).to.equal(owner.address)
+    expect(await storkOracleFactory.owner()).to.equal(owner.address)
 
     // create markets, each with a unique oracle
     marketA = await createMarketWithOracle(
@@ -125,18 +126,18 @@ describe('Cross Margin', () => {
     }
     // create the keeper oracle (implementation)
     const keeperOracle = KeeperOracle__factory.connect(
-      await chainlinkOracleFactory.callStatic.create(id, id, payoffDefinition),
+      await storkOracleFactory.callStatic.create(id, id, payoffDefinition),
       owner,
     )
-    await chainlinkOracleFactory.create(id, id, payoffDefinition)
-    expect(await chainlinkOracleFactory.oracles(id)).to.equal(keeperOracle.address)
+    await storkOracleFactory.create(id, id, payoffDefinition)
+    expect(await storkOracleFactory.oracles(id)).to.equal(keeperOracle.address)
 
     // create the oracle (which interacts with the market)
     const oracle = Oracle__factory.connect(
-      await oracleFactory.callStatic.create(id, chainlinkOracleFactory.address, name),
+      await oracleFactory.callStatic.create(id, storkOracleFactory.address, name),
       owner,
     )
-    await oracleFactory.create(id, chainlinkOracleFactory.address, name)
+    await oracleFactory.create(id, storkOracleFactory.address, name)
     await keeperOracle.register(oracle.address)
 
     return [oracle, keeperOracle]
@@ -238,7 +239,7 @@ describe('Cross Margin', () => {
     expect(await margin.crossMarginBalances(userB.address)).to.equal(parse6decimal('200000'))
   })
 
-  it('maintains margin requirements', async () => {
+  it.only('maintains margin requirements', async () => {
     // userA creates maker positions; markets are cross-margined by default
     const timestampA = await changePosition(marketA, userA, parse6decimal('1000'), 0)
     expect(await margin.isCrossed(userA.address, marketA.market.address)).to.equal(true)

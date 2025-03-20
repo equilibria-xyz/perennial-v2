@@ -7,7 +7,7 @@ import { Market } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
-export const TIMESTAMP_3 = 1631114005
+export const TIMESTAMP_3 = 1739222192
 
 describe('Closed Market', () => {
   let instanceVars: InstanceVars
@@ -134,7 +134,7 @@ describe('Closed Market', () => {
 
   it('handles closing during liquidations', async () => {
     const POSITION = parse6decimal('10')
-    const COLLATERAL = parse6decimal('1000')
+    const COLLATERAL = parse6decimal('800')
     const { user, userB, chainlink, dsu, margin } = instanceVars
 
     const market = await createMarket(instanceVars)
@@ -152,7 +152,7 @@ describe('Closed Market', () => {
     await chainlink.next()
     await chainlink.nextWithPriceModification(price => price.mul(2))
     await expect(market.connect(userB).close(user.address, true, constants.AddressZero)).to.not.be.reverted
-    expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
+    expect((await market.pendingOrders(user.address, 1)).protection).to.eq(1)
     const parameters = { ...(await market.parameter()) }
     parameters.closed = true
     await market.updateParameter(parameters)
@@ -162,7 +162,7 @@ describe('Closed Market', () => {
     await settle(market, userB)
 
     expect((await market.position()).timestamp).to.eq(TIMESTAMP_3)
-    expect((await market.pendingOrders(user.address, 2)).protection).to.eq(1)
+    expect((await market.pendingOrders(user.address, 1)).protection).to.eq(1)
     const userCollateralBefore = await margin.isolatedBalances(user.address, market.address)
     const userBCollateralBefore = await margin.isolatedBalances(userB.address, market.address)
     const feesABefore = (await market.global()).protocolFee

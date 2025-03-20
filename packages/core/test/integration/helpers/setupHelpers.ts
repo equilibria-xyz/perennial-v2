@@ -49,16 +49,17 @@ import {
   PowerTwo__factory,
   IPayoffProvider,
   IPayoffProvider__factory,
-  ChainlinkFactory,
   GasOracle__factory,
   KeeperOracle__factory,
-  ChainlinkFactory__factory,
+  StorkFactory__factory,
+  StorkFactory,
 } from '@perennial/v2-oracle/types/generated'
 const { deployments, ethers } = HRE
 
-export const USDC_HOLDER = '0x47c031236e19d024b42f8ae6780e44a573170703'
-const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
+export const USDC_HOLDER = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
+const DSU_MINTER = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
 const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
+const STORK_ADDRESS = '0xacC0a0cF13571d30B4b8637996F5D6D774d4fd62'
 
 export const STANDARD_PROTOCOL_PARAMETERS = {
   maxFee: parse6decimal('0.01'),
@@ -150,12 +151,7 @@ export async function deployProtocol(chainlinkContext?: ChainlinkContext): Promi
 
   const chainlink =
     chainlinkContext ??
-    (await new ChainlinkContext(
-      CHAINLINK_CUSTOM_CURRENCIES.ETH,
-      CHAINLINK_CUSTOM_CURRENCIES.USD,
-      { provider: payoff, decimals: -5 },
-      1,
-    ).init(BigNumber.from(0), BigNumber.from(0)))
+    (await new ChainlinkContext({ provider: payoff, decimals: -5 }, 1).init(BigNumber.from(0), BigNumber.from(0)))
 
   // Deploy protocol contracts
   const proxyAdmin = await new ProxyAdmin__factory(owner).deploy()
@@ -318,10 +314,10 @@ export async function deployOracleFactory(owner: SignerWithAddress): Promise<Ora
   return oracleFactory
 }
 
-export async function deployChainlinkOracleFactory(
+export async function deployStorkOracleFactory(
   owner: SignerWithAddress,
   oracleFactory: OracleFactory,
-): Promise<ChainlinkFactory> {
+): Promise<StorkFactory> {
   const commitmentGasOracle = await new GasOracle__factory(owner).deploy(
     CHAINLINK_ETH_USD_FEED,
     8,
@@ -344,21 +340,19 @@ export async function deployChainlinkOracleFactory(
   )
 
   const keeperOracleImpl = await new KeeperOracle__factory(owner).deploy(60)
-  const chainlinkOracleFactory = await new ChainlinkFactory__factory(owner).deploy(
-    constants.AddressZero,
-    constants.AddressZero,
-    constants.AddressZero,
+  const StorkOracleFactory = await new StorkFactory__factory(owner).deploy(
+    STORK_ADDRESS,
     commitmentGasOracle.address,
     settlementGasOracle.address,
     keeperOracleImpl.address,
   )
-  await chainlinkOracleFactory.initialize(oracleFactory.address)
+  await StorkOracleFactory.initialize(oracleFactory.address)
   // KeeperFactory.updateParameter args: granularity, oracleFee, validFrom, validTo
-  await chainlinkOracleFactory.updateParameter(1, 0, 4, 10)
-  await oracleFactory.register(chainlinkOracleFactory.address)
+  await StorkOracleFactory.updateParameter(1, 0, 4, 10)
+  await oracleFactory.register(StorkOracleFactory.address)
   // TODO: register payoff?
 
-  return chainlinkOracleFactory
+  return StorkOracleFactory
 }
 
 export async function fundWallet(dsu: IERC20Metadata, wallet: SignerWithAddress): Promise<void> {

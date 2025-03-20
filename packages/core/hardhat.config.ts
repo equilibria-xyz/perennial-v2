@@ -32,6 +32,7 @@ const config = defaultConfig({
     '@openzeppelin/contracts/token/ERC20/presets/ERC20PresetMinterPauser.sol',
     '@openzeppelin/contracts/interfaces/IERC1271.sol',
     '@chainlink/contracts/src/v0.8/interfaces/FeedRegistryInterface.sol',
+    '@storknetwork/stork_chainlink_adapter/contracts/StorkChainlinkAdapter.sol',
   ],
 })
 

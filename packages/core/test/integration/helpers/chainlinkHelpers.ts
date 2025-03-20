@@ -2,9 +2,9 @@ import HRE from 'hardhat'
 import { BigNumber } from 'ethers'
 import { smock, FakeContract } from '@defi-wonderland/smock'
 
-import { FeedRegistryInterface__factory, FeedRegistryInterface, IOracleProvider } from '../../../types/generated'
-import { buildChainlinkRoundId } from '@perennial/v2-oracle/util/buildChainlinkRoundId'
+import { StorkChainlinkAdapter__factory, IOracleProvider, StorkChainlinkAdapter } from '../../../types/generated'
 import { IOracleFactory, IOracleFactory__factory, IPayoffProvider } from '@perennial/v2-oracle/types/generated'
+import { currentBlockTimestamp } from '../../../../common/testutil/time'
 
 const { ethers, deployments } = HRE
 
@@ -17,44 +17,42 @@ interface Payoff {
 }
 
 export class ChainlinkContext {
-  private feedRegistryExternal!: FeedRegistryInterface
-  private initialRoundId: BigNumber
-  private latestRoundId: BigNumber
-  private currentRoundId: BigNumber
   public payoff: Payoff
   public delay: number
+
+  private storkChainlinkAdapter!: StorkChainlinkAdapter
+  private initialRoundId!: BigNumber
+  private latestRoundId!: BigNumber
+  private currentRoundId!: BigNumber
   private decimals!: number
   public settlementFee!: BigNumber
   public oracleFee!: BigNumber
-  private readonly base: string
-  private readonly quote: string
-  public readonly id: string
-
+  public id!: string
   public oracleFactory!: FakeContract<IOracleFactory>
   public oracle!: FakeContract<IOracleProvider>
 
-  constructor(base: string, quote: string, payoff: Payoff, delay: number) {
-    const initialRoundId = buildChainlinkRoundId(INITIAL_PHASE_ID, INITIAL_AGGREGATOR_ROUND_ID)
-    this.base = base
-    this.quote = quote
+  constructor(payoff: Payoff, delay: number) {
     this.payoff = payoff
-    this.id = ethers.utils.keccak256(ethers.utils.defaultAbiCoder.encode(['string', 'string'], [base, quote]))
-    this.initialRoundId = initialRoundId
-    this.latestRoundId = initialRoundId
-    this.currentRoundId = initialRoundId
-    this.delay = delay
+    this.delay = delay * 10 ** 9
   }
 
   public async init(settlementFee: BigNumber, oracleFee: BigNumber): Promise<ChainlinkContext> {
     const [owner] = await ethers.getSigners()
 
-    this.feedRegistryExternal = FeedRegistryInterface__factory.connect(
-      (await deployments.get('ChainlinkFeedRegistry')).address,
+    const initialRoundId = BigNumber.from(await currentBlockTimestamp()).mul(BigNumber.from(10).pow(9))
+
+    this.initialRoundId = initialRoundId
+    this.latestRoundId = initialRoundId
+    this.currentRoundId = initialRoundId
+
+    this.storkChainlinkAdapter = StorkChainlinkAdapter__factory.connect(
+      (await deployments.get('StorkChainlinkAdapter')).address,
       owner,
     )
+    this.id = await this.storkChainlinkAdapter.priceId()
     this.oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     this.oracleFactory = await smock.fake<IOracleFactory>(IOracleFactory__factory)
-    this.decimals = await this.feedRegistryExternal.decimals(this.base, this.quote)
+    this.decimals = await this.storkChainlinkAdapter.decimals()
 
     this.oracleFactory.instances.whenCalledWith(this.oracle.address).returns(true)
     this.oracleFactory.oracles.whenCalledWith(this.id).returns(this.oracle.address)
@@ -70,13 +68,12 @@ export class ChainlinkContext {
   }
 
   public async nextWithPriceModification(priceFn: (price: BigNumber) => BigNumber): Promise<void> {
-    this.currentRoundId = await this.feedRegistryExternal.getNextRoundId(this.base, this.quote, this.currentRoundId)
-    if (this.currentRoundId.sub(this.latestRoundId).gt(this.delay)) {
-      this.latestRoundId = await this.feedRegistryExternal.getNextRoundId(this.base, this.quote, this.latestRoundId)
-    }
+    this.currentRoundId = this.currentRoundId.add(1)
+    this.latestRoundId = this.latestRoundId.add(this.delay)
 
-    const latestData = await this.feedRegistryExternal.getRoundData(this.base, this.quote, this.latestRoundId)
-    const currentData = await this.feedRegistryExternal.getRoundData(this.base, this.quote, this.currentRoundId)
+    const latestData = await this.storkChainlinkAdapter.getRoundData(this.latestRoundId)
+    const currentData = await this.storkChainlinkAdapter.getRoundData(this.currentRoundId)
+
     const latestPrice =
       this.decimals < 18
         ? latestData.answer.mul(BigNumber.from(10).pow(18 - this.decimals))
@@ -118,7 +115,7 @@ export class ChainlinkContext {
   public async setInvalidVersion(): Promise<void> {
     await this.next()
 
-    const latestData = await this.feedRegistryExternal.getRoundData(this.base, this.quote, this.latestRoundId)
+    const latestData = await this.storkChainlinkAdapter.getRoundData(this.latestRoundId)
 
     const latestPrice =
       this.decimals < 18
