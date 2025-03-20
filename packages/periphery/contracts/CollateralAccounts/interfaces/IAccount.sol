@@ -14,6 +14,18 @@ interface IAccount {
     /// @custom:error Only the owner or the collateral account controller may withdraw
     error AccountNotAuthorizedError();
 
+    /// @notice Address of the owner of the collateral account
+    /// @return owner Address of the owner of the collateral account
+    function owner() external view returns (address);
+
+    /// @notice USDC stablecoin address held by the collateral account
+    /// @return usdc Address of the USDC stablecoin
+    function USDC() external view returns (Token6);
+
+    /// @notice DSU stablecoin address held by the collateral account
+    /// @return dsu Address of the DSU stablecoin
+    function DSU() external view returns (Token18);
+
     /// @notice Sets owner, contract, and token addresses, and runs approvals for a collateral account
     /// @param owner Address of the user for which the account was created
     function initialize(address owner) external;
