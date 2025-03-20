@@ -10,7 +10,6 @@ import { currentBlockTimestamp, includeAt, increaseTo } from '../../../../common
 import { getTimestamp } from '../../../../common/testutil/transaction'
 
 import {
-  ChainlinkFactory,
   IOracle,
   IOracle__factory,
   KeeperOracle,
@@ -239,7 +238,7 @@ describe('Cross Margin', () => {
     expect(await margin.crossMarginBalances(userB.address)).to.equal(parse6decimal('200000'))
   })
 
-  it.only('maintains margin requirements', async () => {
+  it('maintains margin requirements', async () => {
     // userA creates maker positions; markets are cross-margined by default
     const timestampA = await changePosition(marketA, userA, parse6decimal('1000'), 0)
     expect(await margin.isCrossed(userA.address, marketA.market.address)).to.equal(true)
