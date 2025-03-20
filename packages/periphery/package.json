@@ -3,9 +3,9 @@
   "version": "1.4.0",
   "description": "Perennial V2 Periphery",
   "files": [
-    "contracts/interfaces",
-    "contracts/libs",
-    "contracts/types",
+    "contracts/**/interfaces",
+    "contracts/**/libs",
+    "contracts/**/types",
     "artifacts/contracts/interfaces",
     "deployments/!(localhost)"
   ],
