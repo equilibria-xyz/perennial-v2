@@ -3,10 +3,10 @@
   "version": "1.4.0",
   "description": "Perennial V2 Periphery",
   "files": [
-    "contracts/**/interfaces",
-    "contracts/**/libs",
-    "contracts/**/types",
-    "artifacts/contracts/interfaces",
+    "contracts/**/interfaces/*.sol",
+    "contracts/**/libs/*.sol",
+    "contracts/**/types/*.sol",
+    "artifacts/contracts/**/interfaces/*.sol",
     "deployments/!(localhost)"
   ],
   "scripts": {
