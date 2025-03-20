@@ -2306,6 +2306,11 @@
   dependencies:
     antlr4ts "^0.5.0-alpha.4"
 
+"@storknetwork/stork_chainlink_adapter@^1.0.4":
+  version "1.0.4"
+  resolved "https://registry.yarnpkg.com/@storknetwork/stork_chainlink_adapter/-/stork_chainlink_adapter-1.0.4.tgz#a135a852b20bd5d8e83aeb1f60742e095eaf4d75"
+  integrity sha512-/iXLyECFlDj86NPyVvsdeKEWbBnCxWcWzE6F2ZCsZZ2SrNMLmx/GdQOSUBDL6dATGrtohnh3wJDWdid3aqlAvw==
+
 "@tootallnate/once@1":
   version "1.1.2"
   resolved "https://registry.npmjs.org/@tootallnate/once/-/once-1.1.2.tgz"
