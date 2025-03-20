@@ -290,8 +290,8 @@ library OrderLib {
     /// @return exposurePos The maker exposure of the positive component of the order
     /// @return exposureNeg The maker exposure of the negative component of the order
     function makerExposure(Order memory self, Version memory version) internal pure returns (UFixed6 exposurePos, UFixed6 exposureNeg) {
-        exposurePos = version.makerPosExposure.abs().mul(self.makerPos);
-        exposureNeg = version.makerNegExposure.abs().mul(self.makerNeg);
+        exposurePos = self.makerPos.mul(version.makerPosExposure.abs());
+        exposureNeg = self.makerNeg.mul(version.makerNegExposure.abs());
     }
 
     /// @notice Returns the taker exposure for the order
