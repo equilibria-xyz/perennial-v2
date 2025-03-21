@@ -104,7 +104,6 @@ describe('Verifier', () => {
       intent: {
         amount: parse6decimal('4'),
         collateral: 0,
-        collateralAmount: parse6decimal('100'),
         price: parse6decimal('151'),
         fee: parse6decimal('0.25'),
         additiveFee: parse6decimal('0.01'),

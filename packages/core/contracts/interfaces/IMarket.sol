@@ -75,7 +75,7 @@ interface IMarket is IInstance {
         /// @dev The size and direction of the order being opened
         Fixed6 amount;
 
-        /// @dev The collateral amount for the order
+        /// @dev Amount of collateral to isolate with the order, leave 0 when cross-margined
         UFixed6 collateral;
 
         /// @dev The price to execute the order at
