@@ -64,39 +64,6 @@ interface IMarket is IInstance {
         UFixed6 maxPendingMagnitude;
     }
 
-    /// @notice Parameters for updating an intent order
-    struct UpdateIntentParams {
-        /// @dev The account to operate on
-        address account;
-
-        /// @dev The signer of the order
-        address signer;
-
-        /// @dev The size and direction of the order being opened
-        Fixed6 amount;
-
-        /// @dev Amount of collateral to isolate with the order, leave 0 when cross-margined
-        UFixed6 collateral;
-
-        /// @dev The price to execute the order at
-        Fixed6 price;
-
-        /// @dev The referrer of the order
-        address orderReferrer;
-
-        /// @dev The referrer of the guarantee
-        address guaranteeReferrer;
-
-        /// @dev The referral fee for the guarantee
-        UFixed6 guaranteeReferralFee;
-
-        /// @dev The additional fee for the order
-        UFixed6 additiveFee;
-
-        /// @dev Whether to charge the trade fee
-        bool chargeTradeFee;
-    }
-
     event OrderCreated(address indexed account, Order order, Guarantee guarantee, address liquidator, address orderReferrer, address guaranteeReferrer);
     event PositionProcessed(uint256 orderId, Order order, VersionAccumulationResult accumulationResult);
     event AccountPositionProcessed(address indexed account, uint256 orderId, Order order, CheckpointAccumulationResult accumulationResult);
