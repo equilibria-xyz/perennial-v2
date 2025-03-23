@@ -16,10 +16,10 @@ import { RiskParameter } from "./types/RiskParameter.sol";
 import { IMargin, OracleVersion } from "./interfaces/IMargin.sol";
 import { IMarket, IMarketFactory } from "./interfaces/IMarketFactory.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "hardhat/console.sol";
-
 
 contract Margin is IMargin, Instance, ReentrancyGuard {
+    using EnumerableSet for EnumerableSet.AddressSet;
+
     IMarket private constant CROSS_MARGIN = IMarket(address(0));
 
     /// @inheritdoc IMargin
@@ -39,7 +39,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     /// @notice Storage for account balances: user -> market -> balance
     /// Cross-margin balances stored under IMarket(address(0))
-    mapping(address => mapping(IMarket => UFixed6)) private _balances;
+    mapping(address => mapping(IMarket => UFixed6)) public balances;
 
     /// @dev Storage for account checkpoints: user -> market -> version -> checkpoint
     /// Cross-margin checkpoints stored as IMarket(address(0))
@@ -93,8 +93,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
         _update(account, amount.mul(Fixed6Lib.from(-1)));
 
-        _balances[account][market] = _balances[account][market].add(amount);
-        if (amount.lt(UFixed6Lib.ZERO) && !_checkIsolatedMargin(account, market, UFixed6Lib.ZERO))
+        balances[account][market] = UFixed6Lib.from(Fixed6Lib.from(balances[account][market]).add(amount));
+        if (amount.lt(Fixed6Lib.ZERO) && !_checkIsolatedMargin(account, market))
             revert IMarket.MarketInsufficientMarginError();
     }
 
@@ -104,7 +104,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
          // Settle all cross-margined markets and write a checkpoint
         if (crossed(account, market)) {
             for (uint256 i; i < markets[account].length(); i++) {
-                IMarket marketToSettle = markets[account].at(i);
+                IMarket marketToSettle = IMarket(markets[account].at(i));
                 if (market != marketToSettle) marketToSettle.settle(account);
             }
         }
@@ -117,7 +117,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         // if protected, check that maintenance is violated, otherwise check if update is properly margined
         if (protected) {
             if ((isolated(account, market) ? _checkIsolatedMaintenance(account, market) : _checkCrossMaintained(account)))
-                return IMarket.MarketInvalidProtectionError();
+                revert IMarket.MarketInvalidProtectionError();
         } else {
             if (!(isolated(account, market) ? _checkIsolatedMargin(account, market) : _checkCrossMargin(account)))
                 revert IMarket.MarketInsufficientMarginError();
@@ -129,9 +129,6 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         // process positions closes on settlement
         IMarket market = IMarket(msg.sender);
         if (market.hasPosition(account)) return; // TODO: replace with worthCasePosition == 0
-
-        // If position is closed, deisolate all funds from the market
-        _isolate(account, Fixed6Lib.from(-1, _balances[account][market]));
 
         // degegister market from cross margin
         if (crossed(account, market)) _uncross(account, market);
@@ -151,7 +148,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         uint256 version,
         Fixed6 collateral,
         Fixed6 transfer,
-        UFixed6 tradeFee,
+        Fixed6 tradeFee,
         UFixed6 settlementFee
     ) external onlyMarket {
         // determine applicable market
@@ -160,7 +157,13 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
         // incorporate collateral updates into the checkpoint
         Checkpoint memory currentCheckpoint = _checkpoints[account][market][version].read();
-        currentCheckpoint.incorporate(collateral, transfer, tradeFee, settlementFee);
+        CheckpointLib.incorporate(
+            currentCheckpoint,
+            transfer,
+            collateral,
+            tradeFee,
+            settlementFee
+        );
         _checkpoints[account][market][version].store(currentCheckpoint);
         while (
             _current[account] > _incorporated[account] &&
@@ -173,23 +176,18 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
             _incorporated[account] >= _initialized[account]
         ) {
             Checkpoint memory nextCheckpoint = _checkpoints[account][market][_initialized[account] + 1].read();
-            nextCheckpoint.initialize(_checkpoints[account][market][_initialized[account]].read());
+            CheckpointLib.initialize(nextCheckpoint, _checkpoints[account][market][_initialized[account]].read());
             _checkpoints[account][market][_initialized[account] + 1].store(nextCheckpoint);
             _initialized[account] += 1;
         }
 
         // update balance
-        _balances[account][market] = _balances[account][market]
-            .add(collateral.sub(Fixed6Lib.from(tradeFee)).sub(Fixed6Lib.from(settlementFee)));
+        balances[account][market] = UFixed6Lib.from(Fixed6Lib.from(balances[account][market])
+            .add(collateral.sub(tradeFee).sub(Fixed6Lib.from(settlementFee))));
     }
 
     /// @inheritdoc IMargin
-    function crossMarginCheckpoints(address account, uint256 version) external view returns (Checkpoint memory) {
-        return _checkpoints[account][CROSS_MARGIN][version].read();
-    }
-
-    /// @inheritdoc IMargin
-    function isolatedCheckpoints(address account, IMarket market, uint256 version) external view returns (Checkpoint memory) {
+    function checkpoints(address account, IMarket market, uint256 version) external view returns (Checkpoint memory) {
         return _checkpoints[account][market][version].read();
     }
 
@@ -200,7 +198,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         if (amount.gt(Fixed6Lib.ZERO)) DSU.pull(msg.sender, UFixed18Lib.from(amount.abs()));
         if (amount.lt(Fixed6Lib.ZERO)) DSU.push(msg.sender, UFixed18Lib.from(amount.abs()));
 
-        _balances[account][CROSS_MARGIN] = _balances[account][CROSS_MARGIN].add(amount);
+        balances[account][CROSS_MARGIN] = UFixed6Lib.from(Fixed6Lib.from(balances[account][CROSS_MARGIN]).add(amount));
         if (amount.lt(Fixed6Lib.ZERO) && !_checkCrossMargin(account))
             revert IMarket.MarketInsufficientMarginError();
 
@@ -210,14 +208,14 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     // TODO
     function _checkIsolatedMargin(address account, IMarket market) private view returns (bool) {
         // TODO: add stale check
-        return _balances[account][market].gte(market.marginRequired(account));
+        return balances[account][market].gte(market.marginRequired(account));
         // TODO: add lt zero check
     }
 
     // TODO
     function _checkIsolatedMaintenance(address account, IMarket market) private view returns (bool) {
         // TODO: add stale check
-        return _balances[account][market].gte(market.maintenanceRequired(account));
+        return balances[account][market].gte(market.maintenanceRequired(account));
         // TODO: add lt zero check
     }
 
@@ -226,8 +224,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         // TODO: add stale check
         UFixed6 totalRequirement;
         for (uint256 i; i < markets[account].length(); i++)
-            totalRequirement = totalRequirement.add(markets[account].at(i).marginRequired(account, UFixed6Lib.ZERO));
-        return _balances[account][CROSS_MARGIN].gte(totalRequirement);
+            totalRequirement = totalRequirement.add(IMarket(markets[account].at(i)).marginRequired(account));
+        return balances[account][CROSS_MARGIN].gte(totalRequirement);
         // TODO: add lt zero check
     }
 
@@ -236,8 +234,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         // TODO: add stale check
         UFixed6 totalRequirement;
         for (uint256 i; i < markets[account].length(); i++)
-            totalRequirement = totalRequirement.add(markets[account].at(i).maintenanceRequired(account));
-        return _balances[account][CROSS_MARGIN].gte(totalRequirement);
+            totalRequirement = totalRequirement.add(IMarket(markets[account].at(i)).maintenanceRequired(account));
+        return balances[account][CROSS_MARGIN].gte(totalRequirement);
         // TODO: add lt zero check
     }
 
@@ -246,7 +244,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         Checkpoint memory currentCheckpoint = _checkpoints[account][market][version].read();
 
         // if empty, set pending to registered markets or 1 for isolated
-        if (currentCheckpoint.empty())
+        if (CheckpointLib.empty(currentCheckpoint))
             currentCheckpoint.pending = (market == CROSS_MARGIN ? markets[account].length() : 1);
 
         // update transfer
@@ -255,8 +253,8 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         // if cross margin, update all other markets
         if (market == CROSS_MARGIN)
             for (uint256 i; i < markets[account].length(); i++)
-                if (markets[account].at(i) != market)
-                    markets[account].at(i).update(account, Fixed6Lib.ZERO, address(0));
+                if (IMarket(markets[account].at(i)) != market)
+                    IMarket(markets[account].at(i)).update(account, Fixed6Lib.ZERO, address(0));
     }
 
     /// @dev Upserts a market into cross-margin collections
@@ -282,7 +280,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @dev Determines whether market is in isolated mode for a specific user
     function isolated(address account, IMarket market) public view returns (bool) {
         // market has an isolated balance
-        return !_balances[account][market].isZero();
+        return !balances[account][market].isZero();
     }
 
     /// @dev Only if caller is a market from the same Perennial deployment

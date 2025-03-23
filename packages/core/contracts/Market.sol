@@ -418,7 +418,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param account The account with isolated collateral to query
     /// @param version The version to query
     function checkpoints(address account, uint256 version) external view returns (Checkpoint memory) {
-        return margin.isolatedCheckpoints(account, this, version);
+        return margin.checkpoints(account, this, version);
     }
 
     /// @inheritdoc IMarket
@@ -439,10 +439,8 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     }
 
     /// @inheritdoc IMarket
-    function marginRequired(address account,
-        UFixed6 minCollateralization
-    ) external view returns (UFixed6 requirement) {
-        (,, requirement) = _marginRequired(account, minCollateralization);
+    function marginRequired(address account) external view returns (UFixed6 requirement) {
+        (,, requirement) = _marginRequired(account);
     }
 
     /// @dev Aggregates collateral and price adjustments from guarantees and orders for a user
@@ -468,15 +466,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         }
     }
 
-    function _marginRequired(
-        address account,
-        UFixed6 minCollateralization
-    ) private view returns (OracleVersion memory latestOracleVersion, uint256 currentTimestamp, UFixed6 requirement) {
+    function _marginRequired(address account) private view returns (OracleVersion memory latestOracleVersion, uint256 currentTimestamp, UFixed6 requirement) {
         (latestOracleVersion, currentTimestamp) = oracle.status();
         (Fixed6 collateralAdjustment, UFixed6 maxPendingMagnitude) = _calculateAdjustments(account, latestOracleVersion);
 
         UFixed6 worstCasePending = _worstCasePendingLocal(_positions[account].read(), _pendings[account].read(), maxPendingMagnitude);
-        requirement = PositionLib.margin(worstCasePending, latestOracleVersion, _riskParameter.read(), minCollateralization);
+        requirement = PositionLib.margin(worstCasePending, latestOracleVersion, _riskParameter.read());
         requirement = UFixed6Lib.unsafeFrom(Fixed6Lib.from(requirement).sub(collateralAdjustment));
     }
 
@@ -835,7 +830,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         Context memory context
     ) private view returns (SettlementContext memory settlementContext) {
         settlementContext.latestVersion = _versions[context.latestPositionGlobal.timestamp].read();
-        settlementContext.latestCheckpoint = margin.isolatedCheckpoints(
+        settlementContext.latestCheckpoint = margin.checkpoints(
             context.account,
             this,
             context.latestPositionLocal.timestamp
@@ -973,7 +968,14 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // calculate and store collateral change for account
         Fixed6 pnl = context.local.update(newOrderId, accumulationResponse);
-        margin.postProcessLocal(context.account, newOrder.timestamp, settlementContext.latestCheckpoint, pnl);
+        margin.postProcessLocal(
+            context.account,
+            newOrder.timestamp,
+            settlementContext.latestCheckpoint,
+            newOrder.collateral,
+            Fixed6Lib.from(accumulationResponse.tradeFee),
+            accumulationResponse.settlementFee.add(accumulationResponse.liquidationFee)
+        );
 
         _credit(liquidators[context.account][newOrderId], accumulationResponse.liquidationFee);
         _credit(orderReferrers[context.account][newOrderId], accumulationResponse.subtractiveFee);

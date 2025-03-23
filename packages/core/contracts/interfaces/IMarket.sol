@@ -161,7 +161,7 @@ interface IMarket is IInstance {
     /// @param account User for whom maintenance requirement will be checked
     function maintenanceRequired(address account) external view returns (UFixed6 requirement);
     /// @notice Calculates margin requirement for an account at the current price
-    function marginRequired(address account, UFixed6 minCollateralization) external view returns (UFixed6 requirement);
+    function marginRequired(address account) external view returns (UFixed6 requirement);
     /// @notice Returns true if oracle price is older than the period configured in risk parameters
     function stale() external view returns (bool isStale);
     function settle(address account) external;

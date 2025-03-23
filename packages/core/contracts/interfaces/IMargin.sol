@@ -91,19 +91,13 @@ interface IMargin is IInstance {
     /// If isolated collateral balance becomes zero, market is no longer isolated.
     /// @param account User whose isolated balance will be adjusted
     /// @param amount Quantity of collateral to designate as isolated
-    /// @param market Identifies where isolated balance should be adjusted
-    function preUpdate(address account, IMarket market, Fixed6 amount) external;
+    function preUpdate(address account, Fixed6 amount) external;
 
     /// @notice Withdraws claimable balance
     /// @param account User whose claimable balance will be withdrawn
     /// @param receiver Claimed DSU will be transferred to this address
     /// @param feeReceived Amount of DSU transferred to receiver
     function claim(address account, address receiver) external returns (UFixed6 feeReceived);
-
-    /// @dev Called by market when Market.update is called, used to adjust isolated collateral balance for market
-    /// @param account User intending to adjust isolated collateral for market
-    /// @param collateralDelta Change in collateral requested by order prepared by market
-    function preUpdate(address account, Fixed6 collateralDelta) external;
 
     /// @dev TODO
     function postUpdate(address account, Fixed6 transfer, bool protected) external;
@@ -120,33 +114,34 @@ interface IMargin is IInstance {
     /// and writes checkpoints.
     /// @param account User whose collateral balance will be updated
     /// @param version Timestamp of the snapshot
-    /// @param latest Checkpoint prepared by the market
     /// @param collateral Collateral delta (pnl, funding, and interest) calculated by the Local
-    function postProcessLocal(address account, uint256 version, Checkpoint memory latest, Fixed6 collateral) external;
+    /// @param transfer Amount of collateral transferred from user to market
+    /// @param tradeFee Amount of trade fees and spread accumulated at this settlement
+    /// @param settlementFee Amount of settlement fees and liquidation fees accumulated at this settlement
+    function postProcessLocal(
+        address account,
+        uint256 version,
+        Fixed6 collateral,
+        Fixed6 transfer,
+        Fixed6 tradeFee,
+        UFixed6 settlementFee
+    ) external;
 
     /// @notice Retrieves the claimable balance for a user
     function claimables(address) external view returns (UFixed6);
 
-    /// @notice Retrieves the cross-margin balance for a user
-    function crossMarginBalances(address) external view returns (Fixed6);
-
     /// @notice Retrieves the isolated balance for a user and market
-    function isolatedBalances(address, IMarket) external view returns (Fixed6);
+    function balances(address, IMarket) external view returns (UFixed6);
 
     /// @notice True if a market update occured for a non-isolated market for the user
-    function isCrossed(address, IMarket) external view returns (bool);
+    function crossed(address, IMarket) external view returns (bool);
 
     /// @notice True if market has a non-zero isolated balance for the user
-    function isIsolated(address, IMarket) external view returns (bool);
-
-    /// @notice Retrieves information about an account's cross-margin collateral for a specific version
-    /// @param account User for whom the checkpoint is desired
-    /// @param version Identifies a point in time where market was settled
-    function crossMarginCheckpoints(address account, uint256 version) external view returns (Checkpoint memory);
+    function isolated(address, IMarket) external view returns (bool);
 
     /// @notice Returns information about an account's isolated collateral for a specific version
     /// @param account User for whom the checkpoint is desired
     /// @param market Market for which user has collateral isolated
     /// @param version Identifies a point in time where market was settled
-    function isolatedCheckpoints(address account, IMarket market, uint256 version) external view returns (Checkpoint memory);
+    function checkpoints(address account, IMarket market, uint256 version) external view returns (Checkpoint memory);
 }
