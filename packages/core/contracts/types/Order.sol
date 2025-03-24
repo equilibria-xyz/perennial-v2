@@ -97,7 +97,7 @@ library OrderLib {
     /// @param collateral The change in the collateral
     /// @param protect True when liquidating the position
     /// @param referralFee The referral fee
-    /// @param additiveFee The additive fee for the order
+    /// @param additiveFee The additive fee for the order (percentage of notional value)
     /// @return newOrder The resulting order
     function from(
         uint256 timestamp,
@@ -137,7 +137,7 @@ library OrderLib {
     /// @param newShort The new short
     /// @param protect Whether to protect the order
     /// @param referralFee The referral fee
-    /// @param additiveFee The additive fee for the order
+    /// @param additiveFee The additive fee for the order (percentage of notional value)
     /// @return newOrder The resulting order
     function from(
         uint256 timestamp,

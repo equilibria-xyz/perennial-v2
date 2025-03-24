@@ -258,7 +258,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param takerAmount The taker of the order (positive for long, negative for short)
     /// @param collateral In isolated mode, amount of collateral to add to or remove from the market
     /// @param referrer The referrer of the order
-    /// @param additiveFee The additive fee for the order
+    /// @param additiveFee The additive fee for the order (percentage of notional value)
     function update(
         address account,
         Fixed6 makerAmount,
