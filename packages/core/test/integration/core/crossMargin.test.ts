@@ -262,9 +262,9 @@ describe('Cross Margin', () => {
     })
 
     // check margin
-    const marginA = await marketA.market.marginRequired(userA.address, 0)
+    const marginA = await marketA.market.marginRequired(userA.address)
     expect(marginA).to.equal(parse6decimal('30300'))
-    const marginB = await marketB.market.marginRequired(userA.address, 0)
+    const marginB = await marketB.market.marginRequired(userA.address)
     expect(marginB).to.equal(parse6decimal('44910'))
 
     // cannot remove more collateral than is needed to maintain margin requirements

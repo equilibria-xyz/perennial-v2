@@ -14535,8 +14535,7 @@ describe('Market', () => {
           // no position
           await margin.connect(user).isolate(user.address, market.address, COLLATERAL)
           oracle.at.whenCalledWith(ORACLE_VERSION_1.timestamp).returns([ORACLE_VERSION_1, INITIALIZED_ORACLE_RECEIPT])
-          expect(await market.marginRequired(user.address, 0)).to.equal(0)
-          expect(await market.marginRequired(user.address, parse6decimal('0.55'))).to.equal(0)
+          expect(await market.marginRequired(user.address)).to.equal(0)
 
           // pending order
           await expect(
@@ -14546,16 +14545,13 @@ describe('Market', () => {
           ).to.not.be.reverted
 
           // margin percentage * position * price = 0.35 * 10 * 123 = 430.5
-          expect(await market.marginRequired(user.address, 0)).to.equal(parse6decimal('430.5'))
-          // min collateralization * position * price = 0.55 * 10 * 123 = 430.5
-          expect(await market.marginRequired(user.address, parse6decimal('0.55'))).to.equal(parse6decimal('676.5'))
+          expect(await market.marginRequired(user.address)).to.equal(parse6decimal('430.5'))
 
           // settled with position
           oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
           oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
           await settle(market, user)
-          expect(await market.marginRequired(user.address, 0)).to.equal(parse6decimal('430.5'))
-          expect(await market.marginRequired(user.address, parse6decimal('0.55'))).to.equal(parse6decimal('676.5'))
+          expect(await market.marginRequired(user.address)).to.equal(parse6decimal('430.5'))
         })
 
         it('checks whether price is stale', async () => {

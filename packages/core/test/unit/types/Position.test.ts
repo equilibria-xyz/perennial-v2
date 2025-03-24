@@ -940,7 +940,7 @@ describe('Position', () => {
             })
           })
 
-          context('collateral < notional * collateralization', () => {
+          context('collateral < notional * margin required', () => {
             it('returns false', async () => {
               await position.store({ ...VALID_LOCAL_POSITION, maker: parse6decimal('6') })
 
@@ -949,7 +949,6 @@ describe('Position', () => {
                   { ...VALID_ORACLE_VERSION, price: parse6decimal('100') },
                   { ...VALID_RISK_PARAMETER, margin: parse6decimal('0.3') },
                   parse6decimal('0.35'),
-                  parse6decimal('180'),
                 ),
               ).to.be.false
             })
