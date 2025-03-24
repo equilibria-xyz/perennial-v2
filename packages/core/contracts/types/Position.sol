@@ -209,15 +209,13 @@ library PositionLib {
     /// @param positionMagnitude The position magnitude value to check
     /// @param latestVersion The latest oracle version
     /// @param riskParameter The current risk parameter
-    /// @param collateralization The collateralization requirement override provided by the caller
     /// @return The margin requirement of the position
     function margin(
         UFixed6 positionMagnitude,
         OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter,
-        UFixed6 collateralization
+        RiskParameter memory riskParameter
     ) internal pure returns (UFixed6) {
-        return _collateralRequirement(positionMagnitude, latestVersion, riskParameter.margin.max(collateralization), riskParameter.minMargin);
+        return _collateralRequirement(positionMagnitude, latestVersion, riskParameter.margin, riskParameter.minMargin);
     }
 
     /// @notice Returns the collateral requirement of the position magnitude

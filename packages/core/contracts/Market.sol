@@ -465,14 +465,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
     /// @inheritdoc IMarket
     function marginRequired(
-        address account,
-        UFixed6 minCollateralization
+        address account
     ) external view returns (UFixed6 requirement) {
         (OracleVersion memory latestOracleVersion, ) = oracle.status();
         (Fixed6 collateralAdjustment, UFixed6 maxPendingMagnitude) = _calculateAdjustments(account, latestOracleVersion);
 
         UFixed6 worstCasePending = _worstCasePendingLocal(_positions[account].read(), _pendings[account].read(), maxPendingMagnitude);
-        requirement = PositionLib.margin(worstCasePending, latestOracleVersion, _riskParameter.read(), minCollateralization);
+        requirement = PositionLib.margin(worstCasePending, latestOracleVersion, _riskParameter.read());
         requirement = UFixed6Lib.unsafeFrom(Fixed6Lib.from(requirement).sub(collateralAdjustment));
     }
 
@@ -700,7 +699,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ) revert IMarket.MarketStalePriceError();
 
         // check margin
-        if (!newOrder.protected() && !margin.margined(context.account, updateContext.collateralization))
+        if (!newOrder.protected() && !margin.margined(context.account))
             revert IMarket.MarketInsufficientMarginError();
     }
 

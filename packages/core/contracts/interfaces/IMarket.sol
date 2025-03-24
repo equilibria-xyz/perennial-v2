@@ -59,7 +59,6 @@ interface IMarket is IInstance {
         Position currentPositionLocal;
         Guarantee guaranteeGlobal;
         Guarantee guaranteeLocal;
-        UFixed6 collateralization;
         Fixed6 priceAdjustment;
         UFixed6 maxPendingMagnitude;
     }
@@ -161,8 +160,7 @@ interface IMarket is IInstance {
     function maintenanceRequired(address account) external view returns (UFixed6 requirement);
     /// @notice Retrieves the margin requirement for an account
     /// @param account User for whom margin requirement will be checked
-    /// @param minCollateralization Minimum collateralization specified on an intent, 0 if none
-    function marginRequired(address account, UFixed6 minCollateralization) external view returns (UFixed6 requirement);
+    function marginRequired(address account) external view returns (UFixed6 requirement);
     /// @notice Returns true if oracle price is older than the period configured in risk parameters
     function stale() external view returns (bool isStale);
     function settle(address account) external;
