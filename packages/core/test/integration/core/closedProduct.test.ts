@@ -7,7 +7,7 @@ import { Market } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 
-export const TIMESTAMP_3 = 1739222192
+export const TIMESTAMP_3 = 1742479840
 
 describe('Closed Market', () => {
   let instanceVars: InstanceVars

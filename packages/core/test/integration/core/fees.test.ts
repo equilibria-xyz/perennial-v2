@@ -33,12 +33,12 @@ export const UNDERLYING_PRICE = utils.parseEther('3374.655169')
 export const PRICE = parse6decimal('113.882975')
 export const PRICE_1 = parse6decimal('113.796498')
 export const PRICE_2 = parse6decimal('115.046259')
-export const TIMESTAMP_0 = 1631112429
-export const TIMESTAMP_1 = 1739222192
-export const TIMESTAMP_2 = 1739222192
-export const TIMESTAMP_3 = 1631114005
-export const TIMESTAMP_4 = 1631115371
-export const TIMESTAMP_5 = 1631118731
+export const TIMESTAMP_0 = 1742479640
+export const TIMESTAMP_1 = 1742479640
+export const TIMESTAMP_2 = 1742479740
+export const TIMESTAMP_3 = 1742479840
+export const TIMESTAMP_4 = 1742479940
+export const TIMESTAMP_5 = 1742480040
 
 const RISK_PARAMS = {
   synBook: {

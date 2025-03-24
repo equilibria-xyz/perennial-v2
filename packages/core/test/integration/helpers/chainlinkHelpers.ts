@@ -1,15 +1,16 @@
 import HRE from 'hardhat'
-import { BigNumber } from 'ethers'
+import { BigNumber, utils } from 'ethers'
 import { smock, FakeContract } from '@defi-wonderland/smock'
 
 import { StorkChainlinkAdapter__factory, IOracleProvider, StorkChainlinkAdapter } from '../../../types/generated'
 import { IOracleFactory, IOracleFactory__factory, IPayoffProvider } from '@perennial/v2-oracle/types/generated'
 import { currentBlockTimestamp } from '../../../../common/testutil/time'
-
 const { ethers, deployments } = HRE
 
 export const INITIAL_PHASE_ID = 1
 export const INITIAL_AGGREGATOR_ROUND_ID = 10000
+export const UNDERLYING_PRICE = utils.parseEther('3374.655169')
+export const INITIAL_TIMESTAMP = 1742479639
 
 interface Payoff {
   provider?: IPayoffProvider
@@ -21,29 +22,26 @@ export class ChainlinkContext {
   public delay: number
 
   private storkChainlinkAdapter!: StorkChainlinkAdapter
-  private initialRoundId!: BigNumber
-  private latestRoundId!: BigNumber
-  private currentRoundId!: BigNumber
-  private decimals!: number
+  private initialTimestamp!: number
+  private latestTimestamp!: number
+  private currentTimestamp!: number
   public settlementFee!: BigNumber
   public oracleFee!: BigNumber
   public id!: string
   public oracleFactory!: FakeContract<IOracleFactory>
   public oracle!: FakeContract<IOracleProvider>
-
+  public price!: BigNumber
   constructor(payoff: Payoff, delay: number) {
     this.payoff = payoff
-    this.delay = delay * 10 ** 9
+    this.delay = delay
   }
 
   public async init(settlementFee: BigNumber, oracleFee: BigNumber): Promise<ChainlinkContext> {
     const [owner] = await ethers.getSigners()
 
-    const initialRoundId = BigNumber.from(await currentBlockTimestamp()).mul(BigNumber.from(10).pow(9))
-
-    this.initialRoundId = initialRoundId
-    this.latestRoundId = initialRoundId
-    this.currentRoundId = initialRoundId
+    this.initialTimestamp = INITIAL_TIMESTAMP
+    this.latestTimestamp = this.initialTimestamp
+    this.currentTimestamp = this.initialTimestamp
 
     this.storkChainlinkAdapter = StorkChainlinkAdapter__factory.connect(
       (await deployments.get('StorkChainlinkAdapter')).address,
@@ -52,14 +50,15 @@ export class ChainlinkContext {
     this.id = await this.storkChainlinkAdapter.priceId()
     this.oracle = await smock.fake<IOracleProvider>('IOracleProvider')
     this.oracleFactory = await smock.fake<IOracleFactory>(IOracleFactory__factory)
-    this.decimals = await this.storkChainlinkAdapter.decimals()
 
     this.oracleFactory.instances.whenCalledWith(this.oracle.address).returns(true)
     this.oracleFactory.oracles.whenCalledWith(this.id).returns(this.oracle.address)
 
     this.updateParams(settlementFee, oracleFee)
-    await this.next()
 
+    this.price = UNDERLYING_PRICE
+
+    await this.next()
     return this
   }
 
@@ -68,33 +67,27 @@ export class ChainlinkContext {
   }
 
   public async nextWithPriceModification(priceFn: (price: BigNumber) => BigNumber): Promise<void> {
-    this.currentRoundId = this.currentRoundId.add(1)
-    this.latestRoundId = this.latestRoundId.add(this.delay)
+    this.latestTimestamp = this.currentTimestamp
+    this.currentTimestamp = this.currentTimestamp + 100
 
-    const latestData = await this.storkChainlinkAdapter.getRoundData(this.latestRoundId)
-    const currentData = await this.storkChainlinkAdapter.getRoundData(this.currentRoundId)
-
-    const latestPrice =
-      this.decimals < 18
-        ? latestData.answer.mul(BigNumber.from(10).pow(18 - this.decimals))
-        : latestData.answer.div(BigNumber.from(10).pow(this.decimals - 18))
+    this.price = priceFn(this.price)
 
     const latestVersion = {
-      timestamp: latestData.startedAt,
-      price: await this._payoff(priceFn(latestPrice)),
+      timestamp: this.latestTimestamp,
+      price: await this._payoff(this.price),
       valid: true,
     }
 
     this.oracle.status.reset()
-    this.oracle.status.whenCalledWith().returns([latestVersion, currentData.startedAt])
+    this.oracle.status.whenCalledWith().returns([latestVersion, this.currentTimestamp])
     this.oracle.request.reset()
     this.oracle.request.whenCalledWith().returns()
     this.oracle.current.reset()
-    this.oracle.current.whenCalledWith().returns(currentData.startedAt)
+    this.oracle.current.whenCalledWith().returns(this.currentTimestamp)
     this.oracle.latest.reset()
     this.oracle.latest.whenCalledWith().returns(latestVersion)
     this.oracle.at
-      .whenCalledWith(latestData.startedAt)
+      .whenCalledWith(this.latestTimestamp)
       .returns([latestVersion, { settlementFee: this.settlementFee, oracleFee: this.oracleFee }])
   }
 
@@ -104,8 +97,8 @@ export class ChainlinkContext {
   }
 
   public async reset(): Promise<void> {
-    this.currentRoundId = this.initialRoundId
-    this.latestRoundId = this.initialRoundId
+    this.currentTimestamp = this.initialTimestamp
+    this.latestTimestamp = this.initialTimestamp
 
     this.oracle.at.reset()
 
@@ -115,21 +108,14 @@ export class ChainlinkContext {
   public async setInvalidVersion(): Promise<void> {
     await this.next()
 
-    const latestData = await this.storkChainlinkAdapter.getRoundData(this.latestRoundId)
-
-    const latestPrice =
-      this.decimals < 18
-        ? latestData.answer.mul(BigNumber.from(10).pow(18 - this.decimals))
-        : latestData.answer.div(BigNumber.from(10).pow(this.decimals - 18))
-
     const latestVersion = {
-      timestamp: latestData.startedAt,
-      price: await this._payoff(latestPrice),
+      timestamp: this.latestTimestamp,
+      price: await this._payoff(UNDERLYING_PRICE),
       valid: false,
     }
 
     this.oracle.at
-      .whenCalledWith(latestData.startedAt)
+      .whenCalledWith(this.latestTimestamp)
       .returns([latestVersion, { settlementFee: this.settlementFee, oracleFee: this.oracleFee }])
   }
 
