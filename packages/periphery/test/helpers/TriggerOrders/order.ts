@@ -21,6 +21,7 @@ export const DEFAULT_TRIGGER_ORDER = {
   comparison: Compare.GTE,
   price: constants.Zero,
   delta: parse6decimal('1'),
+  collateral: constants.Zero,
   maxFee: utils.parseEther('0.77'),
   isSpent: false,
   referrer: constants.AddressZero,
@@ -38,6 +39,7 @@ export function compareOrders(actual: TriggerOrderStruct, expected: TriggerOrder
   expect(actual.isSpent).to.equal(expected.isSpent)
   expect(actual.referrer).to.equal(expected.referrer)
   expect(actual.additiveFee).to.equal(expected.additiveFee)
+  expect(actual.collateral).to.equal(expected.collateral)
 }
 
 export function orderFromStructOutput(structOutput: TriggerOrderStructOutput): TriggerOrderStruct {
@@ -46,6 +48,7 @@ export function orderFromStructOutput(structOutput: TriggerOrderStructOutput): T
     comparison: structOutput.comparison,
     price: structOutput.price,
     delta: structOutput.delta,
+    collateral: structOutput.collateral,
     maxFee: structOutput.maxFee,
     isSpent: structOutput.isSpent,
     referrer: structOutput.referrer,

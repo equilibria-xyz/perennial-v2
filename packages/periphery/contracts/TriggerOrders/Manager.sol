@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.13;
 
-import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { AggregatorV3Interface, Kept, Token18 } from "@equilibria/root/attribute/Kept/Kept.sol";
 import { Fixed6, Fixed6Lib } from "@equilibria/root/number/types/Fixed6.sol";
 import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
@@ -20,14 +19,8 @@ import { PlaceOrderAction } from "./types/PlaceOrderAction.sol";
 /// @notice Base class with business logic to store and execute trigger orders.
 ///         Derived implementations created as appropriate for different chains.
 abstract contract Manager is IManager, Kept {
-    /// @dev USDC stablecoin address
-    Token6 public immutable USDC; // solhint-disable-line var-name-mixedcase
-
     /// @dev Digital Standard Unit token used for keeper compensation
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
-
-    /// @dev DSU Reserve address
-    IEmptySetReserve public immutable reserve;
 
     /// @dev Contract used to validate fee claims
     IMarketFactory public immutable marketFactory;
@@ -48,27 +41,21 @@ abstract contract Manager is IManager, Kept {
     /// Market => Account => Nonce => Order
     mapping(IMarket => mapping(address => mapping(uint256 => TriggerOrderStorage))) private _orders;
 
-    /// @notice  DEPRECATED SLOT -- previously the claimable interface fee for each account
+    /// @notice DEPRECATED SLOT -- previously the claimable interface fee for each account
     bytes32 private __unused0__;
 
     /// @dev Creates an instance
-    /// @param usdc_ USDC stablecoin
     /// @param dsu_ Digital Standard Unit stablecoin
-    /// @param reserve_ DSU reserve contract used for unwrapping
     /// @param marketFactory_ Contract used to validate fee claims
     /// @param verifier_ Used to validate EIP712 signatures
     /// @param margin_ Margin contract used for compensating keeper
     constructor(
-        Token6 usdc_,
         Token18 dsu_,
-        IEmptySetReserve reserve_,
         IMarketFactory marketFactory_,
         IOrderVerifier verifier_,
         IMargin margin_
     ) {
-        USDC = usdc_;
         DSU = dsu_;
-        reserve = reserve_;
         marketFactory = marketFactory_;
         verifier = verifier_;
         margin = margin_;
@@ -86,8 +73,6 @@ abstract contract Manager is IManager, Kept {
         __Kept__initialize(ethOracle_, DSU);
         keepConfig = keepConfig_;
         keepConfigBuffered = keepConfigBuffered_;
-        // allows DSU to unwrap to USDC
-        DSU.approve(address(reserve));
     }
 
     /// @inheritdoc IManager
