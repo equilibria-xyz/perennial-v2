@@ -19,14 +19,8 @@ import { PlaceOrderAction } from "./types/PlaceOrderAction.sol";
 /// @notice Base class with business logic to store and execute trigger orders.
 ///         Derived implementations created as appropriate for different chains.
 abstract contract Manager is IManager, Kept {
-    /// @notice DEPRECATED SLOT -- previously the USDC address
-    bytes32 private __unused0__;
-
     /// @dev Digital Standard Unit token used for keeper compensation
     Token18 public immutable DSU; // solhint-disable-line var-name-mixedcase
-
-    /// @notice DEPRECATED SLOT -- previously the DSU Reserve address
-    bytes32 private __unused1__;
 
     /// @dev Contract used to validate fee claims
     IMarketFactory public immutable marketFactory;
@@ -48,7 +42,7 @@ abstract contract Manager is IManager, Kept {
     mapping(IMarket => mapping(address => mapping(uint256 => TriggerOrderStorage))) private _orders;
 
     /// @notice DEPRECATED SLOT -- previously the claimable interface fee for each account
-    bytes32 private __unused2__;
+    bytes32 private __unused0__;
 
     /// @dev Creates an instance
     /// @param dsu_ Digital Standard Unit stablecoin
