@@ -911,6 +911,19 @@ describe('Market', () => {
             constants.AddressZero,
           )
 
+        expectOrderEq(await market.pending(), {
+          ...DEFAULT_ORDER,
+          orders: 1,
+          collateral: COLLATERAL,
+          makerPos: POSITION,
+        })
+        expectOrderEq(await market.pendings(user.address), {
+          ...DEFAULT_ORDER,
+          orders: 1,
+          collateral: COLLATERAL,
+          makerPos: POSITION,
+        })
+
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
         oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
         oracle.request.whenCalledWith(user.address).returns()
@@ -993,6 +1006,12 @@ describe('Market', () => {
           ...DEFAULT_VERSION,
           price: PRICE,
         })
+        expectOrderEq(await market.pending(), {
+          ...DEFAULT_ORDER,
+        })
+        expectOrderEq(await market.pendings(user.address), {
+          ...DEFAULT_ORDER,
+        })
       })
 
       it('settles when market is in settle-only mode, but doesnt sync', async () => {
@@ -1032,6 +1051,19 @@ describe('Market', () => {
             constants.AddressZero,
             constants.AddressZero,
           )
+
+        expectOrderEq(await market.pending(), {
+          ...DEFAULT_ORDER,
+          orders: 1,
+          collateral: COLLATERAL,
+          makerPos: POSITION,
+        })
+        expectOrderEq(await market.pendings(user.address), {
+          ...DEFAULT_ORDER,
+          orders: 1,
+          collateral: COLLATERAL,
+          makerPos: POSITION,
+        })
 
         oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
         oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
@@ -1120,6 +1152,12 @@ describe('Market', () => {
           ...DEFAULT_VERSION,
           price: PRICE,
         })
+        expectOrderEq(await market.pending(), {
+          ...DEFAULT_ORDER,
+        })
+        expectOrderEq(await market.pendings(user.address), {
+          ...DEFAULT_ORDER,
+        })
       })
 
       it('reverts when paused', async () => {
@@ -1141,7 +1179,7 @@ describe('Market', () => {
       })
     })
 
-    describe('#update', async () => {
+    describe.only('#update', async () => {
       beforeEach(async () => {
         await market.connect(owner).updateParameter(marketParameter)
 
@@ -1201,6 +1239,14 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_2.timestamp,
             collateral: COLLATERAL,
           })
+          expectOrderEq(await market.pending(), {
+            ...DEFAULT_ORDER,
+            collateral: COLLATERAL,
+          })
+          expectOrderEq(await market.pendings(user.address), {
+            ...DEFAULT_ORDER,
+            collateral: COLLATERAL,
+          })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
             ...DEFAULT_VERSION,
             price: PRICE,
@@ -1251,6 +1297,12 @@ describe('Market', () => {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
           })
+          expectOrderEq(await market.pending(), {
+            ...DEFAULT_ORDER,
+          })
+          expectOrderEq(await market.pendings(user.address), {
+            ...DEFAULT_ORDER,
+          })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
             ...DEFAULT_VERSION,
             price: PRICE,
@@ -1285,6 +1337,14 @@ describe('Market', () => {
           expectOrderEq(await market.pendingOrders(user.address, 1), {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
+            collateral: COLLATERAL,
+          })
+          expectOrderEq(await market.pending(), {
+            ...DEFAULT_ORDER,
+            collateral: COLLATERAL,
+          })
+          expectOrderEq(await market.pendings(user.address), {
+            ...DEFAULT_ORDER,
             collateral: COLLATERAL,
           })
           expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
@@ -1345,6 +1405,10 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_3.timestamp,
             collateral: -COLLATERAL,
           })
+          expectOrderEq(await market.pendings(user.address), {
+            ...DEFAULT_ORDER,
+            collateral: -COLLATERAL,
+          })
           expectGlobalEq(await market.global(), {
             ...DEFAULT_GLOBAL,
             ...DEFAULT_GLOBAL,
@@ -1359,6 +1423,10 @@ describe('Market', () => {
           expectOrderEq(await market.pendingOrder(2), {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_3.timestamp,
+            collateral: -COLLATERAL,
+          })
+          expectOrderEq(await market.pending(), {
+            ...DEFAULT_ORDER,
             collateral: -COLLATERAL,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
@@ -1397,6 +1465,10 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_2.timestamp,
             collateral: COLLATERAL,
           })
+          expectOrderEq(await market.pendings(user.address), {
+            ...DEFAULT_ORDER,
+            collateral: COLLATERAL,
+          })
           expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
             ...DEFAULT_CHECKPOINT,
           })
@@ -1412,6 +1484,10 @@ describe('Market', () => {
           expectOrderEq(await market.pendingOrder(1), {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_2.timestamp,
+            collateral: COLLATERAL,
+          })
+          expectOrderEq(await market.pending(), {
+            ...DEFAULT_ORDER,
             collateral: COLLATERAL,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
@@ -1454,6 +1530,10 @@ describe('Market', () => {
             timestamp: ORACLE_VERSION_6.timestamp,
             collateral: -COLLATERAL,
           })
+          expectOrderEq(await market.pendings(user.address), {
+            ...DEFAULT_ORDER,
+            collateral: -COLLATERAL,
+          })
           expectGlobalEq(await market.global(), {
             ...DEFAULT_GLOBAL,
             currentId: 2,
@@ -1467,6 +1547,10 @@ describe('Market', () => {
           expectOrderEq(await market.pendingOrder(2), {
             ...DEFAULT_ORDER,
             timestamp: ORACLE_VERSION_6.timestamp,
+            collateral: -COLLATERAL,
+          })
+          expectOrderEq(await market.pending(), {
+            ...DEFAULT_ORDER,
             collateral: -COLLATERAL,
           })
           expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
@@ -1523,6 +1607,12 @@ describe('Market', () => {
               collateral: COLLATERAL,
               makerPos: POSITION,
             })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
             expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
               ...DEFAULT_CHECKPOINT,
             })
@@ -1543,6 +1633,12 @@ describe('Market', () => {
               collateral: COLLATERAL,
               makerPos: POSITION,
             })
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
             expectVersionEq(await market.versions(ORACLE_VERSION_1.timestamp), {
               ...DEFAULT_VERSION,
               price: PRICE,
@@ -1552,18 +1648,6 @@ describe('Market', () => {
             })
             expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
               ...DEFAULT_GUARANTEE,
-            })
-            expectOrderEq(await market.pending(), {
-              ...DEFAULT_ORDER,
-              orders: 1,
-              collateral: COLLATERAL,
-              makerPos: POSITION,
-            })
-            expectOrderEq(await market.pendings(user.address), {
-              ...DEFAULT_ORDER,
-              orders: 1,
-              collateral: COLLATERAL,
-              makerPos: POSITION,
             })
           })
 
@@ -1608,6 +1692,19 @@ describe('Market', () => {
                 constants.AddressZero,
                 constants.AddressZero,
               )
+
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -1685,6 +1782,13 @@ describe('Market', () => {
               ...DEFAULT_VERSION,
               price: PRICE,
             })
+
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+            })
           })
 
           it('opens a second position (same version)', async () => {
@@ -1697,6 +1801,19 @@ describe('Market', () => {
                 COLLATERAL,
                 constants.AddressZero,
               )
+
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
 
             await expect(
               market
@@ -1735,6 +1852,12 @@ describe('Market', () => {
               collateral: COLLATERAL,
               makerPos: POSITION.mul(2),
             })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+              orders: 2,
+              collateral: COLLATERAL,
+              makerPos: POSITION.mul(2),
+            })
             expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
               ...DEFAULT_CHECKPOINT,
             })
@@ -1755,6 +1878,12 @@ describe('Market', () => {
               collateral: COLLATERAL,
               makerPos: POSITION.mul(2),
             })
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+              orders: 2,
+              collateral: COLLATERAL,
+              makerPos: POSITION.mul(2),
+            })
           })
 
           it('opens a second position and settles (same version)', async () => {
@@ -1767,6 +1896,19 @@ describe('Market', () => {
                 COLLATERAL,
                 constants.AddressZero,
               )
+
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
 
             await expect(
               market
@@ -1788,6 +1930,19 @@ describe('Market', () => {
                 constants.AddressZero,
                 constants.AddressZero,
               )
+
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+              orders: 2,
+              collateral: COLLATERAL,
+              makerPos: POSITION.mul(2),
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+              orders: 2,
+              collateral: COLLATERAL,
+              makerPos: POSITION.mul(2),
+            })
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -1839,6 +1994,13 @@ describe('Market', () => {
               ...DEFAULT_VERSION,
               price: PRICE,
             })
+
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+            })
           })
 
           it('opens a second position (next version)', async () => {
@@ -1851,6 +2013,19 @@ describe('Market', () => {
                 COLLATERAL,
                 constants.AddressZero,
               )
+
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -1919,6 +2094,17 @@ describe('Market', () => {
               ...DEFAULT_VERSION,
               price: PRICE,
             })
+
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              makerPos: POSITION,
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              makerPos: POSITION,
+            })
           })
 
           it('opens a second position and settles (next version)', async () => {
@@ -1931,6 +2117,19 @@ describe('Market', () => {
                 COLLATERAL,
                 constants.AddressZero,
               )
+
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
@@ -1956,6 +2155,17 @@ describe('Market', () => {
                 constants.AddressZero,
                 constants.AddressZero,
               )
+
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              makerPos: POSITION,
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              makerPos: POSITION,
+            })
 
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_3, ORACLE_VERSION_4.timestamp])
@@ -2007,6 +2217,13 @@ describe('Market', () => {
               ...DEFAULT_VERSION,
               price: PRICE,
             })
+
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+            })
           })
 
           it('opens the position and settles later', async () => {
@@ -2037,6 +2254,19 @@ describe('Market', () => {
                 constants.AddressZero,
                 constants.AddressZero,
               )
+
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
 
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.at.whenCalledWith(ORACLE_VERSION_3.timestamp).returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
@@ -2089,6 +2319,13 @@ describe('Market', () => {
               ...DEFAULT_VERSION,
               price: PRICE,
             })
+
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+            })
           })
 
           it('opens the position and settles later with fee', async () => {
@@ -2124,6 +2361,19 @@ describe('Market', () => {
                 constants.AddressZero,
                 constants.AddressZero,
               )
+
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              collateral: COLLATERAL,
+              makerPos: POSITION,
+            })
 
             oracle.at
               .whenCalledWith(ORACLE_VERSION_2.timestamp)
@@ -2186,6 +2436,13 @@ describe('Market', () => {
               price: PRICE,
               liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
             })
+
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+            })
           })
         })
 
@@ -2240,6 +2497,17 @@ describe('Market', () => {
                   constants.AddressZero,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION,
+              })
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -2313,6 +2581,17 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION,
+              })
+
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_3.timestamp)
                 .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
@@ -2361,6 +2640,13 @@ describe('Market', () => {
                 ...DEFAULT_VERSION,
                 price: PRICE,
               })
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+              })
             })
 
             it('closes a second position (same version)', async () => {
@@ -2373,6 +2659,17 @@ describe('Market', () => {
                   0,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION.div(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION.div(2),
+              })
 
               await expect(
                 market
@@ -2418,6 +2715,11 @@ describe('Market', () => {
                 orders: 2,
                 makerNeg: POSITION,
               })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                makerNeg: POSITION,
+              })
               expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_CHECKPOINT,
               })
@@ -2439,6 +2741,11 @@ describe('Market', () => {
                 orders: 2,
                 makerNeg: POSITION,
               })
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                makerNeg: POSITION,
+              })
               expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                 ...DEFAULT_VERSION,
                 price: PRICE,
@@ -2455,6 +2762,17 @@ describe('Market', () => {
                   0,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION.div(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION.div(2),
+              })
 
               await expect(
                 market
@@ -2531,6 +2849,13 @@ describe('Market', () => {
                 ...DEFAULT_VERSION,
                 price: PRICE,
               })
+
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+              })
             })
 
             it('closes a second position (next version)', async () => {
@@ -2543,6 +2868,17 @@ describe('Market', () => {
                   0,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION.div(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION.div(2),
+              })
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_3.timestamp)
@@ -2594,6 +2930,11 @@ describe('Market', () => {
                 orders: 1,
                 makerNeg: POSITION.div(2),
               })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION.div(2),
+              })
               expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_CHECKPOINT,
               })
@@ -2614,6 +2955,11 @@ describe('Market', () => {
                 orders: 1,
                 makerNeg: POSITION.div(2),
               })
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION.div(2),
+              })
               expectVersionEq(await market.versions(ORACLE_VERSION_3.timestamp), {
                 ...DEFAULT_VERSION,
                 price: PRICE,
@@ -2630,6 +2976,17 @@ describe('Market', () => {
                   0,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION.div(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION.div(2),
+              })
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_3.timestamp)
@@ -2710,6 +3067,13 @@ describe('Market', () => {
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
                 price: PRICE,
+              })
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
               })
             })
 
@@ -2741,6 +3105,17 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION,
+              })
+
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_3.timestamp)
                 .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
@@ -2791,6 +3166,13 @@ describe('Market', () => {
               expectVersionEq(await market.versions(ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_VERSION,
                 price: PRICE,
+              })
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
               })
             })
 
@@ -2831,6 +3213,17 @@ describe('Market', () => {
                   constants.AddressZero,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION,
+              })
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_3.timestamp)
@@ -2891,6 +3284,13 @@ describe('Market', () => {
                 price: PRICE,
                 liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
               })
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+              })
             })
           })
         })
@@ -2933,6 +3333,20 @@ describe('Market', () => {
                   constants.AddressZero,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                makerPos: POSITION,
+                longPos: POSITION,
+                collateral: COLLATERAL.mul(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                longPos: POSITION,
+                collateral: COLLATERAL,
+              })
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -3000,6 +3414,20 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                makerPos: POSITION,
+                longPos: POSITION,
+                collateral: COLLATERAL.mul(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                longPos: POSITION,
+                collateral: COLLATERAL,
+              })
+
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_2.timestamp)
                 .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
@@ -3054,6 +3482,19 @@ describe('Market', () => {
                 ...DEFAULT_VERSION,
                 price: PRICE,
               })
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(userB.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerPos: POSITION,
+                collateral: COLLATERAL,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+              })
             })
 
             it('opens a second position (same version)', async () => {
@@ -3065,6 +3506,20 @@ describe('Market', () => {
                   COLLATERAL,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                makerPos: POSITION,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL.mul(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL,
+              })
 
               await expect(
                 market
@@ -3086,6 +3541,20 @@ describe('Market', () => {
                   constants.AddressZero,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 3,
+                makerPos: POSITION,
+                longPos: POSITION,
+                collateral: COLLATERAL.mul(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                longPos: POSITION,
+                collateral: COLLATERAL,
+              })
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -3135,6 +3604,20 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                makerPos: POSITION,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL.mul(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL,
+              })
+
               await expect(
                 market
                   .connect(user)
@@ -3155,6 +3638,20 @@ describe('Market', () => {
                   constants.AddressZero,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 3,
+                makerPos: POSITION,
+                longPos: POSITION,
+                collateral: COLLATERAL.mul(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                longPos: POSITION,
+                collateral: COLLATERAL,
+              })
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_2.timestamp)
@@ -3209,6 +3706,19 @@ describe('Market', () => {
                 ...DEFAULT_VERSION,
                 price: PRICE,
               })
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(userB.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerPos: POSITION,
+                collateral: COLLATERAL,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+              })
             })
 
             it('opens a second position (next version)', async () => {
@@ -3220,6 +3730,20 @@ describe('Market', () => {
                   COLLATERAL,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                makerPos: POSITION,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL.mul(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL,
+              })
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_2.timestamp)
@@ -3247,6 +3771,17 @@ describe('Market', () => {
                   constants.AddressZero,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                longPos: POSITION.div(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                longPos: POSITION.div(2),
+              })
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -3302,6 +3837,20 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                makerPos: POSITION,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL.mul(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL,
+              })
+
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_2.timestamp)
                 .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
@@ -3328,6 +3877,17 @@ describe('Market', () => {
                   constants.AddressZero,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                longPos: POSITION.div(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                longPos: POSITION.div(2),
+              })
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_3.timestamp)
@@ -3413,6 +3973,16 @@ describe('Market', () => {
                 longPreValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
                 price: PRICE,
               })
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(userB.address), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+              })
             })
 
             it('opens the position and settles later', async () => {
@@ -3442,6 +4012,20 @@ describe('Market', () => {
                   constants.AddressZero,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                makerPos: POSITION,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL.mul(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL,
+              })
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_2.timestamp)
@@ -3534,6 +4118,16 @@ describe('Market', () => {
                 longPreValue: { _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1) },
                 price: PRICE,
               })
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(userB.address), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+              })
             })
 
             it('opens the position and settles later with fee', async () => {
@@ -3568,6 +4162,20 @@ describe('Market', () => {
                   constants.AddressZero,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                makerPos: POSITION,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL.mul(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL,
+              })
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_2.timestamp)
@@ -3669,6 +4277,16 @@ describe('Market', () => {
                 price: PRICE,
                 liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
               })
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(userB.address), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+              })
             })
 
             it('settles opens the position and settles later with fee', async () => {
@@ -3679,6 +4297,16 @@ describe('Market', () => {
               oracle.request.whenCalledWith(user.address).returns()
 
               await settle(market, user)
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(userB.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerPos: POSITION,
+                collateral: COLLATERAL,
+              })
 
               await updateSynBook(market, DEFAULT_SYN_BOOK)
 
@@ -3716,6 +4344,19 @@ describe('Market', () => {
                   constants.AddressZero,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                longPos: POSITION.div(2),
+                collateral: COLLATERAL,
+              })
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_3.timestamp)
@@ -3817,6 +4458,16 @@ describe('Market', () => {
                 price: PRICE,
                 liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
               })
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(userB.address), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+              })
             })
           })
 
@@ -3896,6 +4547,11 @@ describe('Market', () => {
                   orders: 1,
                   longNeg: POSITION.div(2),
                 })
+                expectOrderEq(await market.pendings(user.address), {
+                  ...DEFAULT_ORDER,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
+                })
                 expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_CHECKPOINT,
                 })
@@ -3914,6 +4570,11 @@ describe('Market', () => {
                 expectOrderEq(await market.pendingOrder(2), {
                   ...DEFAULT_ORDER,
                   timestamp: ORACLE_VERSION_3.timestamp,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
+                })
+                expectOrderEq(await market.pending(), {
+                  ...DEFAULT_ORDER,
                   orders: 1,
                   longNeg: POSITION.div(2),
                 })
@@ -3949,6 +4610,17 @@ describe('Market', () => {
                     constants.AddressZero,
                     constants.AddressZero,
                   )
+
+                expectOrderEq(await market.pending(), {
+                  ...DEFAULT_ORDER,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
+                })
+                expectOrderEq(await market.pendings(user.address), {
+                  ...DEFAULT_ORDER,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
+                })
 
                 oracle.at
                   .whenCalledWith(ORACLE_VERSION_3.timestamp)
@@ -4034,6 +4706,16 @@ describe('Market', () => {
                   },
                   price: PRICE,
                 })
+
+                expectOrderEq(await market.pending(), {
+                  ...DEFAULT_ORDER,
+                })
+                expectOrderEq(await market.pendings(user.address), {
+                  ...DEFAULT_ORDER,
+                })
+                expectOrderEq(await market.pendings(userB.address), {
+                  ...DEFAULT_ORDER,
+                })
               })
 
               it('closes a second position (same version)', async () => {
@@ -4045,6 +4727,17 @@ describe('Market', () => {
                     0,
                     constants.AddressZero,
                   )
+
+                expectOrderEq(await market.pending(), {
+                  ...DEFAULT_ORDER,
+                  orders: 1,
+                  longNeg: POSITION.div(4),
+                })
+                expectOrderEq(await market.pendings(user.address), {
+                  ...DEFAULT_ORDER,
+                  orders: 1,
+                  longNeg: POSITION.div(4),
+                })
 
                 await expect(
                   market
@@ -4089,6 +4782,11 @@ describe('Market', () => {
                   orders: 2,
                   longNeg: POSITION.div(2),
                 })
+                expectOrderEq(await market.pendings(user.address), {
+                  ...DEFAULT_ORDER,
+                  orders: 2,
+                  longNeg: POSITION.div(2),
+                })
                 expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_3.timestamp), {
                   ...DEFAULT_CHECKPOINT,
                 })
@@ -4111,6 +4809,11 @@ describe('Market', () => {
                   orders: 2,
                   longNeg: POSITION.div(2),
                 })
+                expectOrderEq(await market.pending(), {
+                  ...DEFAULT_ORDER,
+                  orders: 2,
+                  longNeg: POSITION.div(2),
+                })
                 expectVersionEq(await market.versions(ORACLE_VERSION_2.timestamp), {
                   ...DEFAULT_VERSION,
                   price: PRICE,
@@ -4126,6 +4829,17 @@ describe('Market', () => {
                     0,
                     constants.AddressZero,
                   )
+
+                expectOrderEq(await market.pending(), {
+                  ...DEFAULT_ORDER,
+                  orders: 1,
+                  longNeg: POSITION.div(4),
+                })
+                expectOrderEq(await market.pendings(user.address), {
+                  ...DEFAULT_ORDER,
+                  orders: 1,
+                  longNeg: POSITION.div(4),
+                })
 
                 await expect(
                   market
@@ -4236,6 +4950,13 @@ describe('Market', () => {
                     _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                   },
                   price: PRICE,
+                })
+
+                expectOrderEq(await market.pendings(user.address), {
+                  ...DEFAULT_ORDER,
+                })
+                expectOrderEq(await market.pending(), {
+                  ...DEFAULT_ORDER,
                 })
               })
 
@@ -4380,6 +5101,17 @@ describe('Market', () => {
                     constants.AddressZero,
                   )
 
+                expectOrderEq(await market.pending(), {
+                  ...DEFAULT_ORDER,
+                  orders: 1,
+                  longNeg: POSITION.div(4),
+                })
+                expectOrderEq(await market.pendings(user.address), {
+                  ...DEFAULT_ORDER,
+                  orders: 1,
+                  longNeg: POSITION.div(4),
+                })
+
                 oracle.at
                   .whenCalledWith(ORACLE_VERSION_3.timestamp)
                   .returns([ORACLE_VERSION_3, INITIALIZED_ORACLE_RECEIPT])
@@ -4411,6 +5143,17 @@ describe('Market', () => {
                     constants.AddressZero,
                     constants.AddressZero,
                   )
+
+                expectOrderEq(await market.pending(), {
+                  ...DEFAULT_ORDER,
+                  orders: 1,
+                  longNeg: POSITION.div(4),
+                })
+                expectOrderEq(await market.pendings(user.address), {
+                  ...DEFAULT_ORDER,
+                  orders: 1,
+                  longNeg: POSITION.div(4),
+                })
 
                 oracle.at
                   .whenCalledWith(ORACLE_VERSION_4.timestamp)
@@ -4522,6 +5265,16 @@ describe('Market', () => {
                   },
                   price: PRICE,
                 })
+
+                expectOrderEq(await market.pending(), {
+                  ...DEFAULT_ORDER,
+                })
+                expectOrderEq(await market.pendings(user.address), {
+                  ...DEFAULT_ORDER,
+                })
+                expectOrderEq(await market.pendings(userB.address), {
+                  ...DEFAULT_ORDER,
+                })
               })
 
               it('closes the position and settles later', async () => {
@@ -4550,6 +5303,17 @@ describe('Market', () => {
                     constants.AddressZero,
                     constants.AddressZero,
                   )
+
+                expectOrderEq(await market.pending(), {
+                  ...DEFAULT_ORDER,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
+                })
+                expectOrderEq(await market.pendings(user.address), {
+                  ...DEFAULT_ORDER,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
+                })
 
                 oracle.at
                   .whenCalledWith(ORACLE_VERSION_3.timestamp)
@@ -4639,6 +5403,16 @@ describe('Market', () => {
                   },
                   price: PRICE,
                 })
+
+                expectOrderEq(await market.pending(), {
+                  ...DEFAULT_ORDER,
+                })
+                expectOrderEq(await market.pendings(user.address), {
+                  ...DEFAULT_ORDER,
+                })
+                expectOrderEq(await market.pendings(userB.address), {
+                  ...DEFAULT_ORDER,
+                })
               })
 
               it('closes the position and settles later with fee', async () => {
@@ -4677,6 +5451,17 @@ describe('Market', () => {
                     constants.AddressZero,
                     constants.AddressZero,
                   )
+
+                expectOrderEq(await market.pending(), {
+                  ...DEFAULT_ORDER,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
+                })
+                expectOrderEq(await market.pendings(user.address), {
+                  ...DEFAULT_ORDER,
+                  orders: 1,
+                  longNeg: POSITION.div(2),
+                })
 
                 oracle.at
                   .whenCalledWith(ORACLE_VERSION_3.timestamp)
@@ -4774,6 +5559,16 @@ describe('Market', () => {
                   makerCloseValue: { _value: PRICE_IMPACT.div(10) },
                   price: PRICE,
                   liquidationFee: { _value: -riskParameter.liquidationFee.mul(SETTLEMENT_FEE).div(1e6) },
+                })
+
+                expectOrderEq(await market.pending(), {
+                  ...DEFAULT_ORDER,
+                })
+                expectOrderEq(await market.pendings(user.address), {
+                  ...DEFAULT_ORDER,
+                })
+                expectOrderEq(await market.pendings(userB.address), {
+                  ...DEFAULT_ORDER,
                 })
               })
             })
@@ -4886,6 +5681,16 @@ describe('Market', () => {
               longPos: POSITION.div(2),
               makerPos: POSITION,
               collateral: COLLATERAL.mul(2),
+            })
+
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+            })
+            expectOrderEq(await market.pendings(userB.address), {
+              ...DEFAULT_ORDER,
+            })
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
             })
           })
 
@@ -5035,6 +5840,16 @@ describe('Market', () => {
               },
               price: oracleVersionLowerPrice.price,
             })
+
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+            })
+            expectOrderEq(await market.pendings(userB.address), {
+              ...DEFAULT_ORDER,
+            })
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+            })
           })
 
           it('higher price same rate settle', async () => {
@@ -5182,6 +5997,16 @@ describe('Market', () => {
               },
               price: oracleVersionHigherPrice.price,
             })
+
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+            })
+            expectOrderEq(await market.pendings(userB.address), {
+              ...DEFAULT_ORDER,
+            })
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+            })
           })
         })
 
@@ -5251,6 +6076,18 @@ describe('Market', () => {
                   constants.AddressZero,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION,
+              })
+              expectOrderEq(await market.pendings(userB.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                protection: 1,
+                makerNeg: POSITION,
+              })
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_4.timestamp)
@@ -5417,6 +6254,16 @@ describe('Market', () => {
                 },
                 price: oracleVersionHigherPrice2.price,
               })
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(userB.address), {
+                ...DEFAULT_ORDER,
+              })
             })
 
             it('with partial socialization', async () => {
@@ -5474,6 +6321,18 @@ describe('Market', () => {
                   constants.AddressZero,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION,
+              })
+              expectOrderEq(await market.pendings(userB.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                protection: 1,
+                makerNeg: POSITION,
+              })
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_4.timestamp)
@@ -5689,6 +6548,16 @@ describe('Market', () => {
                 },
                 price: oracleVersionHigherPrice2.price,
               })
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(userB.address), {
+                ...DEFAULT_ORDER,
+              })
             })
 
             it.skip('with shortfall', async () => {
@@ -5775,6 +6644,12 @@ describe('Market', () => {
                 longPos: POSITION.div(2),
                 collateral: COLLATERAL,
               })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                makerNeg: POSITION.div(2),
+                collateral: COLLATERAL,
+              })
               expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_CHECKPOINT,
               })
@@ -5803,6 +6678,12 @@ describe('Market', () => {
                 makerNeg: POSITION,
                 protection: 1,
               })
+              expectOrderEq(await market.pendings(userB.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                protection: 1,
+                makerNeg: POSITION,
+              })
               expectCheckpointEq(await market.checkpoints(userB.address, ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_CHECKPOINT,
               })
@@ -5825,6 +6706,11 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrder(2), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
+                orders: 1,
+                makerNeg: POSITION,
+              })
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
                 orders: 1,
                 makerNeg: POSITION,
               })
@@ -5978,6 +6864,18 @@ describe('Market', () => {
                   constants.AddressZero,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                longNeg: POSITION.div(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                protection: 1,
+                longNeg: POSITION.div(2),
+              })
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_4.timestamp)
@@ -6210,6 +7108,12 @@ describe('Market', () => {
                 longNeg: POSITION.div(2),
                 protection: 1,
               })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                protection: 1,
+                longNeg: POSITION.div(2),
+              })
               expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_4.timestamp), {
                 ...DEFAULT_CHECKPOINT,
               })
@@ -6231,6 +7135,12 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrders(userB.address, 1), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
+                orders: 1,
+                makerPos: POSITION,
+                collateral: COLLATERAL,
+              })
+              expectOrderEq(await market.pendings(userB.address), {
+                ...DEFAULT_ORDER,
                 orders: 1,
                 makerPos: POSITION,
                 collateral: COLLATERAL,
@@ -6257,6 +7167,11 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrder(2), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_4.timestamp,
+                orders: 1,
+                longNeg: POSITION.div(2),
+              })
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
                 orders: 1,
                 longNeg: POSITION.div(2),
               })
@@ -6362,6 +7277,26 @@ describe('Market', () => {
                 constants.AddressZero,
               )
 
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+              orders: 2,
+              makerPos: POSITION,
+              longPos: POSITION.div(2),
+              collateral: COLLATERAL.mul(2),
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              makerPos: POSITION,
+              collateral: COLLATERAL,
+            })
+            expectOrderEq(await market.pendings(userB.address), {
+              ...DEFAULT_ORDER,
+              orders: 1,
+              longPos: POSITION.div(2),
+              collateral: COLLATERAL,
+            })
+
             oracle.at.whenCalledWith(ORACLE_VERSION_2.timestamp).returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
             oracle.status.returns([ORACLE_VERSION_2, ORACLE_VERSION_3.timestamp])
             oracle.request.whenCalledWith(user.address).returns()
@@ -6465,6 +7400,16 @@ describe('Market', () => {
               ...DEFAULT_VERSION,
               price: oracleVersionHigherPrice_1.price,
             })
+
+            expectOrderEq(await market.pending(), {
+              ...DEFAULT_ORDER,
+            })
+            expectOrderEq(await market.pendings(user.address), {
+              ...DEFAULT_ORDER,
+            })
+            expectOrderEq(await market.pendings(userB.address), {
+              ...DEFAULT_ORDER,
+            })
           })
         })
       })
@@ -6529,6 +7474,12 @@ describe('Market', () => {
                 collateral: COLLATERAL,
                 shortPos: POSITION,
               })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                collateral: COLLATERAL,
+                shortPos: POSITION,
+              })
               expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
                 ...DEFAULT_CHECKPOINT,
               })
@@ -6545,6 +7496,13 @@ describe('Market', () => {
               expectOrderEq(await market.pendingOrder(1), {
                 ...DEFAULT_ORDER,
                 timestamp: ORACLE_VERSION_2.timestamp,
+                collateral: COLLATERAL.mul(2),
+                orders: 2,
+                makerPos: POSITION,
+                shortPos: POSITION,
+              })
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
                 collateral: COLLATERAL.mul(2),
                 orders: 2,
                 makerPos: POSITION,
@@ -6583,6 +7541,20 @@ describe('Market', () => {
                   constants.AddressZero,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                makerPos: POSITION,
+                shortPos: POSITION,
+                collateral: COLLATERAL.mul(2),
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                shortPos: POSITION,
+                collateral: COLLATERAL,
+              })
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_2.timestamp)
@@ -6693,6 +7665,12 @@ describe('Market', () => {
                 collateral: COLLATERAL,
                 shortPos: POSITION,
               })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                shortPos: POSITION,
+                collateral: COLLATERAL,
+              })
               expectCheckpointEq(await market.checkpoints(user.address, ORACLE_VERSION_2.timestamp), {
                 ...DEFAULT_CHECKPOINT,
               })
@@ -6714,6 +7692,13 @@ describe('Market', () => {
                 makerPos: POSITION,
                 shortPos: POSITION,
               })
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 3,
+                makerPos: POSITION,
+                shortPos: POSITION,
+                collateral: COLLATERAL.mul(2),
+              })
             })
 
             it('opens a second position and settles (same version)', async () => {
@@ -6725,6 +7710,20 @@ describe('Market', () => {
                   COLLATERAL,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                shortPos: POSITION.div(2),
+                collateral: COLLATERAL,
+              })
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                makerPos: POSITION,
+                shortPos: POSITION.div(2),
+                collateral: COLLATERAL.mul(2),
+              })
 
               await expect(
                 market
@@ -6751,6 +7750,20 @@ describe('Market', () => {
                   constants.AddressZero,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                shortPos: POSITION,
+                collateral: COLLATERAL,
+              })
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 3,
+                makerPos: POSITION,
+                shortPos: POSITION,
+                collateral: COLLATERAL.mul(2),
+              })
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_2.timestamp)
@@ -6806,6 +7819,13 @@ describe('Market', () => {
                 ...DEFAULT_VERSION,
                 price: PRICE,
               })
+
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+              })
             })
 
             it('opens a second position (next version)', async () => {
@@ -6817,6 +7837,20 @@ describe('Market', () => {
                   COLLATERAL,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                shortPos: POSITION.div(2),
+                collateral: COLLATERAL,
+              })
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                makerPos: POSITION,
+                shortPos: POSITION.div(2),
+                collateral: COLLATERAL.mul(2),
+              })
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_2.timestamp)
@@ -6849,6 +7883,17 @@ describe('Market', () => {
                   constants.AddressZero,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                shortPos: POSITION.div(2),
+              })
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                shortPos: POSITION.div(2),
+              })
 
               expectLocalEq(await market.locals(user.address), {
                 ...DEFAULT_LOCAL,
@@ -6905,6 +7950,20 @@ describe('Market', () => {
                   constants.AddressZero,
                 )
 
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                shortPos: POSITION.div(2),
+                collateral: COLLATERAL,
+              })
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 2,
+                makerPos: POSITION,
+                shortPos: POSITION.div(2),
+                collateral: COLLATERAL.mul(2),
+              })
+
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_2.timestamp)
                 .returns([ORACLE_VERSION_2, INITIALIZED_ORACLE_RECEIPT])
@@ -6936,6 +7995,17 @@ describe('Market', () => {
                   constants.AddressZero,
                   constants.AddressZero,
                 )
+
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                shortPos: POSITION.div(2),
+              })
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
+                orders: 1,
+                shortPos: POSITION.div(2),
+              })
 
               oracle.at
                 .whenCalledWith(ORACLE_VERSION_3.timestamp)
@@ -7023,6 +8093,13 @@ describe('Market', () => {
                   _value: EXPECTED_FUNDING_WITH_FEE_1_5_123.add(EXPECTED_INTEREST_5_123).div(5).mul(-1),
                 },
                 price: PRICE,
+              })
+
+              expectOrderEq(await market.pendings(user.address), {
+                ...DEFAULT_ORDER,
+              })
+              expectOrderEq(await market.pending(), {
+                ...DEFAULT_ORDER,
               })
             })
 
