@@ -1179,7 +1179,7 @@ describe('Market', () => {
       })
     })
 
-    describe.only('#update', async () => {
+    describe('#update', async () => {
       beforeEach(async () => {
         await market.connect(owner).updateParameter(marketParameter)
 
