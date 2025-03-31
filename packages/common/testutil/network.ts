@@ -1,6 +1,7 @@
 export const ALL_CHAINS = [
   'mainnet',
   'arbitrum',
+  'arbitrumSepolia',
   'base',
   'perennial',
   'perennialSepolia',
@@ -15,7 +16,7 @@ export const MAINNETS: SupportedChain[] = ['mainnet', 'arbitrum', 'base', 'peren
 export const TESTNETS: SupportedChain[] = ['perennialSepolia']
 export const DEVNETS: SupportedChain[] = ['hardhat', 'localhost']
 export const ETHEREUM_NETS: SupportedChain[] = ['mainnet']
-export const ARBITRUM_NETS: SupportedChain[] = ['arbitrum']
+export const ARBITRUM_NETS: SupportedChain[] = ['arbitrum', 'arbitrumSepolia']
 export const BASE_NETS: SupportedChain[] = ['base']
 export const PERENNIAL_NETS: SupportedChain[] = ['perennial']
 
@@ -34,6 +35,8 @@ export function getChainId(networkName: string): number {
       return 60850
     case 'arbitrum':
       return 42161
+    case 'arbitrumSepolia':
+      return 421614
     case 'base':
       return 8453
     case 'hardhat':

@@ -60,6 +60,8 @@ function getUrl(networkName: SupportedChain): string {
       return MAINNET_NODE_URL
     case 'arbitrum':
       return ARBITRUM_NODE_URL
+    case 'arbitrumSepolia':
+      return ARBITRUM_SEPOLIA_NODE_URL
     case 'base':
       return BASE_NODE_URL
     case 'perennial':
