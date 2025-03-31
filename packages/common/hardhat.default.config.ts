@@ -12,7 +12,7 @@ import 'hardhat-tracer'
 import 'solidity-coverage'
 import 'solidity-docgen'
 
-import { getChainId, isArbitrum, isBase, isOptimism, SupportedChain } from './testutil/network'
+import { getChainId, isArbitrum, isBase, SupportedChain } from './testutil/network'
 
 import { utils } from 'ethers'
 utils.Logger.setLogLevel(utils.Logger.levels.ERROR) // turn off duplicate definition warnings
@@ -60,20 +60,8 @@ function getUrl(networkName: SupportedChain): string {
       return MAINNET_NODE_URL
     case 'arbitrum':
       return ARBITRUM_NODE_URL
-    case 'optimism':
-      return OPTIMISM_NODE_URL
     case 'base':
       return BASE_NODE_URL
-    case 'goerli':
-      return GOERLI_NODE_URL
-    case 'optimismGoerli':
-      return OPTIMISM_GOERLI_NODE_URL
-    case 'arbitrumGoerli':
-      return ARBITRUM_GOERLI_NODE_URL
-    case 'arbitrumSepolia':
-      return ARBITRUM_SEPOLIA_NODE_URL
-    case 'baseGoerli':
-      return BASE_GOERLI_NODE_URL
     case 'perennial':
       return PERENNIAL_NODE_URL
     case 'perennialSepolia':
@@ -84,7 +72,6 @@ function getUrl(networkName: SupportedChain): string {
 }
 
 function getEtherscanApiConfig(networkName: SupportedChain): { apiKey: string; apiUrl?: string } {
-  if (isOptimism(networkName)) return { apiKey: ETHERSCAN_API_KEY_OPTIMISM }
   if (isArbitrum(networkName)) return { apiKey: ETHERSCAN_API_KEY_ARBITRUM }
   if (isBase(networkName)) return { apiKey: ETHERSCAN_API_KEY_BASE }
 
@@ -144,14 +131,8 @@ export default function defaultConfig({
             }
           : undefined,
       },
-      goerli: createNetworkConfig('goerli'),
-      arbitrumGoerli: createNetworkConfig('arbitrumGoerli'),
-      arbitrumSepolia: createNetworkConfig('arbitrumSepolia'),
-      optimismGoerli: createNetworkConfig('optimismGoerli'),
-      baseGoerli: createNetworkConfig('baseGoerli'),
       mainnet: createNetworkConfig('mainnet'),
       arbitrum: createNetworkConfig('arbitrum'),
-      optimism: createNetworkConfig('optimism'),
       base: createNetworkConfig('base'),
       perennial: {
         ...createNetworkConfig('perennial'),
@@ -193,16 +174,10 @@ export default function defaultConfig({
     etherscan: {
       apiKey: {
         mainnet: getEtherscanApiConfig('mainnet').apiKey,
-        optimisticEthereum: getEtherscanApiConfig('optimism').apiKey,
         arbitrumOne: getEtherscanApiConfig('arbitrum').apiKey,
         base: getEtherscanApiConfig('base').apiKey,
-        goerli: getEtherscanApiConfig('goerli').apiKey,
-        optimisticGoerli: getEtherscanApiConfig('optimismGoerli').apiKey,
-        arbitrumGoerli: getEtherscanApiConfig('arbitrumGoerli').apiKey,
-        arbitrumSepolia: getEtherscanApiConfig('arbitrumSepolia').apiKey,
         perennial: 'foobar',
         perennialSepolia: 'foobar',
-        // baseGoerli: getEtherscanApiConfig('baseGoerli').apiKey,
       },
       customChains: [
         {
@@ -268,15 +243,8 @@ export default function defaultConfig({
     external: {
       contracts: [{ artifacts: 'external/contracts' }],
       deployments: {
-        kovan: ['external/deployments/kovan', ...(externalDeployments?.kovan || [])],
-        goerli: ['external/deployments/goerli', ...(externalDeployments?.goerli || [])],
-        arbitrumGoerli: ['external/deployments/arbitrumGoerli', ...(externalDeployments?.arbitrumGoerli || [])],
-        optimismGoerli: ['external/deployments/optimismGoerli', ...(externalDeployments?.optimismGoerli || [])],
-        baseGoerli: ['external/deployments/baseGoerli', ...(externalDeployments?.baseGoerli || [])],
-        arbitrumSepolia: ['external/deployments/arbitrumSepolia', ...(externalDeployments?.arbitrumSepolia || [])],
         mainnet: ['external/deployments/mainnet', ...(externalDeployments?.mainnet || [])],
         arbitrum: ['external/deployments/arbitrum', ...(externalDeployments?.arbitrum || [])],
-        optimism: ['external/deployments/optimism', ...(externalDeployments?.optimism || [])],
         base: ['external/deployments/base', ...(externalDeployments?.base || [])],
         perennial: ['external/deployments/perennial', ...(externalDeployments?.perennial || [])],
         perennialSepolia: ['external/deployments/perennialSepolia', ...(externalDeployments?.perennialSepolia || [])],

@@ -1,13 +1,7 @@
 export const ALL_CHAINS = [
   'mainnet',
   'arbitrum',
-  'optimism',
   'base',
-  'goerli',
-  'optimismGoerli',
-  'arbitrumGoerli',
-  'arbitrumSepolia',
-  'baseGoerli',
   'perennial',
   'perennialSepolia',
   'hardhat',
@@ -17,21 +11,13 @@ export const ALL_CHAINS = [
 export type SupportedChains = typeof ALL_CHAINS
 export type SupportedChain = SupportedChains[number]
 
-export const MAINNETS: SupportedChain[] = ['mainnet', 'arbitrum', 'optimism', 'base', 'perennial']
-export const TESTNETS: SupportedChain[] = [
-  'goerli',
-  'arbitrumGoerli',
-  'optimismGoerli',
-  'baseGoerli',
-  'arbitrumSepolia',
-  'perennialSepolia',
-]
+export const MAINNETS: SupportedChain[] = ['mainnet', 'arbitrum', 'base', 'perennial']
+export const TESTNETS: SupportedChain[] = ['perennialSepolia']
 export const DEVNETS: SupportedChain[] = ['hardhat', 'localhost']
-export const ETHEREUM_NETS: SupportedChain[] = ['mainnet', 'goerli']
-export const ARBITRUM_NETS: SupportedChain[] = ['arbitrum', 'arbitrumGoerli', 'arbitrumSepolia']
-export const OPTIMISM_NETS: SupportedChain[] = ['optimism', 'optimismGoerli']
-export const BASE_NETS: SupportedChain[] = ['base', 'baseGoerli']
-export const PERENNIAL_NETS: SupportedChain[] = ['perennial', 'perennialSepolia']
+export const ETHEREUM_NETS: SupportedChain[] = ['mainnet']
+export const ARBITRUM_NETS: SupportedChain[] = ['arbitrum']
+export const BASE_NETS: SupportedChain[] = ['base']
+export const PERENNIAL_NETS: SupportedChain[] = ['perennial']
 
 export function isSupported(networkName: string): networkName is SupportedChain {
   return ALL_CHAINS.includes(networkName as SupportedChain)
@@ -48,20 +34,8 @@ export function getChainId(networkName: string): number {
       return 60850
     case 'arbitrum':
       return 42161
-    case 'optimism':
-      return 10
     case 'base':
       return 8453
-    case 'goerli':
-      return 5
-    case 'optimismGoerli':
-      return 420
-    case 'arbitrumGoerli':
-      return 421613
-    case 'arbitrumSepolia':
-      return 421614
-    case 'baseGoerli':
-      return 84531
     case 'hardhat':
       return 31337
     default:
@@ -73,11 +47,6 @@ export function isEthereum(networkName: string): boolean {
   if (!isSupported(networkName)) return false
   if (isLocalhost(networkName)) return isFork() && ETHEREUM_NETS.includes(forkNetwork() as SupportedChain)
   return ETHEREUM_NETS.includes(networkName)
-}
-export function isOptimism(networkName: string): boolean {
-  if (!isSupported(networkName)) return false
-  if (isLocalhost(networkName)) return isFork() && OPTIMISM_NETS.includes(forkNetwork() as SupportedChain)
-  return OPTIMISM_NETS.includes(networkName)
 }
 
 export function isArbitrum(networkName: string): boolean {
