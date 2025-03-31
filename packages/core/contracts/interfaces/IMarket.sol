@@ -59,45 +59,8 @@ interface IMarket is IInstance {
         Position currentPositionLocal;
         Guarantee guaranteeGlobal;
         Guarantee guaranteeLocal;
-        UFixed6 collateralization;
         Fixed6 priceAdjustment;
         UFixed6 maxPendingMagnitude;
-    }
-
-    /// @notice Parameters for updating an intent order
-    struct UpdateIntentParams {
-        /// @dev The account to operate on
-        address account;
-
-        /// @dev The signer of the order
-        address signer;
-
-        /// @dev The size and direction of the order being opened
-        Fixed6 amount;
-
-        /// @dev Amount of collateral to isolate with the order, leave 0 when cross-margined
-        UFixed6 collateral;
-
-        /// @dev The price to execute the order at
-        Fixed6 price;
-
-        /// @dev The referrer of the order
-        address orderReferrer;
-
-        /// @dev The referrer of the guarantee
-        address guaranteeReferrer;
-
-        /// @dev The referral fee for the guarantee
-        UFixed6 guaranteeReferralFee;
-
-        /// @dev The additional fee for the order
-        UFixed6 additiveFee;
-
-        /// @dev The minimum collateralization ratio that must be maintained after the order is executed
-        UFixed6 collateralization;
-
-        /// @dev Whether to charge the trade fee
-        bool chargeTradeFee;
     }
 
     event OrderCreated(address indexed account, Order order, Guarantee guarantee, address liquidator, address orderReferrer, address guaranteeReferrer);
@@ -197,8 +160,7 @@ interface IMarket is IInstance {
     function maintenanceRequired(address account) external view returns (UFixed6 requirement);
     /// @notice Retrieves the margin requirement for an account
     /// @param account User for whom margin requirement will be checked
-    /// @param minCollateralization Minimum collateralization specified on an intent, 0 if none
-    function marginRequired(address account, UFixed6 minCollateralization) external view returns (UFixed6 requirement);
+    function marginRequired(address account) external view returns (UFixed6 requirement);
     /// @notice Returns true if oracle price is older than the period configured in risk parameters
     function stale() external view returns (bool isStale);
     function settle(address account) external;

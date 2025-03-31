@@ -65,7 +65,7 @@ export const buildUpdateIntent = async ({
       args: utils.defaultAbiCoder.encode(
         [
           'address',
-          'tuple(int256,uint256,int256,uint256,uint256,address,address,uint256,tuple(address,address,address,uint256,uint256,uint256))',
+          'tuple(int256,uint256,int256,uint256,uint256,address,address,tuple(address,address,address,uint256,uint256,uint256))',
           'bytes',
         ],
         [
@@ -78,7 +78,6 @@ export const buildUpdateIntent = async ({
             intent.additiveFee,
             intent.originator,
             intent.solver,
-            intent.collateralization,
             [
               intent.common.account,
               intent.common.signer,

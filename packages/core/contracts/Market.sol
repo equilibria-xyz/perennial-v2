@@ -138,34 +138,28 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         verifier.verifyIntent(intent, signature);
 
         _updateIntent(
-            UpdateIntentParams({
-                account: account,
-                signer: msg.sender,
-                amount: intent.amount.mul(Fixed6Lib.NEG_ONE),
-                collateral: UFixed6Lib.ZERO,
-                price: intent.price,
-                orderReferrer: address(0),
-                guaranteeReferrer: address(0),
-                guaranteeReferralFee: UFixed6Lib.ZERO,
-                additiveFee: UFixed6Lib.ZERO,
-                collateralization: UFixed6Lib.ZERO,
-                chargeTradeFee: false
-            })
+            account,
+            msg.sender,
+            intent.amount.mul(Fixed6Lib.NEG_ONE),
+            UFixed6Lib.ZERO,
+            intent.price,
+            address(0),
+            address(0),
+            UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO,
+            false
         ); // account
         _updateIntent(
-            UpdateIntentParams({
-                account: intent.common.account,
-                signer: intent.common.signer,
-                amount: intent.amount,
-                collateral: intent.collateral,
-                price: intent.price,
-                orderReferrer: intent.originator,
-                guaranteeReferrer: intent.solver,
-                guaranteeReferralFee: intent.fee,
-                additiveFee: intent.additiveFee,
-                collateralization: intent.collateralization,
-                chargeTradeFee: true
-            })
+            intent.common.account,
+            intent.common.signer,
+            intent.amount,
+            intent.collateral,
+            intent.price,
+            intent.originator,
+            intent.solver,
+            intent.fee,
+            intent.additiveFee,
+            true
         ); // signer
     }
 
@@ -185,34 +179,28 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         verifier.verifyFill(fill, solverSignature);
 
         _updateIntent(
-            UpdateIntentParams({
-                account: fill.common.account,
-                signer: fill.common.signer,
-                amount: fill.intent.amount.mul(Fixed6Lib.NEG_ONE),
-                collateral: UFixed6Lib.ZERO,
-                price: fill.intent.price,
-                orderReferrer: address(0),
-                guaranteeReferrer: address(0),
-                guaranteeReferralFee: UFixed6Lib.ZERO,
-                additiveFee: UFixed6Lib.ZERO,
-                collateralization: UFixed6Lib.ZERO,
-                chargeTradeFee: false
-            })
+            fill.common.account,
+            fill.common.signer,
+            fill.intent.amount.mul(Fixed6Lib.NEG_ONE),
+            UFixed6Lib.ZERO,
+            fill.intent.price,
+            address(0),
+            address(0),
+            UFixed6Lib.ZERO,
+            UFixed6Lib.ZERO,
+            false
         ); // solver
         _updateIntent(
-            UpdateIntentParams({
-                account: fill.intent.common.account,
-                signer: fill.intent.common.signer,
-                amount: fill.intent.amount,
-                collateral: fill.intent.collateral,
-                price: fill.intent.price,
-                orderReferrer: fill.intent.originator,
-                guaranteeReferrer: fill.intent.solver,
-                guaranteeReferralFee: fill.intent.fee,
-                additiveFee: fill.intent.additiveFee,
-                collateralization: fill.intent.collateralization,
-                chargeTradeFee: true
-            })
+            fill.intent.common.account,
+            fill.intent.common.signer,
+            fill.intent.amount,
+            fill.intent.collateral,
+            fill.intent.price,
+            fill.intent.originator,
+            fill.intent.solver,
+            fill.intent.fee,
+            fill.intent.additiveFee,
+            true
         ); // trader
     }
 
@@ -264,6 +252,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         _updateMarket(account, address(0), makerAmount, takerAmount, collateral, referrer, UFixed6Lib.ZERO);
     }
 
+    /// @notice Updates the account's position and isolated collateral
+    /// @param account The account to operate on
+    /// @param makerAmount The maker of the order
+    /// @param takerAmount The taker of the order (positive for long, negative for short)
+    /// @param collateral In isolated mode, amount of collateral to add to or remove from the market
+    /// @param referrer The referrer of the order
+    /// @param additiveFee The additive fee for the order (percentage of notional value)
     function update(
         address account,
         Fixed6 makerAmount,
@@ -281,7 +276,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param referrer The referrer of the order
     function close(address account, bool protect, address referrer) external {
         (Context memory context, UpdateContext memory updateContext) =
-            _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+            _loadForUpdate(account, address(0), referrer, address(0), UFixed6Lib.ZERO);
 
         Fixed6 makerAmount;
         Fixed6 takerAmount;
@@ -470,14 +465,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
     /// @inheritdoc IMarket
     function marginRequired(
-        address account,
-        UFixed6 minCollateralization
+        address account
     ) external view returns (UFixed6 requirement) {
         (OracleVersion memory latestOracleVersion, ) = oracle.status();
         (Fixed6 collateralAdjustment, UFixed6 maxPendingMagnitude) = _calculateAdjustments(account, latestOracleVersion);
 
         UFixed6 worstCasePending = _worstCasePendingLocal(_positions[account].read(), _pendings[account].read(), maxPendingMagnitude);
-        requirement = PositionLib.margin(worstCasePending, latestOracleVersion, _riskParameter.read(), minCollateralization);
+        requirement = PositionLib.margin(worstCasePending, latestOracleVersion, _riskParameter.read());
         requirement = UFixed6Lib.unsafeFrom(Fixed6Lib.from(requirement).sub(collateralAdjustment));
     }
 
@@ -580,15 +574,13 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param orderReferrer The order referrer to load for
     /// @param guaranteeReferrer The guarantee referrer to load for
     /// @param guaranteeReferralFee The guarantee referral fee to load for
-    /// @param collateralization The collateralization to load for
     /// @return updateContext The update context
     function _loadUpdateContext(
         Context memory context,
         address signer,
         address orderReferrer,
         address guaranteeReferrer,
-        UFixed6 guaranteeReferralFee,
-        UFixed6 collateralization
+        UFixed6 guaranteeReferralFee
     ) private view returns (UpdateContext memory updateContext) {
         // load current position
         updateContext.currentPositionGlobal = context.latestPositionGlobal.clone();
@@ -606,7 +598,6 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         updateContext.liquidator = liquidators[context.account][context.local.currentId];
         updateContext.orderReferrer = orderReferrers[context.account][context.local.currentId];
         updateContext.guaranteeReferrer = guaranteeReferrers[context.account][context.local.currentId];
-        updateContext.collateralization = collateralization;
 
         // load factory metadata
         (updateContext.operator, updateContext.signer, updateContext.orderReferralFee) =
@@ -649,14 +640,12 @@ contract Market is IMarket, Instance, ReentrancyGuard {
     /// @param orderReferrer The order referrer, if one exists
     /// @param guaranteeReferrer The guarantee referrer, if one exists
     /// @param guaranteeReferralFee The guarantee referral fee, if one exists
-    /// @param collateralization The collateralization override for the order, if one exists
     function _loadForUpdate(
         address account,
         address signer,
         address orderReferrer,
         address guaranteeReferrer,
-        UFixed6 guaranteeReferralFee,
-        UFixed6 collateralization
+        UFixed6 guaranteeReferralFee
     ) private returns (Context memory context, UpdateContext memory updateContext) {
         // settle market & account
         context = _loadContext(account);
@@ -664,7 +653,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
 
         // load update context
         updateContext =
-            _loadUpdateContext(context, signer, orderReferrer, guaranteeReferrer, guaranteeReferralFee, collateralization);
+            _loadUpdateContext(context, signer, orderReferrer, guaranteeReferrer, guaranteeReferralFee);
     }
 
     /// @notice Updates the account's position and collateral, and stores the resulting context in state
@@ -710,38 +699,56 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         ) revert IMarket.MarketStalePriceError();
 
         // check margin
-        if (!newOrder.protected() && !margin.margined(context.account, updateContext.collateralization))
+        if (!newOrder.protected() && !margin.margined(context.account))
             revert IMarket.MarketInsufficientMarginError();
     }
 
     /// @notice Updates the account's position for an intent order
-    /// @param params The parameters for the intent order
+    /// @param account The account to operate on
+    /// @param collateral The amount of collateral to isolate with the order, leave 0 when cross-margined
+    /// @param signer The signer of the order
+    /// @param amount The size and direction of the order being opened
+    /// @param price The price to execute the order at
+    /// @param orderReferrer The referrer of the order
+    /// @param guaranteeReferrer The referrer of the guarantee
+    /// @param guaranteeReferralFee The referral fee for the guarantee
+    /// @param additiveFee The additive fee for the order
+    /// @param chargeTradeFee Whether to charge the trade fee
     function _updateIntent(
-        UpdateIntentParams memory params
+        address account,
+        address signer,
+        Fixed6 amount,
+        UFixed6 collateral,
+        Fixed6 price,
+        address orderReferrer,
+        address guaranteeReferrer,
+        UFixed6 guaranteeReferralFee,
+        UFixed6 additiveFee,
+        bool chargeTradeFee
     ) private {
         (Context memory context, UpdateContext memory updateContext) =
-            _loadForUpdate(params.account, params.signer, params.orderReferrer, params.guaranteeReferrer, params.guaranteeReferralFee, params.collateralization);
+            _loadForUpdate(account, signer, orderReferrer, guaranteeReferrer, guaranteeReferralFee);
 
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(
             context.currentTimestamp,
             updateContext.currentPositionLocal,
             Fixed6Lib.ZERO,
-            params.amount,
-            Fixed6Lib.from(params.collateral),
+            amount,
+            Fixed6Lib.from(collateral),
             false,
             false,
             updateContext.orderReferralFee,
-            params.additiveFee
+            additiveFee
         );
         Guarantee memory newGuarantee = GuaranteeLib.from(
             newOrder,
-            params.price,
+            price,
             updateContext.guaranteeReferralFee,
-            params.chargeTradeFee
+            chargeTradeFee
         );
 
-        _updateAndStore(context, updateContext, newOrder, newGuarantee, params.orderReferrer, params.guaranteeReferrer);
+        _updateAndStore(context, updateContext, newOrder, newGuarantee, orderReferrer, guaranteeReferrer);
     }
 
     function _updateMarket(
@@ -754,7 +761,7 @@ contract Market is IMarket, Instance, ReentrancyGuard {
         UFixed6 additiveFee
     ) private {
         (Context memory context, UpdateContext memory updateContext) =
-            _loadForUpdate(account, signer, referrer, address(0), UFixed6Lib.ZERO, UFixed6Lib.ZERO);
+            _loadForUpdate(account, signer, referrer, address(0), UFixed6Lib.ZERO);
 
         // create new order & guarantee
         Order memory newOrder = OrderLib.from(

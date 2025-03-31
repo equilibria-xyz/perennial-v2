@@ -46,7 +46,6 @@ const INTENT_TYPE = {
     { name: 'additiveFee', type: 'uint256' },
     { name: 'originator', type: 'address' },
     { name: 'solver', type: 'address' },
-    { name: 'collateralization', type: 'uint256' },
     { name: 'common', type: 'Common' },
   ],
 }

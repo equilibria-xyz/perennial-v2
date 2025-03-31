@@ -58,7 +58,7 @@ const { ethers } = HRE
 const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
 const KEEP_CONFIG = '(uint256,uint256,uint256,uint256)'
 const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,uint256,${COMMON_PROTOTYPE}),bytes)`
-const INTENT_PROTOTYPE = `(int256,uint256,int256,uint256,uint256,address,address,uint256,${COMMON_PROTOTYPE})`
+const INTENT_PROTOTYPE = `(int256,uint256,int256,uint256,uint256,address,address,${COMMON_PROTOTYPE})`
 const MARKET_UPDATE_FILL_PROTOTYPE = `update((${INTENT_PROTOTYPE},${COMMON_PROTOTYPE}),bytes,bytes)`
 
 describe('Controller_Incentivized', () => {
@@ -320,7 +320,6 @@ describe('Controller_Incentivized', () => {
           additiveFee: 0,
           originator: constants.AddressZero,
           solver: constants.AddressZero,
-          collateralization: parse6decimal('0.03'),
           common: {
             account: userA.address,
             signer: userA.address,

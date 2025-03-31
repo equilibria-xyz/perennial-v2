@@ -710,7 +710,6 @@ export function RunInvokerTests(
               additiveFee: 0,
               originator: userC.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: userB.address,
                 signer: userB.address,

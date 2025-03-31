@@ -193,8 +193,7 @@ library MakerStrategyLib {
         marketContext.margin = PositionLib.margin(
             marketContext.latestAccountPosition.magnitude().add(pendingLocal.pos()),
             latestVersion,
-            marketContext.riskParameter,
-            UFixed6Lib.ZERO
+            marketContext.riskParameter
         );
         marketContext.latestPrice = latestVersion.price;
 

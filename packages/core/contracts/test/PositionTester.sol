@@ -82,20 +82,18 @@ abstract contract PositionTester {
 
     function margin(
         OracleVersion memory latestVersion,
-        RiskParameter memory riskParameter,
-        UFixed6 collateralization
+        RiskParameter memory riskParameter
     ) external view returns (UFixed6) {
         Position memory position = read();
-        return PositionLib.margin(position.magnitude(), latestVersion, riskParameter, collateralization);
+        return PositionLib.margin(position.magnitude(), latestVersion, riskParameter);
     }
 
     function margined(
         OracleVersion memory latestVersion,
         RiskParameter memory riskParameter,
-        UFixed6 collateralization,
         Fixed6 collateral
     ) external view returns (bool) {
-        return UFixed6Lib.unsafeFrom(collateral).gte(this.margin(latestVersion, riskParameter, collateralization));
+        return UFixed6Lib.unsafeFrom(collateral).gte(this.margin(latestVersion, riskParameter));
     }
 }
 
