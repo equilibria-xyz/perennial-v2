@@ -1,5 +1,5 @@
 {
-  "address": "0x939C0e902FF5B3F7BA666Cc8F6aC75EE76d3f900",
+  "address": "0x4305FB66699C3B2702D4d05CF36551390A4c69C6",
   "abi": [
     { "inputs": [], "stateMutability": "nonpayable", "type": "constructor" },
     { "inputs": [], "name": "InsufficientFee", "type": "error" },

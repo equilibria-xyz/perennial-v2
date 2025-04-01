@@ -31,13 +31,11 @@ import { smock } from '@defi-wonderland/smock'
 import { IFactory, IInstance } from '../../../types/generated/@equilibria/root/attribute/interfaces'
 import { deployMarketFactory } from '../../setupHelpers'
 
-const { ethers } = HRE
+const { deployments, ethers } = HRE
 const { constants } = ethers
 
-const STORK_ADDRESS = '0xacC0a0cF13571d30B4b8637996F5D6D774d4fd62'
 const STORK_ETH_USD_PRICE_FEED = '0x59102b37de83bdda9f38ac8254e596f0d9ac61d2035c07936675e87342817160'
 const STORK_BTC_USD_PRICE_FEED = '0x7404e3d104ea7841c3d9e6fd20adfe99b4ad586bc08d8f3bd3afef894cf184de'
-const DSU_ADDRESS = '0x7b4Adf64B0d60fF97D672E473420203D52562A84'
 const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
 const DSU_MINTER = '0x0d49c416103Cbd276d9c3cd96710dB264e3A0c27'
 
@@ -182,7 +180,7 @@ testOracles.forEach(testOracle => {
     const setup = async () => {
       ;[owner, user] = await ethers.getSigners()
 
-      dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
+      dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
       await fundWallet(dsu, user)
 
       const powerTwoPayoff = await new PowerTwo__factory(owner).deploy()
@@ -219,7 +217,9 @@ testOracles.forEach(testOracle => {
       )
       const keeperOracleImpl = await new testOracle.Oracle(owner).deploy(60)
       storkOracleFactory = await new StorkFactory__factory(owner).deploy(
-        STORK_ADDRESS,
+        (
+          await deployments.get('Stork')
+        ).address,
         commitmentGasOracle.address,
         settlementGasOracle.address,
         keeperOracleImpl.address,
@@ -400,7 +400,9 @@ testOracles.forEach(testOracle => {
         context('#initialize', async () => {
           it('reverts if already initialized', async () => {
             const storkOracleFactory2 = await new StorkFactory__factory(owner).deploy(
-              STORK_ADDRESS,
+              (
+                await deployments.get('Stork')
+              ).address,
               commitmentGasOracle.address,
               settlementGasOracle.address,
               await storkOracleFactory.implementation(),

@@ -30,11 +30,10 @@ import { smock } from '@defi-wonderland/smock'
 import { deployMarketFactory } from '../../setupHelpers'
 import { IMargin, IMargin__factory } from '@perennial/v2-core/types/generated'
 
-const { ethers } = HRE
+const { deployments, ethers } = HRE
 
 const METAQUANTS_BAYC_ETH_PRICE_FEED = '0x000000000000000000000000bc4ca0eda7647a8ab7c2061c2e118a18a936f13d'
 const METAQUANTS_MILADY_ETH_PRICE_FEED = '0x0000000000000000000000005af0d9827e0c53e4799bb226655a1de152a425a5'
-const DSU_ADDRESS = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
 const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
@@ -197,7 +196,7 @@ testOracles.forEach(testOracle => {
       await time.reset()
       ;[owner, user] = await ethers.getSigners()
 
-      dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
+      dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
       await fundWallet(dsu, user)
 
       powerTwoPayoff = await new PowerTwo__factory(owner).deploy()

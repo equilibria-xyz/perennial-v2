@@ -1,9 +1,12 @@
 import { expect } from 'chai'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
+import { smock } from '@defi-wonderland/smock'
 import { utils } from 'ethers'
-import HRE, { network } from 'hardhat'
+import HRE from 'hardhat'
+
 import { time } from '../../../../common/testutil'
+import { parse6decimal } from '../../../../common/testutil/types'
 import { impersonateWithBalance } from '../../../../common/testutil/impersonate'
 import {
   ArbGasInfo,
@@ -27,22 +30,17 @@ import {
   IMargin,
   IMargin__factory,
 } from '../../../types/generated'
-import { parse6decimal } from '../../../../common/testutil/types'
-import { smock } from '@defi-wonderland/smock'
 import { IInstance } from '../../../types/generated/@equilibria/root/attribute/interfaces'
 import { deployMarketFactory } from '../../setupHelpers'
 
-const { ethers } = HRE
+const { deployments, ethers } = HRE
 const { constants } = ethers
 
-const PYTH_ADDRESS = '0x4305FB66699C3B2702D4d05CF36551390A4c69C6'
 const PYTH_ETH_USD_PRICE_FEED = '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
 const PYTH_BTC_USD_PRICE_FEED = '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
 const PYTH_USDC_USD_PRICE_FEED = '0xeaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a'
 const PYTH_ARB_USD_PRICE_FEED = '0x3fa4252848f9f0a1480be62745a4629d9eb1322aebab8a791e344b3b9c1adcf5'
-const DSU_ADDRESS = '0x605D26FBd5be761089281d5cec2Ce86eeA667109'
 const CHAINLINK_ETH_USD_FEED = '0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419'
-const DSU_HOLDER = '0x2d264EBDb6632A06A1726193D4d37FeF1E5dbDcd'
 const DSU_MINTER = '0xD05aCe63789cCb35B9cE71d01e4d632a0486Da4B'
 
 // fork timestamp starts at 1686198911, so this gives us 70 seconds of setup time
@@ -128,7 +126,7 @@ testOracles.forEach(testOracle => {
     const setup = async () => {
       ;[owner, user, user2] = await ethers.getSigners()
 
-      dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
+      dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
       await fundWallet(dsu, user)
 
       const powerTwoPayoff = await new PowerTwo__factory(owner).deploy()
@@ -165,7 +163,9 @@ testOracles.forEach(testOracle => {
       )
       const keeperOracleImpl = await new testOracle.Oracle(owner).deploy(60)
       pythOracleFactory = await new PythFactory__factory(owner).deploy(
-        PYTH_ADDRESS,
+        (
+          await deployments.get('Pyth')
+        ).address,
         commitmentGasOracle.address,
         settlementGasOracle.address,
         keeperOracleImpl.address,
@@ -477,7 +477,9 @@ testOracles.forEach(testOracle => {
         context('#initialize', async () => {
           it('reverts if already initialized', async () => {
             const pythOracleFactory2 = await new PythFactory__factory(owner).deploy(
-              PYTH_ADDRESS,
+              (
+                await deployments.get('Pyth')
+              ).address,
               commitmentGasOracle.address,
               settlementGasOracle.address,
               await pythOracleFactory.implementation(),

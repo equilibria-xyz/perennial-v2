@@ -1,4 +1,4 @@
-import { ethers } from 'hardhat'
+import { deployments, ethers } from 'hardhat'
 import { BigNumber, constants, utils } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-network-helpers'
 import { time } from '../../../../common/testutil'
@@ -9,16 +9,7 @@ import { IERC20Metadata__factory, IKeeperOracle, KeeperOracle, PythFactory } fro
 import { RunInvokerTests } from './Invoke.test'
 import { RunPythOracleTests } from './Pyth.test'
 import { createInvoker, deployProtocol, InstanceVars } from './setupHelpers'
-import {
-  CHAINLINK_ETH_USD_FEED,
-  DSU_ADDRESS,
-  DSU_RESERVE,
-  fundWalletDSU,
-  fundWalletUSDC,
-  mockGasInfo,
-  PYTH_ADDRESS,
-  USDC_ADDRESS,
-} from '../../helpers/baseHelpers'
+import { CHAINLINK_ETH_USD_FEED, fundWalletDSU, fundWalletUSDC, mockGasInfo } from '../../helpers/baseHelpers'
 import {
   advanceToPrice as advanceToPriceImpl,
   createPythOracle,
@@ -43,14 +34,23 @@ const INITIAL_ORACLE_VERSION_BTC = {
 let pythOracleFactory: PythFactory
 let keeperOracle: IKeeperOracle
 let lastPrice: BigNumber = utils.parseEther('2620.237388') // advanceToPrice converts to 6 decimals
+let vars: InstanceVars
 
 const fixture = async (): Promise<InstanceVars> => {
   // get users and token addresses
   const [owner, , user, userB, userC, userD, liquidator, perennialUser] = await ethers.getSigners()
-  const dsu = IERC20Metadata__factory.connect(DSU_ADDRESS, owner)
-  const usdc = IERC20Metadata__factory.connect(USDC_ADDRESS, owner)
+  const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
+  const usdc = IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
   // deploy perennial core factories
-  const vars = await deployProtocol(dsu, usdc, constants.AddressZero, DSU_RESERVE, CHAINLINK_ETH_USD_FEED)
+  vars = await deployProtocol(
+    dsu,
+    usdc,
+    constants.AddressZero,
+    (
+      await deployments.get('DSUReserve')
+    ).address,
+    CHAINLINK_ETH_USD_FEED,
+  )
 
   // fund wallets used in the tests
   await fundWalletDSU(user, utils.parseEther('2000000'))
@@ -62,7 +62,7 @@ const fixture = async (): Promise<InstanceVars> => {
   await fundWalletDSU(perennialUser, utils.parseEther('14000000'))
 
   // configure this deployment with a pyth oracle
-  pythOracleFactory = await deployPythOracleFactory(owner, vars.oracleFactory, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED)
+  pythOracleFactory = await deployPythOracleFactory(owner, vars.oracleFactory, CHAINLINK_ETH_USD_FEED)
   await vars.oracleFactory.connect(owner).register(pythOracleFactory.address)
   const [keeperOracle_, oracle] = await createPythOracle(
     owner,

@@ -5,22 +5,16 @@ import { Manager_Optimism__factory, OrderVerifier__factory } from '../../../type
 import { createMarketETH, deployProtocol } from '../../helpers/setupHelpers'
 import { RunManagerTests } from './Manager.test'
 import { FixtureVars } from './setupTypes'
-import {
-  CHAINLINK_ETH_USD_FEED,
-  DSU_ADDRESS,
-  fundWalletDSU,
-  mockGasInfo,
-  PYTH_ADDRESS,
-} from '../../helpers/baseHelpers'
+import { CHAINLINK_ETH_USD_FEED, fundWalletDSU, mockGasInfo } from '../../helpers/baseHelpers'
 import { deployPythOracleFactory } from '../../helpers/oracleHelpers'
 
-const { ethers } = HRE
+const { deployments, ethers } = HRE
 
 const fixture = async (): Promise<FixtureVars> => {
   // deploy the protocol and create a market
   const [owner, userA, userB, userC, userD, keeper, oracleFeeReceiver] = await ethers.getSigners()
-  const [marketFactory, dsu, oracleFactory] = await deployProtocol(owner, DSU_ADDRESS)
-  const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory, PYTH_ADDRESS, CHAINLINK_ETH_USD_FEED)
+  const [marketFactory, dsu, oracleFactory] = await deployProtocol(owner)
+  const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory, CHAINLINK_ETH_USD_FEED)
   const marketWithOracle = await createMarketETH(owner, oracleFactory, pythOracleFactory, marketFactory)
   const market = marketWithOracle.market
 
