@@ -15,6 +15,8 @@ struct TriggerOrder {
     Fixed6 price;     // <= 9.22t
     /// @dev Amount to change position by, or type(int64).min to close position
     Fixed6 delta;     // <= 9.22t
+    /// @dev Change in isolated collateral
+    UFixed6 collateral;
     /// @dev Limit on keeper compensation for executing the order
     UFixed6 maxFee;   // < 18.45t
     /// @dev Always leave this false; set true after execution/cancellation
@@ -74,7 +76,7 @@ library TriggerOrderLib {
             account,
             makerDelta,
             takerDelta,
-            Fixed6Lib.ZERO,
+            Fixed6Lib.from(self.collateral),
             self.referrer
         );
     }
@@ -134,7 +136,8 @@ struct StoredTriggerOrder {
     /* slot 1 */
     address referrer;
     uint24 additiveFee;           // <= 1677%
-    bytes9 __unallocated1__;     // 9 bytes left over (no need to pad trailing bytes)
+    uint64 collateral;            // <= 18.45t
+    bytes1 __unallocated1__;     // padding for 32-byte alignment
     /* slot 2 can be almost fully occupied by dirty data until it is re-stored */
 }
 struct TriggerOrderStorage { StoredTriggerOrder value; }
@@ -146,7 +149,7 @@ using TriggerOrderStorageLib for TriggerOrderStorage global;
 library TriggerOrderStorageLib {
     /// @dev Used to verify a signed message
     bytes32 constant public STRUCT_HASH = keccak256(
-        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 maxFee,bool isSpent,address referrer,uint24 additiveFee)"
+        "TriggerOrder(uint8 side,int8 comparison,int64 price,int64 delta,uint64 collateral,uint64 maxFee,bool isSpent,address referrer,uint24 additiveFee)"
     );
 
     // sig: 0xf3469aa7
@@ -161,6 +164,7 @@ library TriggerOrderStorageLib {
             int8(storedValue.comparison),
             Fixed6.wrap(int256(storedValue.price)),
             Fixed6.wrap(int256(storedValue.delta)),
+            UFixed6.wrap(uint256(storedValue.collateral)),
             UFixed6.wrap(uint256(storedValue.maxFee)),
             storedValue.isSpent,
             storedValue.referrer,
@@ -177,6 +181,7 @@ library TriggerOrderStorageLib {
         if (newValue.delta.lt(Fixed6.wrap(type(int64).min))) revert TriggerOrderStorageInvalidError();
         if (newValue.maxFee.gt(UFixed6.wrap(type(uint64).max))) revert TriggerOrderStorageInvalidError();
         if (newValue.additiveFee.gt(UFixed6.wrap(type(uint24).max))) revert TriggerOrderStorageInvalidError();
+        if (newValue.collateral.gt(UFixed6.wrap(type(uint64).max))) revert TriggerOrderStorageInvalidError();
 
         self.value = StoredTriggerOrder(
             uint8(newValue.side),
@@ -188,6 +193,7 @@ library TriggerOrderStorageLib {
             0,
             newValue.referrer,
             uint24(UFixed6.unwrap(newValue.additiveFee)),
+            uint64(UFixed6.unwrap(newValue.collateral)),
             0
         );
     }
@@ -200,6 +206,7 @@ library TriggerOrderStorageLib {
             self.comparison,
             self.price,
             self.delta,
+            self.collateral,
             self.maxFee,
             self.isSpent,
             self.referrer,

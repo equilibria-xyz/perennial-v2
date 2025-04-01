@@ -194,6 +194,7 @@ export function RunManagerTests(
       comparison: Compare,
       price: BigNumber,
       delta: BigNumber,
+      collateral = BigNumber.from(0),
       maxFee = MAX_FEE,
       referrer = constants.AddressZero,
       additiveFee = BigNumber.from(0),
@@ -203,6 +204,7 @@ export function RunManagerTests(
         comparison: comparison,
         price: price,
         delta: delta,
+        collateral: collateral,
         maxFee: maxFee,
         isSpent: false,
         referrer: referrer,
@@ -225,6 +227,7 @@ export function RunManagerTests(
       comparison: Compare,
       price: BigNumber,
       delta: BigNumber,
+      collateral = BigNumber.from(0),
       maxFee = MAX_FEE,
       referrer = constants.AddressZero,
       additiveFee = BigNumber.from(0),
@@ -236,6 +239,7 @@ export function RunManagerTests(
           comparison: comparison,
           price: price,
           delta: delta,
+          collateral: collateral,
           maxFee: maxFee,
           isSpent: false,
           referrer: referrer,
@@ -547,6 +551,54 @@ export function RunManagerTests(
         await market.settle(userB.address, TX_OVERRIDES)
         await ensureNoPosition(userB)
       })
+
+      it('user can place an order with collateral isolation', async () => {
+        // userA places a maker order with collateral isolation
+        let orderId = await placeOrder(
+          userA,
+          Side.MAKER,
+          Compare.LTE,
+          parse6decimal('3993.6'),
+          parse6decimal('55'),
+          parse6decimal('90000'),
+        )
+        expect(orderId).to.equal(BigNumber.from(509))
+
+        // orders not executed; no position and no collateral
+        await ensureNoPosition(userA)
+        expect((await market.pendings(userA.address)).collateral).to.equal(constants.Zero)
+        expect((await market.locals(userA.address)).collateral).to.equal(constants.Zero)
+
+        // commit a price which should make order executable
+        await commitPrice(parse6decimal('2800'))
+
+        // execute maker order
+        await executeOrder(userA, 509)
+
+        // check collateral is isolated
+        expect(await margin.isolatedBalances(userA.address, market.address)).to.equal(parse6decimal('90000'))
+
+        await commitPrice()
+
+        // validate positions and collateral
+        expect(await getPendingPosition(userA, Side.MAKER)).to.equal(parse6decimal('55'))
+        expect((await market.pendings(userA.address)).collateral).to.equal(parse6decimal('90000'))
+
+        await market.connect(userA).settle(userA.address, TX_OVERRIDES)
+
+        // userA places another order to close their position
+        orderId = await placeOrder(userA, Side.MAKER, Compare.GTE, constants.Zero, MAGIC_VALUE_CLOSE_POSITION)
+        expect(orderId).to.equal(BigNumber.from(510))
+
+        // execute maker order
+        await executeOrder(userA, 510)
+        await commitPrice()
+
+        // validate positions is closed and no collateral is isolated
+        await market.settle(userA.address, TX_OVERRIDES)
+        await ensureNoPosition(userA)
+        expect(await margin.isolatedBalances(userA.address, market.address)).to.equal(constants.Zero)
+      })
     })
 
     // tests interaction with markets; again userA has a maker position, userB has a long position,
@@ -703,6 +755,7 @@ export function RunManagerTests(
           Compare.GTE,
           parse6decimal('0.01'),
           parse6decimal('1.5'),
+          BigNumber.from(0),
           MAX_FEE,
           constants.AddressZero,
           BigNumber.from(0),
@@ -734,6 +787,7 @@ export function RunManagerTests(
           Compare.GTE,
           parse6decimal('0.01'),
           parse6decimal('-0.5'),
+          BigNumber.from(0),
           MAX_FEE,
           constants.AddressZero,
           BigNumber.from(0),

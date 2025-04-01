@@ -11,7 +11,6 @@ import { IERC20, IFactory, IMarketFactory, IMarket, IOracleProvider } from '@per
 
 import {
   AggregatorV3Interface,
-  IEmptySetReserve,
   IMargin,
   IOrderVerifier,
   Manager_Optimism,
@@ -48,9 +47,7 @@ const MAKER_ORDER = {
 const MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE = 'update(address,int256,int256,int256,address)'
 
 describe('Manager', () => {
-  let usdc: FakeContract<IERC20>
   let dsu: FakeContract<IERC20>
-  let reserve: FakeContract<IEmptySetReserve>
   let manager: Manager_Optimism
   let marketFactory: FakeContract<IMarketFactory>
   let margin: FakeContract<IMargin>
@@ -77,9 +74,7 @@ describe('Manager', () => {
   }
 
   const fixture = async () => {
-    usdc = await smock.fake<IERC20>('IERC20')
     dsu = await smock.fake<IERC20>('IERC20')
-    reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     market = await smock.fake<IMarket>('IMarket')
     verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
@@ -91,9 +86,7 @@ describe('Manager', () => {
 
     // deploy the order manager
     manager = await new Manager_Optimism__factory(owner).deploy(
-      usdc.address,
       dsu.address,
-      reserve.address,
       marketFactory.address,
       verifier.address,
       margin.address,
