@@ -5,15 +5,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
 
-import {
-  IERC20Metadata,
-  IMargin,
-  IMarket,
-  IMarketFactory,
-  InsuranceFund,
-  InsuranceFund__factory,
-} from '../../../types/generated'
-import { IOracleProvider } from '@perennial/v2-oracle/types/generated'
+import { IMargin, IMarket, IMarketFactory, InsuranceFund, InsuranceFund__factory } from '../../../types/generated'
 import { parse6decimal } from '../../../../common/testutil/types'
 
 const { ethers } = HRE
@@ -28,7 +20,6 @@ describe('InsuranceFund', () => {
   let market1: FakeContract<IMarket>
   let market2: FakeContract<IMarket>
   let insuranceFund: InsuranceFund
-  let dsu: FakeContract<IERC20Metadata>
 
   beforeEach(async () => {
     ;[owner, factoryOwner, user] = await ethers.getSigners()
@@ -37,7 +28,6 @@ describe('InsuranceFund', () => {
     market2 = await smock.fake<IMarket>('IMarket')
     margin = await smock.fake<IMargin>('IMargin')
     factory = await smock.fake<IMarketFactory>('IMarketFactory')
-    dsu = await smock.fake<IERC20Metadata>('IERC20Metadata')
     insuranceFund = await new InsuranceFund__factory(owner).deploy(factory.address, margin.address)
 
     factory.owner.whenCalledWith().returns(factoryOwner.address)

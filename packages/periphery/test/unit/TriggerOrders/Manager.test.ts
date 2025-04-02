@@ -11,17 +11,16 @@ import { IERC20, IFactory, IMarketFactory, IMarket, IOracleProvider } from '@per
 
 import {
   AggregatorV3Interface,
-  ArbGasInfo,
-  IEmptySetReserve,
   IMargin,
   IOrderVerifier,
-  Manager_Arbitrum,
-  Manager_Arbitrum__factory,
+  Manager_Optimism,
+  Manager_Optimism__factory,
   OrderVerifier__factory,
 } from '../../../types/generated'
 import { signCancelOrderAction, signCommon, signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
 import { OracleVersionStruct } from '../../../types/generated/contracts/TriggerOrders/test/TriggerOrderTester'
 import { Compare, compareOrders, DEFAULT_TRIGGER_ORDER, Side } from '../../helpers/TriggerOrders/order'
+import { mockGasInfo } from '../../helpers/baseHelpers'
 
 const { ethers } = HRE
 
@@ -48,10 +47,8 @@ const MAKER_ORDER = {
 const MARKET_UPDATE_MAKER_TAKER_DELTA_PROTOTYPE = 'update(address,int256,int256,int256,address)'
 
 describe('Manager', () => {
-  let usdc: FakeContract<IERC20>
   let dsu: FakeContract<IERC20>
-  let reserve: FakeContract<IEmptySetReserve>
-  let manager: Manager_Arbitrum
+  let manager: Manager_Optimism
   let marketFactory: FakeContract<IMarketFactory>
   let margin: FakeContract<IMargin>
   let market: FakeContract<IMarket>
@@ -77,9 +74,7 @@ describe('Manager', () => {
   }
 
   const fixture = async () => {
-    usdc = await smock.fake<IERC20>('IERC20')
     dsu = await smock.fake<IERC20>('IERC20')
-    reserve = await smock.fake<IEmptySetReserve>('IEmptySetReserve')
     marketFactory = await smock.fake<IMarketFactory>('IMarketFactory')
     market = await smock.fake<IMarket>('IMarket')
     verifier = await new OrderVerifier__factory(owner).deploy(marketFactory.address)
@@ -90,10 +85,8 @@ describe('Manager', () => {
     market.margin.returns(margin.address)
 
     // deploy the order manager
-    manager = await new Manager_Arbitrum__factory(owner).deploy(
-      usdc.address,
+    manager = await new Manager_Optimism__factory(owner).deploy(
       dsu.address,
-      reserve.address,
       marketFactory.address,
       verifier.address,
       margin.address,
@@ -129,10 +122,7 @@ describe('Manager', () => {
 
   before(async () => {
     ;[owner, userA, userB, keeper] = await ethers.getSigners()
-    // Hardhat testnet does not support Arbitrum built-ins; need this for realistic keeper fees
-    await smock.fake<ArbGasInfo>('ArbGasInfo', {
-      address: '0x000000000000000000000000000000000000006C',
-    })
+    await mockGasInfo()
   })
 
   beforeEach(async () => {

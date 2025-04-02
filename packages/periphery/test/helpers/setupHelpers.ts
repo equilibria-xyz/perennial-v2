@@ -2,6 +2,7 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Address } from 'hardhat-deploy/dist/types'
 import { CallOverrides, constants } from 'ethers'
 import { parse6decimal } from '../../../common/testutil/types'
+import { deployments } from 'hardhat'
 
 import {
   Account__factory,
@@ -46,19 +47,17 @@ export interface MarketWithOracle {
 // deploys market and oracle factories
 export async function createFactories(
   owner: SignerWithAddress,
-  pythAddress: Address,
   chainLinkFeedAddress: Address,
-  dsuAddress: Address,
 ): Promise<[IOracleFactory, IMarketFactory, PythFactory, AggregatorV3Interface]> {
   // Deploy the oracle factory, which markets created by the market factory will query
   const oracleFactory = await deployOracleFactory(owner)
   // Deploy the market factory and authorize it with the oracle factory
-  const dsu = IERC20Metadata__factory.connect(dsuAddress, owner)
+  const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
   const marketFactory = await deployProtocolForOracle(owner, oracleFactory, dsu)
   // Connect the Chainlink ETH feed used for keeper compensation
   const chainlinkKeptFeed = AggregatorV3Interface__factory.connect(chainLinkFeedAddress, owner)
   // Deploy a Pyth keeper oracle factory, which we'll need to meddle with prices
-  const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory, pythAddress, chainlinkKeptFeed.address)
+  const pythOracleFactory = await deployPythOracleFactory(owner, oracleFactory, chainlinkKeptFeed.address)
 
   return [oracleFactory, marketFactory, pythOracleFactory, chainlinkKeptFeed]
 }
@@ -127,10 +126,9 @@ export async function deployController(
 // Deploys OracleFactory and then MarketFactory
 export async function deployProtocol(
   owner: SignerWithAddress,
-  dsuAddress: Address,
 ): Promise<[IMarketFactory, IERC20Metadata, IOracleFactory]> {
   // Deploy the oracle factory, which markets created by the market factory will query
-  const dsu = IERC20Metadata__factory.connect(dsuAddress, owner)
+  const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
   const oracleFactory = await deployOracleFactory(owner)
 
   // Deploy the market factory and authorize it with the oracle factory
@@ -190,4 +188,10 @@ async function deployMarketFactory(
   })
 
   return marketFactory
+}
+
+export async function getStablecoins(owner: SignerWithAddress): Promise<[IERC20Metadata, IERC20Metadata]> {
+  const dsu = IERC20Metadata__factory.connect((await deployments.get('DSU')).address, owner)
+  const usdc = IERC20Metadata__factory.connect((await deployments.get('USDC')).address, owner)
+  return [dsu, usdc]
 }

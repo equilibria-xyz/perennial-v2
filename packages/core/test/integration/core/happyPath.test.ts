@@ -1319,6 +1319,243 @@ describe('Happy Path', () => {
     })
   })
 
+  it('opens and closes a cross-margin short position', async () => {
+    const POSITION = parse6decimal('10')
+    const POSITION_B = parse6decimal('-3')
+    const COLLATERAL = parse6decimal('1000')
+    const { user, userB, dsu, margin, chainlink } = instanceVars
+
+    const market = await createMarket(instanceVars)
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
+
+    // Cannot short without maker liquidity
+    await expect(
+      market
+        .connect(userB)
+        ['update(address,int256,int256,address)'](userB.address, POSITION_B, 0, constants.AddressZero),
+    ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
+    await expect(
+      market
+        .connect(userB)
+        ['update(address,int256,int256,int256,address)'](userB.address, 0, POSITION_B, 0, constants.AddressZero),
+    ).to.be.revertedWithCustomError(market, 'MarketEfficiencyUnderLimitError')
+
+    // user opens a maker position, userB opens a short position, both cross-margined
+    await expect(
+      market
+        .connect(user)
+        ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, 0, constants.AddressZero),
+    )
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        user.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_1,
+          orders: 1,
+          makerPos: POSITION,
+          invalidation: 1,
+        },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
+    await expect(
+      market
+        .connect(userB)
+        ['update(address,int256,int256,address)'](userB.address, POSITION_B, 0, constants.AddressZero),
+    )
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_1,
+          orders: 1,
+          shortPos: POSITION_B.mul(-1),
+          invalidation: 1,
+        },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
+
+    // Check user state pre-settlement
+    expect(await margin.isCrossed(user.address, market.address))
+    expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 1,
+      latestId: 0,
+    })
+    expectOrderEq(await market.pendingOrders(user.address, 1), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_1,
+      orders: 1,
+      makerPos: POSITION,
+    })
+    expectCheckpointEq(await market.checkpoints(user.address, TIMESTAMP_1), {
+      ...DEFAULT_CHECKPOINT,
+    })
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_0,
+    })
+
+    // Check userB state pre-settlement
+    expect(await margin.isCrossed(userB.address, market.address))
+    expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 1,
+      latestId: 0,
+    })
+    expectOrderEq(await market.pendingOrders(userB.address, 1), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_1,
+      orders: 1,
+      shortPos: POSITION_B.mul(-1),
+    })
+    expectCheckpointEq(await market.checkpoints(userB.address, TIMESTAMP_1), {
+      ...DEFAULT_CHECKPOINT,
+    })
+    expectPositionEq(await market.positions(userB.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_0,
+    })
+
+    // Check global state pre-settlement
+    expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
+      currentId: 1,
+      latestPrice: PRICE_0,
+    })
+    expectOrderEq(await market.pendingOrder(1), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_1,
+      orders: 2,
+      makerPos: POSITION,
+      shortPos: POSITION_B.mul(-1),
+    })
+    expectPositionEq(await market.position(), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_0,
+    })
+    expectVersionEq(await market.versions(TIMESTAMP_0), {
+      ...DEFAULT_VERSION,
+      price: PRICE_0,
+    })
+
+    // Settle user after one round
+    await chainlink.next()
+    await settle(market, user)
+
+    // Commit another (unrelated) round
+    await chainlink.next()
+
+    // Check global state before userB settlement
+    expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
+      currentId: 1,
+      latestId: 1,
+      latestPrice: PRICE_1,
+    })
+    expectPositionEq(await market.position(), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_1,
+      maker: POSITION,
+      short: POSITION_B.mul(-1),
+    })
+
+    // Settle userB against first round
+    await settle(market, userB)
+    expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 1,
+      latestId: 1,
+    })
+    expect(await margin.crossMarginBalances(userB.address)).to.equal(COLLATERAL.sub(parse6decimal('3.752256')))
+    expectPositionEq(await market.positions(userB.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_2,
+      short: POSITION_B.mul(-1),
+    })
+
+    // userB closes their short
+    await expect(market.connect(userB).close(userB.address, false, constants.AddressZero))
+      .to.emit(market, 'OrderCreated')
+      .withArgs(
+        userB.address,
+        {
+          ...DEFAULT_ORDER,
+          timestamp: TIMESTAMP_3,
+          orders: 1,
+          shortNeg: POSITION_B.mul(-1),
+          invalidation: 1,
+        },
+        { ...DEFAULT_GUARANTEE },
+        constants.AddressZero,
+        constants.AddressZero,
+        constants.AddressZero,
+      )
+
+    // Settle userB at round 3
+    await chainlink.next()
+    await settle(market, userB)
+    expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
+      currentId: 2,
+      latestId: 2,
+      protocolFee: '358',
+      latestPrice: PRICE_3,
+    })
+    expectPositionEq(await market.position(), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_3,
+      maker: POSITION,
+    })
+    expectLocalEq(await market.locals(userB.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 2,
+      latestId: 2,
+    })
+    expect(await margin.crossMarginBalances(userB.address)).to.equal(COLLATERAL.sub(parse6decimal('7.46835')))
+    expectPositionEq(await market.positions(userB.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_3,
+    })
+
+    // Check pending orders and checkpoints, ensuring no unexpected mutation occured
+    expectOrderEq(await market.pendingOrder(1), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_1,
+      orders: 2,
+      makerPos: POSITION,
+      shortPos: POSITION_B.mul(-1),
+    })
+    expectOrderEq(await market.pendingOrder(2), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_3,
+      orders: 1,
+      shortNeg: POSITION_B.mul(-1),
+    })
+    expectOrderEq(await market.pendingOrders(userB.address, 1), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_1,
+      orders: 1,
+      shortPos: POSITION_B.mul(-1),
+    })
+    expectOrderEq(await market.pendingOrders(userB.address, 2), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_3,
+      orders: 1,
+      shortNeg: POSITION_B.mul(-1),
+    })
+  })
+
   it('settle no op (gas test)', async () => {
     const { user } = instanceVars
 
@@ -3177,7 +3414,7 @@ describe('Happy Path', () => {
       price: PRICE_0,
     })
 
-    // Settle after one round with oracle invalid version
+    // Settle after one round with oracle invalid version; order remains pending
     await chainlink.setInvalidVersion()
     await settle(market, userB)
 
@@ -3221,6 +3458,118 @@ describe('Happy Path', () => {
       ...DEFAULT_POSITION,
       timestamp: TIMESTAMP_1,
     })
+
+    // Commit a valid price
+    await chainlink.oracle.at.reset()
+    await chainlink.nextWithPriceModification(() => PRICE_2)
+
+    // Open a smaller maker position
+    await market
+      .connect(user)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION.div(2), 0, 0, constants.AddressZero)
+    expectOrderEq(await market.pendingOrders(user.address, 2), {
+      ...DEFAULT_ORDER,
+      timestamp: TIMESTAMP_3,
+      orders: 1,
+      makerPos: POSITION.div(2),
+    })
+    expectLocalEq(await market.locals(user.address), {
+      ...DEFAULT_LOCAL,
+      currentId: 2,
+      latestId: 1,
+    })
+    expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
+      currentId: 2,
+      latestId: 1,
+      protocolFee: '0',
+      latestPrice: PRICE_1,
+    })
+
+    // Commit and settle another round; confirm the order is settled
+    await chainlink.next()
+    await settle(market, user)
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_3,
+      maker: POSITION.div(2),
+    })
+    expectGlobalEq(await market.global(), {
+      ...DEFAULT_GLOBAL,
+      currentId: 2,
+      latestId: 2,
+      protocolFee: '0',
+      latestPrice: PRICE_3,
+    })
+    expectPositionEq(await market.position(), {
+      ...DEFAULT_POSITION,
+      timestamp: TIMESTAMP_3,
+      maker: POSITION.div(2),
+    })
+  })
+
+  it('rejects orders when stale', async () => {
+    const { user, dsu, margin, chainlink } = instanceVars
+    const STALE_AFTER = BigNumber.from(60 * 10) // 10 minutes
+    const POSITION = parse6decimal('3')
+
+    // Create a market with a reasonable staleAfter
+    const market = await createMarket(instanceVars)
+    const riskParameter = { ...(await market.riskParameter()) }
+    riskParameter.staleAfter = STALE_AFTER
+    await market.updateRiskParameter(riskParameter)
+
+    // Confirm initial price not stale
+    let status = await chainlink.oracle.status()
+    expect(status[1].sub(status[0].timestamp)).to.be.lessThan(STALE_AFTER)
+    expect(await market.stale()).to.be.false
+
+    // Advance a round but make it stale
+    await chainlink.next()
+    chainlink.oracle.current.reset()
+    chainlink.oracle.current.whenCalledWith().returns(STALE_AFTER.add(60))
+    status = await chainlink.oracle.status()
+    expect(status[1].sub(status[0].timestamp)).to.be.greaterThan(STALE_AFTER)
+    expect(await market.stale()).to.be.true
+
+    // User can still deposit
+    await dsu.connect(user).approve(margin.address, utils.parseEther('500'))
+    await margin.connect(user).deposit(user.address, parse6decimal('500'))
+
+    // Ensure user cannot submit a maker order
+    await expect(
+      market
+        .connect(user)
+        ['update(address,int256,int256,int256,address)'](user.address, parse6decimal('5'), 0, 0, constants.AddressZero),
+    ).to.be.revertedWithCustomError(market, 'MarketStalePriceError')
+
+    // Advance to a non-stale price and open a position
+    await chainlink.next()
+    expect(await market.stale()).to.be.false
+    await market
+      .connect(user)
+      ['update(address,int256,int256,int256,address)'](user.address, POSITION, 0, 0, constants.AddressZero)
+
+    // Settle the position
+    await chainlink.next()
+    await settle(market, user)
+    expectPositionEq(await market.positions(user.address), {
+      ...DEFAULT_POSITION,
+      maker: POSITION,
+      timestamp: TIMESTAMP_3,
+    })
+
+    // Make the price stale again
+    await chainlink.next()
+    chainlink.oracle.current.reset()
+    chainlink.oracle.current.whenCalledWith().returns(STALE_AFTER.add(65))
+    expect(await market.stale()).to.be.true
+
+    // Ensure user cannot close their position
+    await expect(market.connect(user).close(user.address, false, constants.AddressZero)).to.be.revertedWithCustomError(
+      market,
+      'MarketStalePriceError',
+    )
   })
 
   // uncheck skip to see gas results

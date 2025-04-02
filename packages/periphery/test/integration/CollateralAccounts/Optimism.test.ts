@@ -1,24 +1,26 @@
-import { smock } from '@defi-wonderland/smock'
-import { CallOverrides, constants } from 'ethers'
-import HRE from 'hardhat'
+import { CallOverrides } from 'ethers'
+import HRE, { deployments } from 'hardhat'
 
 import {
   AccountVerifier__factory,
   AggregatorV3Interface,
   IAccountVerifier,
+  IEmptySetReserve__factory,
   IMargin,
   IMarket__factory,
-  OptGasInfo,
 } from '../../../types/generated'
 import {
   createFactoriesForChain,
   deployControllerOptimism,
   fundWalletDSU,
   fundWalletUSDC,
-  getDSUReserve,
-  getStablecoins,
+  mockGasInfo,
 } from '../../helpers/baseHelpers'
-import { createMarketBTC as setupMarketBTC, createMarketETH as setupMarketETH } from '../../helpers/setupHelpers'
+import {
+  createMarketBTC as setupMarketBTC,
+  createMarketETH as setupMarketETH,
+  getStablecoins,
+} from '../../helpers/setupHelpers'
 import { RunIncentivizedTests } from './Controller_Incentivized.test'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { Controller_Incentivized, IMarketFactory } from '../../../types/generated'
@@ -37,6 +39,7 @@ async function deployProtocol(
 ): Promise<DeploymentVars> {
   const [oracleFactory, marketFactory, pythOracleFactory, chainlinkKeptFeed] = await createFactoriesForChain(owner)
   const [dsu, usdc] = await getStablecoins(owner)
+  const dsuReserve = IEmptySetReserve__factory.connect((await deployments.get('DSUReserve')).address, owner)
   const marketImpl: IMarket = IMarket__factory.connect(await marketFactory.implementation(), owner)
   const margin: IMargin = IMargin__factory.connect(await marketImpl.margin(), owner)
 
@@ -54,7 +57,7 @@ async function deployProtocol(
       ? await setupMarketBTC(owner, oracleFactory, pythOracleFactory, marketFactory, overrides)
       : undefined,
     chainlinkKeptFeed,
-    dsuReserve: getDSUReserve(owner),
+    dsuReserve,
     fundWalletDSU,
     fundWalletUSDC,
   }
@@ -72,21 +75,21 @@ async function deployController(
 
   const keepConfig = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 175_000, // buffer for handling the keeper fee
+    bufferBase: 200_000, // buffer for handling the keeper fee
     multiplierCalldata: ethers.utils.parseEther('1'),
-    bufferCalldata: 0,
+    bufferCalldata: 544, // applicable calldata between 384 and 704 bytes
   }
   const keepConfigBuffered = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 1_500_000, // for price commitment
+    bufferBase: 750_000, // for price commitment
     multiplierCalldata: ethers.utils.parseEther('1'),
-    bufferCalldata: 500,
+    bufferCalldata: 64,
   }
   const keepConfigWithdrawal = {
     multiplierBase: ethers.utils.parseEther('1'),
-    bufferBase: 750_000,
+    bufferBase: 625_000,
     multiplierCalldata: ethers.utils.parseEther('1'),
-    bufferCalldata: 2000,
+    bufferCalldata: 448,
   }
 
   const accountVerifier = await new AccountVerifier__factory(owner).deploy(marketFactory.address, {
@@ -103,16 +106,6 @@ async function deployController(
   )
 
   return [controller, accountVerifier]
-}
-
-async function mockGasInfo() {
-  const gasInfo = await smock.fake<OptGasInfo>('OptGasInfo', {
-    address: '0x420000000000000000000000000000000000000F',
-  })
-  gasInfo.getL1GasUsed.returns(440)
-  gasInfo.l1BaseFee.returns(2640000000)
-  gasInfo.baseFeeScalar.returns(5214379)
-  gasInfo.decimals.returns(6)
 }
 
 if (process.env.FORK_NETWORK === 'base') {

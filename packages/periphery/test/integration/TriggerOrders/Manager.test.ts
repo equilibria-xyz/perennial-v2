@@ -10,7 +10,7 @@ import { parse6decimal } from '../../../../common/testutil/types'
 
 import { IERC20Metadata, IMarketFactory, IMarket, IOracleProvider } from '@perennial/v2-core/types/generated'
 import { IKeeperOracle, IMargin__factory } from '@perennial/v2-oracle/types/generated'
-import { IController, IManager, IMargin, IOrderVerifier } from '../../../types/generated'
+import { IManager, IMargin, IOrderVerifier } from '../../../types/generated'
 import { PlaceOrderActionStruct } from '../../../types/generated/contracts/TriggerOrders/Manager'
 
 import { signAction, signCancelOrderAction, signPlaceOrderAction } from '../../helpers/TriggerOrders/eip712'
@@ -40,7 +40,6 @@ export function RunManagerTests(
 ): void {
   describe(name, () => {
     let dsu: IERC20Metadata
-    let usdc: IERC20Metadata
     let keeperOracle: IKeeperOracle
     let manager: IManager
     let margin: IMargin
@@ -48,7 +47,6 @@ export function RunManagerTests(
     let market: IMarket
     let oracle: IOracleProvider
     let verifier: IOrderVerifier
-    let controller: IController
     let owner: SignerWithAddress
     let userA: SignerWithAddress
     let userB: SignerWithAddress
@@ -73,7 +71,7 @@ export function RunManagerTests(
 
       // If TXes in test required outside price commitments, compensate the keeper for them.
       // Note that calls to `commitPrice` in this module do not consume keeper gas.
-      keeperEthSpentOnGas = keeperEthSpentOnGas.add(utils.parseEther('0.0000644306').mul(priceCommitments))
+      keeperEthSpentOnGas = keeperEthSpentOnGas.add(utils.parseEther('0.00002021').mul(priceCommitments))
 
       // cost of transaction
       const keeperGasCostInUSD = keeperEthSpentOnGas.mul(2603)
@@ -196,6 +194,7 @@ export function RunManagerTests(
       comparison: Compare,
       price: BigNumber,
       delta: BigNumber,
+      collateral = BigNumber.from(0),
       maxFee = MAX_FEE,
       referrer = constants.AddressZero,
       additiveFee = BigNumber.from(0),
@@ -205,6 +204,7 @@ export function RunManagerTests(
         comparison: comparison,
         price: price,
         delta: delta,
+        collateral: collateral,
         maxFee: maxFee,
         isSpent: false,
         referrer: referrer,
@@ -227,6 +227,7 @@ export function RunManagerTests(
       comparison: Compare,
       price: BigNumber,
       delta: BigNumber,
+      collateral = BigNumber.from(0),
       maxFee = MAX_FEE,
       referrer = constants.AddressZero,
       additiveFee = BigNumber.from(0),
@@ -238,6 +239,7 @@ export function RunManagerTests(
           comparison: comparison,
           price: price,
           delta: delta,
+          collateral: collateral,
           maxFee: maxFee,
           isSpent: false,
           referrer: referrer,
@@ -287,14 +289,12 @@ export function RunManagerTests(
       currentTime = BigNumber.from(await currentBlockTimestamp())
       const fixture = await getFixture(TX_OVERRIDES)
       dsu = fixture.dsu
-      usdc = fixture.usdc
       keeperOracle = fixture.keeperOracle
       manager = fixture.manager
       marketFactory = fixture.marketFactory
       market = fixture.market
       oracle = fixture.oracle
       verifier = fixture.verifier
-      controller = fixture.controller
       owner = fixture.owner
       userA = fixture.userA
       userB = fixture.userB
@@ -551,6 +551,54 @@ export function RunManagerTests(
         await market.settle(userB.address, TX_OVERRIDES)
         await ensureNoPosition(userB)
       })
+
+      it('user can place an order with collateral isolation', async () => {
+        // userA places a maker order with collateral isolation
+        let orderId = await placeOrder(
+          userA,
+          Side.MAKER,
+          Compare.LTE,
+          parse6decimal('3993.6'),
+          parse6decimal('55'),
+          parse6decimal('90000'),
+        )
+        expect(orderId).to.equal(BigNumber.from(509))
+
+        // orders not executed; no position and no collateral
+        await ensureNoPosition(userA)
+        expect((await market.pendings(userA.address)).collateral).to.equal(constants.Zero)
+        expect((await market.locals(userA.address)).collateral).to.equal(constants.Zero)
+
+        // commit a price which should make order executable
+        await commitPrice(parse6decimal('2800'))
+
+        // execute maker order
+        await executeOrder(userA, 509)
+
+        // check collateral is isolated
+        expect(await margin.isolatedBalances(userA.address, market.address)).to.equal(parse6decimal('90000'))
+
+        await commitPrice()
+
+        // validate positions and collateral
+        expect(await getPendingPosition(userA, Side.MAKER)).to.equal(parse6decimal('55'))
+        expect((await market.pendings(userA.address)).collateral).to.equal(parse6decimal('90000'))
+
+        await market.connect(userA).settle(userA.address, TX_OVERRIDES)
+
+        // userA places another order to close their position
+        orderId = await placeOrder(userA, Side.MAKER, Compare.GTE, constants.Zero, MAGIC_VALUE_CLOSE_POSITION)
+        expect(orderId).to.equal(BigNumber.from(510))
+
+        // execute maker order
+        await executeOrder(userA, 510)
+        await commitPrice()
+
+        // validate positions is closed and no collateral is isolated
+        await market.settle(userA.address, TX_OVERRIDES)
+        await ensureNoPosition(userA)
+        expect(await margin.isolatedBalances(userA.address, market.address)).to.equal(constants.Zero)
+      })
     })
 
     // tests interaction with markets; again userA has a maker position, userB has a long position,
@@ -707,6 +755,7 @@ export function RunManagerTests(
           Compare.GTE,
           parse6decimal('0.01'),
           parse6decimal('1.5'),
+          BigNumber.from(0),
           MAX_FEE,
           constants.AddressZero,
           BigNumber.from(0),
@@ -738,6 +787,7 @@ export function RunManagerTests(
           Compare.GTE,
           parse6decimal('0.01'),
           parse6decimal('-0.5'),
+          BigNumber.from(0),
           MAX_FEE,
           constants.AddressZero,
           BigNumber.from(0),

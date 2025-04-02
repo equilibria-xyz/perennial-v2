@@ -25,7 +25,6 @@
     "lint": "eslint --fix --ext '.ts,.js' ./ && solhint 'contracts/**/*.sol' --fix",
     "format": "prettier -w .",
     "clean": "rm -rf cache artifacts types/generated dist deployments/localhost",
-    "node:fork:arbitrumGoerli": "FORK_ENABLED=true FORK_NETWORK=arbitrumGoerli NODE_INTERVAL_MINING=500 hardhat node",
     "prepack": "yarn clean && yarn build && find artifacts/contracts -name '*.dbg.json' -type f -delete"
   },
   "author": "",

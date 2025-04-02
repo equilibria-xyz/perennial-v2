@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.24;
 
-import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { Kept, Kept_Optimism, Token18, UFixed18 } from "@equilibria/root/attribute/Kept/Kept_Optimism.sol";
-import { Token6 } from "@equilibria/root/token/types/Token6.sol";
 import { IMarketFactory } from "@perennial/v2-core/contracts/interfaces/IMarketFactory.sol";
 import { IMargin } from "@perennial/v2-core/contracts/interfaces/IMargin.sol";
 
@@ -12,13 +10,11 @@ import { IOrderVerifier, Manager } from "./Manager.sol";
 contract Manager_Optimism is Manager, Kept_Optimism {
     /// @dev passthrough constructor
     constructor(
-        Token6 usdc,
         Token18 dsu,
-        IEmptySetReserve reserve,
         IMarketFactory marketFactory,
         IOrderVerifier verifier,
         IMargin margin
-    ) Manager(usdc, dsu, reserve, marketFactory, verifier, margin) {}
+    ) Manager(dsu, marketFactory, verifier, margin) {}
 
     /// @dev Use the Kept_Optimism implementation for calculating the dynamic fee
     function _calldataFee(

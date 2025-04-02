@@ -1,11 +1,14 @@
+import { dirname } from 'path'
 import defaultConfig, { OPTIMIZER_ENABLED, SOLIDITY_VERSION } from '../common/hardhat.default.config'
+
+const FORK_NETWORK = process.env.FORK_NETWORK || 'mainnet'
 
 const controllerOverrides = {
   version: SOLIDITY_VERSION,
   settings: {
     optimizer: {
       enabled: OPTIMIZER_ENABLED,
-      runs: 80000,
+      runs: 1,
     },
     viaIR: OPTIMIZER_ENABLED,
   },
@@ -16,18 +19,23 @@ const multiInvokerOverrides = {
   settings: {
     optimizer: {
       enabled: OPTIMIZER_ENABLED,
-      runs: 27500,
+      runs: 1,
     },
     viaIR: OPTIMIZER_ENABLED,
   },
 }
 
 export const solidityOverrides = {
-  'contracts/Controller_Arbitrum.sol': controllerOverrides,
+  'contracts/Controller_Optimism.sol': controllerOverrides,
   'contracts/MultiInvoker.sol': multiInvokerOverrides,
 }
+
+const deployPackageDir = dirname(require.resolve('@perennial/v2-deploy/package.json'))
 const config = defaultConfig({
   solidityOverrides,
+  externalDeployments: {
+    hardhat: [`${deployPackageDir}/external/deployments/${FORK_NETWORK}`],
+  },
   dependencyPaths: [
     '@openzeppelin/contracts/token/ERC20/ERC20.sol',
     '@perennial/v2-core/contracts/MarketFactory.sol',
@@ -44,5 +52,4 @@ const config = defaultConfig({
     '@equilibria/root/attribute/Kept/Kept.sol',
   ],
 })
-
 export default config
