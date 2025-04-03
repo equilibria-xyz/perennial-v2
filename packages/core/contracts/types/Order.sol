@@ -253,6 +253,21 @@ library OrderLib {
             ((long(self).isZero() && short(self).isZero()) || increasesTaker(self));
     }
 
+    /// @dev Helper function to increment exposure based on version exposure and order/guarantee amounts
+    /// @param currentExposure The current exposure value
+    /// @param versionExposure The version exposure value
+    /// @param orderAmount The order amount
+    /// @param guaranteeAmount The guarantee amount
+    /// @return The updated exposure value
+    function _incrementExposure(
+        UFixed6 currentExposure,
+        Fixed6 versionExposure,
+        UFixed6 orderAmount,
+        UFixed6 guaranteeAmount
+    ) internal pure returns (UFixed6) {
+        return currentExposure.add(versionExposure.abs().mul(orderAmount.sub(guaranteeAmount)));
+    }
+
     /// @notice Returns the aggregate exposure for each component of the order
     /// @dev Order is split into the takerPos and takerNeg components
     /// @param self The order object to check
@@ -265,25 +280,57 @@ library OrderLib {
         Guarantee memory guarantee,
         Version memory version
     ) internal pure returns (UFixed6 exposurePos, UFixed6 exposureNeg) {
-        // taker
-        (exposurePos, exposureNeg) = (
-            version.longPosExposure.abs().mul(self.longPos.sub(guarantee.longPos))
-                .add(version.shortNegExposure.abs().mul(self.shortNeg.sub(guarantee.shortNeg))),
-             version.longNegExposure.abs().mul(self.longNeg.sub(guarantee.longNeg))
-                .add(version.shortPosExposure.abs().mul(self.shortPos.sub(guarantee.shortPos)))
-        );
+        // taker exposure
+        (UFixed6 takerExposurePos, UFixed6 takerExposureNeg) = takerExposure(self, version, guarantee);
+
+        // maker exposure
+        (UFixed6 makerExposurePos, UFixed6 makerExposureNeg) = makerExposure(self, version);
+
+        exposurePos = takerExposurePos.add(makerExposurePos);
+        exposureNeg = takerExposureNeg.add(makerExposureNeg);
+    }
+
+    /// @notice Returns the maker exposure for the order
+    /// @param self The order object to check
+    /// @param version The version where exposure is recorded
+    /// @return makerExposurePos The maker exposure of the positive component of the order
+    /// @return makerExposureNeg The maker exposure of the negative component of the order
+    function makerExposure(Order memory self, Version memory version) internal pure returns (UFixed6 makerExposurePos, UFixed6 makerExposureNeg) {
+        UFixed6 exposurePos = _incrementExposure(UFixed6Lib.ZERO, version.makerPosExposure, self.makerPos, UFixed6Lib.ZERO);
+        UFixed6 exposureNeg = _incrementExposure(UFixed6Lib.ZERO, version.makerNegExposure, self.makerNeg, UFixed6Lib.ZERO);
 
         // maker close
-        if (version.makerNegExposure.gt(Fixed6Lib.ZERO))
-            exposureNeg = exposureNeg.add(self.makerNeg.mul(version.makerNegExposure.abs()));
-        else
-            exposurePos = exposurePos.add(self.makerNeg.mul(version.makerNegExposure.abs()));
+        if (version.makerNegExposure.gt(Fixed6Lib.ZERO)) {
+            makerExposureNeg = exposureNeg;
+        } else {
+            makerExposurePos = exposureNeg;
+        }
 
         // maker open
-        if (version.makerPosExposure.gt(Fixed6Lib.ZERO))
-            exposurePos = exposurePos.add(self.makerPos.mul(version.makerPosExposure.abs()));
-        else
-            exposureNeg = exposureNeg.add(self.makerPos.mul(version.makerPosExposure.abs()));
+        if (version.makerPosExposure.gt(Fixed6Lib.ZERO)) {
+            makerExposurePos = makerExposurePos.add(exposurePos);
+        } else {
+            makerExposureNeg = makerExposureNeg.add(exposurePos);
+        }
+    }
+
+    /// @notice Returns the taker exposure for the order
+    /// @param self The order object to check
+    /// @param version The version where exposure is recorded
+    /// @param guarantee The guarantee object
+    /// @return takerExposurePos The taker exposure of the positive component of the order
+    /// @return takerExposureNeg The taker exposure of the negative component of the order
+    function takerExposure(
+        Order memory self,
+        Version memory version,
+        Guarantee memory guarantee
+    ) internal pure returns (UFixed6 takerExposurePos, UFixed6 takerExposureNeg) {
+        // Increment exposure for each component
+        takerExposurePos = _incrementExposure(takerExposurePos, version.longPosExposure, self.longPos, guarantee.longPos);
+        takerExposurePos = _incrementExposure(takerExposurePos, version.shortNegExposure, self.shortNeg, guarantee.shortNeg);
+
+        takerExposureNeg = _incrementExposure(takerExposureNeg, version.longNegExposure, self.longNeg, guarantee.longNeg);
+        takerExposureNeg = _incrementExposure(takerExposureNeg, version.shortPosExposure, self.shortPos, guarantee.shortPos);
     }
 
     /// @notice Returns the maker fee for the order
