@@ -251,6 +251,21 @@ library OrderLib {
             ((long(self).isZero() && short(self).isZero()) || increasesTaker(self));
     }
 
+    /// @dev Helper function to increment exposure based on version exposure and order/guarantee amounts
+    /// @param currentExposure The current exposure value
+    /// @param versionExposure The version exposure value
+    /// @param orderAmount The order amount
+    /// @param guaranteeAmount The guarantee amount
+    /// @return The updated exposure value
+    function _incrementExposure(
+        UFixed6 currentExposure,
+        Fixed6 versionExposure,
+        UFixed6 orderAmount,
+        UFixed6 guaranteeAmount
+    ) internal pure returns (UFixed6) {
+        return currentExposure.add(versionExposure.abs().mul(orderAmount.sub(guaranteeAmount)));
+    }
+
     /// @notice Returns the aggregate exposure for each component of the order
     /// @dev Order is split into the takerPos and takerNeg components
     /// @param self The order object to check
@@ -279,8 +294,8 @@ library OrderLib {
     /// @return makerExposurePos The maker exposure of the positive component of the order
     /// @return makerExposureNeg The maker exposure of the negative component of the order
     function makerExposure(Order memory self, Version memory version) internal pure returns (UFixed6 makerExposurePos, UFixed6 makerExposureNeg) {
-        UFixed6 exposurePos = self.makerPos.mul(version.makerPosExposure.abs());
-        UFixed6 exposureNeg = self.makerNeg.mul(version.makerNegExposure.abs());
+        UFixed6 exposurePos = _incrementExposure(UFixed6Lib.ZERO, version.makerPosExposure, self.makerPos, UFixed6Lib.ZERO);
+        UFixed6 exposureNeg = _incrementExposure(UFixed6Lib.ZERO, version.makerNegExposure, self.makerNeg, UFixed6Lib.ZERO);
 
         // maker close
         if (version.makerNegExposure.gt(Fixed6Lib.ZERO)) {
@@ -308,10 +323,12 @@ library OrderLib {
         Version memory version,
         Guarantee memory guarantee
     ) internal pure returns (UFixed6 takerExposurePos, UFixed6 takerExposureNeg) {
-        takerExposurePos = version.longPosExposure.abs().mul(self.longPos.sub(guarantee.longPos))
-            .add(version.shortNegExposure.abs().mul(self.shortNeg.sub(guarantee.shortNeg)));
-        takerExposureNeg = version.longNegExposure.abs().mul(self.longNeg.sub(guarantee.longNeg))
-            .add(version.shortPosExposure.abs().mul(self.shortPos.sub(guarantee.shortPos)));
+        // Increment exposure for each component
+        takerExposurePos = _incrementExposure(takerExposurePos, version.longPosExposure, self.longPos, guarantee.longPos);
+        takerExposurePos = _incrementExposure(takerExposurePos, version.shortNegExposure, self.shortNeg, guarantee.shortNeg);
+
+        takerExposureNeg = _incrementExposure(takerExposureNeg, version.longNegExposure, self.longNeg, guarantee.longNeg);
+        takerExposureNeg = _incrementExposure(takerExposureNeg, version.shortPosExposure, self.shortPos, guarantee.shortPos);
     }
 
     /// @notice Returns the maker fee for the order
