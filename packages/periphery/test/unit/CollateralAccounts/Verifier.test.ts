@@ -501,12 +501,12 @@ describe('Verifier', () => {
     it('verifies relayedFill messages', async () => {
       const intentMessage: Intent = {
         amount: parse6decimal('15'),
+        collateral: 0,
         price: parse6decimal('3110'),
         fee: parse6decimal('0.5'),
         additiveFee: 0,
         originator: constants.AddressZero,
         solver: constants.AddressZero,
-        collateralization: parse6decimal('0.03'),
         ...createCommon(),
       }
       const traderSignature = await signIntent(userA, downstreamVerifier, intentMessage)

@@ -103,12 +103,12 @@ describe('Verifier', () => {
     const DEFAULT_FILL = {
       intent: {
         amount: parse6decimal('4'),
+        collateral: 0,
         price: parse6decimal('151'),
         fee: parse6decimal('0.25'),
         additiveFee: parse6decimal('0.01'),
         originator: constants.AddressZero,
         solver: constants.AddressZero,
-        collateralization: parse6decimal('0.3'),
         common: DEFAULT_COMMON,
       },
       common: DEFAULT_COMMON,
@@ -350,12 +350,12 @@ describe('Verifier', () => {
   describe('#verifyIntent', () => {
     const DEFAULT_INTENT = {
       amount: parse6decimal('10'),
+      collateral: parse6decimal('100'),
       price: parse6decimal('123'),
       fee: parse6decimal('0.5'),
       additiveFee: parse6decimal('0.01'),
       originator: constants.AddressZero,
       solver: constants.AddressZero,
-      collateralization: parse6decimal('0.1'),
       common: {
         account: constants.AddressZero,
         signer: constants.AddressZero,

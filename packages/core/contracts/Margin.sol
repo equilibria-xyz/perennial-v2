@@ -127,10 +127,9 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     /// @inheritdoc IMargin
     function margined(
-        address account,
-        UFixed6 minCollateralization
+        address account
     ) external onlyMarket view returns (bool isMargined) {
-        return _margined(account, IMarket(msg.sender), minCollateralization);
+        return _margined(account, IMarket(msg.sender));
     }
 
 
@@ -209,12 +208,11 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
     /// @dev Shares logic for margin checks initiated internally and from a Market
     function _margined(
         address account,
-        IMarket market,
-        UFixed6 minCollateralization
+        IMarket market
     ) private view returns (bool isMargined) {
         if (_isIsolated(account, market)) {
             // Market in isolated mode; only need to check against isolated balance
-            return _isolatedMargined(account, market, minCollateralization);
+            return _isolatedMargined(account, market);
         } else {
             // Market in cross-margin mode; check all cross-margined markets
             return _crossMargined(account);
@@ -223,11 +221,10 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
 
     function _isolatedMargined(
         address account,
-        IMarket market,
-        UFixed6 minCollateralization
+        IMarket market
     ) private view returns (bool isMargined) {
         Fixed6 isolatedCollateral = _balances[account][market];
-        UFixed6 requirement = market.marginRequired(account, minCollateralization);
+        UFixed6 requirement = market.marginRequired(account);
         return UFixed6Lib.unsafeFrom(isolatedCollateral).gte(requirement);
     }
 
@@ -237,7 +234,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         UFixed6 requirement;
         for (uint256 i; i < crossMarginMarkets[account].length; i++) {
             market = crossMarginMarkets[account][i];
-            requirement = requirement.add(market.marginRequired(account, UFixed6Lib.ZERO));
+            requirement = requirement.add(market.marginRequired(account));
         }
         return UFixed6Lib.unsafeFrom(_balances[account][CROSS_MARGIN]).gte(requirement);
     }
@@ -319,7 +316,7 @@ contract Margin is IMargin, Instance, ReentrancyGuard {
         // TODO: Reduce storage reads by moving margin checks above storage updates, passing new balances into margin check methods
 
         // If reducing isolated balance (but not deisolating), ensure sufficient margin still exists for the market
-        if ((isolating || decreasingIsolatedBalance) && !_isolatedMargined(account, market, UFixed6Lib.ZERO)) {
+        if ((isolating || decreasingIsolatedBalance) && !_isolatedMargined(account, market)) {
             revert IMarket.MarketInsufficientMarginError();
         }
         // Ensure decreased cross-margin balance remains sufficient for crossed markets

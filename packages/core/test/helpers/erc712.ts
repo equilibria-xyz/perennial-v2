@@ -40,12 +40,12 @@ const COMMON_TYPE = {
 const INTENT_TYPE = {
   Intent: [
     { name: 'amount', type: 'int256' },
+    { name: 'collateral', type: 'uint256' },
     { name: 'price', type: 'int256' },
     { name: 'fee', type: 'uint256' },
     { name: 'additiveFee', type: 'uint256' },
     { name: 'originator', type: 'address' },
     { name: 'solver', type: 'address' },
-    { name: 'collateralization', type: 'uint256' },
     { name: 'common', type: 'Common' },
   ],
 }

@@ -1905,12 +1905,12 @@ describe('Fees', () => {
 
       const intent: IntentStruct = {
         amount: POSITION.div(2),
+        collateral: 0,
         price: parse6decimal('125'),
         fee: parse6decimal('0.5'),
         additiveFee: parse6decimal('0.01'),
         originator: user.address,
         solver: userB.address,
-        collateralization: parse6decimal('0.01'),
         common: {
           account: userC.address,
           signer: userC.address,
@@ -1926,7 +1926,7 @@ describe('Fees', () => {
       await market
         .connect(user)
         [
-          'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+          'update(address,(int256,uint256,int256,uint256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
         ](user.address, intent, signature)
 
       const expectedReferral = parse6decimal('0.2').mul(5) // referralFee * position
@@ -2161,12 +2161,12 @@ describe('Fees', () => {
 
       const intent = {
         amount: POSITION.div(2),
+        collateral: 0,
         price: PRICE.add(0.5e6),
         fee: parse6decimal('0.5'),
         additiveFee: 0,
         originator: userC.address,
         solver: owner.address,
-        collateralization: parse6decimal('0.01'),
         common: {
           account: user.address,
           signer: user.address,
@@ -2184,7 +2184,7 @@ describe('Fees', () => {
       await market
         .connect(userC)
         [
-          'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
+          'update(address,(int256,uint256,int256,uint256,uint256,address,address,(address,address,address,uint256,uint256,uint256)),bytes)'
         ](userC.address, intent, signature)
 
       expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {

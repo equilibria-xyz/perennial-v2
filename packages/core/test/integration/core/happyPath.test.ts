@@ -51,7 +51,8 @@ export const PRICE_3 = parse6decimal('116.284753')
 export const PRICE_4 = parse6decimal('117.462552')
 
 const COMMON_PROTOTYPE = '(address,address,address,uint256,uint256,uint256)'
-const INTENT_PROTOTYPE = `(int256,int256,uint256,uint256,address,address,uint256,${COMMON_PROTOTYPE})`
+const INTENT_PROTOTYPE = `(int256,uint256,int256,uint256,uint256,address,address,${COMMON_PROTOTYPE})`
+const MARKET_UPDATE_INTENT_PROTOTYPE = `update(address,${INTENT_PROTOTYPE},bytes)`
 const MARKET_UPDATE_FILL_PROTOTYPE = `update((${INTENT_PROTOTYPE},${COMMON_PROTOTYPE}),bytes,bytes)`
 const MARKET_UPDATE_TAKE_PROTOTYPE = `update((int256,address,uint256,${COMMON_PROTOTYPE}),bytes)`
 const MARKET_UPDATE_TAKER_DELTA_PROTOTYPE = 'update(address,int256,int256,address)'
@@ -1584,12 +1585,12 @@ describe('Happy Path', () => {
 
     const intent = {
       amount: 0,
+      collateral: 0,
       price: 0,
       fee: 0,
       additiveFee: 0,
       originator: constants.AddressZero,
       solver: constants.AddressZero,
-      collateralization: 0,
       common: {
         account: constants.AddressZero,
         signer: constants.AddressZero,
@@ -1601,11 +1602,7 @@ describe('Happy Path', () => {
     }
 
     await expect(
-      market
-        .connect(user)
-        [
-          'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-        ](user.address, intent, '0x'),
+      market.connect(user)[MARKET_UPDATE_INTENT_PROTOTYPE](user.address, intent, '0x'),
     ).to.be.revertedWithCustomError(market, 'InstancePausedError')
   })
 
@@ -1930,6 +1927,101 @@ describe('Happy Path', () => {
     })
   })
 
+  it('opens intent order w/ collateral isolation', async () => {
+    const { owner, user, userB, userC, marketFactory, verifier, dsu, margin } = instanceVars
+
+    // userC allowed to sign messages for user
+    await marketFactory.connect(user).updateSigner(userC.address, true)
+
+    const market = await createMarket(instanceVars)
+
+    const protocolParameter = { ...(await marketFactory.parameter()) }
+    protocolParameter.referralFee = parse6decimal('0.20')
+
+    await marketFactory.updateParameter(protocolParameter)
+
+    const POSITION = parse6decimal('10')
+    const COLLATERAL = parse6decimal('10000')
+
+    await dsu.connect(user).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(user).deposit(user.address, COLLATERAL)
+
+    await dsu.connect(userB).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userB).deposit(userB.address, COLLATERAL)
+
+    await market
+      .connect(userB)
+      ['update(address,int256,int256,int256,address)'](userB.address, POSITION, 0, COLLATERAL, constants.AddressZero)
+
+    await dsu.connect(userC).approve(margin.address, COLLATERAL.mul(1e12))
+    await margin.connect(userC).deposit(userC.address, COLLATERAL)
+
+    await market
+      .connect(userC)
+      ['update(address,int256,int256,address)'](userC.address, 0, COLLATERAL, constants.AddressZero)
+
+    const intent: IntentStruct = {
+      amount: POSITION.div(2),
+      collateral: COLLATERAL,
+      price: parse6decimal('125'),
+      fee: parse6decimal('0.5'),
+      additiveFee: 0,
+      originator: userC.address,
+      solver: owner.address,
+      common: {
+        account: user.address,
+        signer: userC.address,
+        domain: market.address,
+        nonce: 0,
+        group: 0,
+        expiry: constants.MaxUint256,
+      },
+    }
+
+    const signature = await signIntent(userC, verifier, intent)
+
+    // Check isolated balance is 0
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(0)
+
+    await market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, signature)
+
+    expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
+      ...DEFAULT_GUARANTEE,
+      orders: 2,
+      longPos: POSITION.div(2),
+      shortPos: POSITION.div(2),
+      takerFee: POSITION.div(2),
+      orderReferral: parse6decimal('1.0'),
+    })
+    expectGuaranteeEq(await market.guarantees(user.address, (await market.locals(user.address)).currentId), {
+      ...DEFAULT_GUARANTEE,
+      orders: 1,
+      notional: parse6decimal('625'),
+      longPos: POSITION.div(2),
+      orderReferral: parse6decimal('1.0'),
+      solverReferral: parse6decimal('0.5'),
+    })
+    expectOrderEq(await market.pending(), {
+      ...DEFAULT_ORDER,
+      orders: 3,
+      collateral: COLLATERAL.mul(3),
+      makerPos: POSITION,
+      longPos: POSITION.div(2),
+      shortPos: POSITION.div(2),
+      takerReferral: parse6decimal('1'),
+    })
+    expectOrderEq(await market.pendings(user.address), {
+      ...DEFAULT_ORDER,
+      orders: 1,
+      collateral: COLLATERAL,
+      longPos: POSITION.div(2),
+      takerReferral: parse6decimal('1'),
+    })
+
+    // Check isolated balance is increased with intent order
+    expect(await margin.isolatedBalances(user.address, market.address)).to.equal(COLLATERAL)
+  })
+
   it('opens intent order w/ signer', async () => {
     const { owner, user, userB, userC, marketFactory, verifier, dsu, margin } = instanceVars
 
@@ -1969,12 +2061,12 @@ describe('Happy Path', () => {
 
     const intent: IntentStruct = {
       amount: POSITION.div(2),
+      collateral: 0,
       price: parse6decimal('125'),
       fee: parse6decimal('1.5'),
       additiveFee: 0,
       originator: userC.address,
       solver: owner.address,
-      collateralization: parse6decimal('0.01'),
       common: {
         account: user.address,
         signer: userC.address,
@@ -1989,22 +2081,14 @@ describe('Happy Path', () => {
 
     // revert when fee is greater than 1
     await expect(
-      market
-        .connect(userC)
-        [
-          'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-        ](userC.address, intent, signature),
+      market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, signature),
     ).to.be.revertedWithCustomError(market, 'MarketInvalidIntentFeeError')
 
     // update fee to 0.5
     intent.fee = parse6decimal('0.5')
     signature = await signIntent(userC, verifier, intent)
 
-    await market
-      .connect(userC)
-      [
-        'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-      ](userC.address, intent, signature)
+    await market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, signature)
 
     // userC is not allowed to sign messages for user
     await marketFactory.connect(user).updateSigner(userC.address, false)
@@ -2014,11 +2098,7 @@ describe('Happy Path', () => {
 
     // ensure userC is not able to make transaction for user if not signer
     await expect(
-      market
-        .connect(userC)
-        [
-          'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-        ](userC.address, intent, signature),
+      market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, signature),
     ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
 
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
@@ -2062,11 +2142,7 @@ describe('Happy Path', () => {
     await marketFactory.connect(user).updateSigner(userC.address, true)
 
     await expect(
-      market
-        .connect(userC)
-        [
-          'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-        ](userC.address, intent, signature),
+      market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, signature),
     ).to.revertedWithCustomError(market, 'MarketInvalidReferrerError')
   })
 
@@ -2135,12 +2211,12 @@ describe('Happy Path', () => {
 
     const intent: IntentStruct = {
       amount: POSITION.div(2),
+      collateral: 0,
       price: parse6decimal('125'),
       fee: parse6decimal('0.5'),
       additiveFee: 0,
       originator: userC.address,
       solver: owner.address,
-      collateralization: parse6decimal('0.01'),
       common: {
         account: user.address,
         signer: userC.address,
@@ -2153,11 +2229,7 @@ describe('Happy Path', () => {
 
     const intentSignature = await signIntent(userC, verifier, intent)
 
-    await market
-      .connect(userC)
-      [
-        'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-      ](userC.address, intent, intentSignature)
+    await market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, intentSignature)
 
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
       ...DEFAULT_GUARANTEE,
@@ -2232,12 +2304,12 @@ describe('Happy Path', () => {
 
     const intent: IntentStruct = {
       amount: POSITION.div(2),
+      collateral: 0,
       price: parse6decimal('125'),
       fee: parse6decimal('0.5'),
       additiveFee: 0,
       originator: userC.address,
       solver: owner.address,
-      collateralization: parse6decimal('0.01'),
       common: {
         account: user.address,
         signer: userC.address,
@@ -2250,11 +2322,7 @@ describe('Happy Path', () => {
 
     let signature = await signIntent(userC, verifier, intent)
 
-    await market
-      .connect(userC)
-      [
-        'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-      ](userC.address, intent, signature)
+    await market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, signature)
 
     // disable userC as operator for user
     await marketFactory.connect(user).updateSigner(userC.address, false)
@@ -2264,11 +2332,7 @@ describe('Happy Path', () => {
 
     // ensure userC is not able to make transaction if not operator
     await expect(
-      market
-        .connect(userC)
-        [
-          'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-        ](userC.address, intent, signature),
+      market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, signature),
     ).to.be.revertedWithCustomError(verifier, 'VerifierInvalidSignerError')
 
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
@@ -2334,12 +2398,12 @@ describe('Happy Path', () => {
     await marketFactory.connect(user).updateSigner(userD.address, true)
     const intent: IntentStruct = {
       amount: -POSITION.div(4),
+      collateral: 0,
       price: parse6decimal('125'),
       fee: parse6decimal('0.5'),
       additiveFee: 0,
       originator: constants.AddressZero,
       solver: constants.AddressZero,
-      collateralization: parse6decimal('0.03'),
       common: {
         account: user.address,
         signer: userD.address,
@@ -2987,12 +3051,12 @@ describe('Happy Path', () => {
     // trader (user) signs an intent to open a long position
     const intent: IntentStruct = {
       amount: POSITION.div(2),
+      collateral: 0,
       price: parse6decimal('125'),
       fee: parse6decimal('0.5'),
       additiveFee: 0,
       originator: constants.AddressZero,
       solver: constants.AddressZero,
-      collateralization: parse6decimal('0.01'),
       common: {
         account: user.address,
         signer: user.address,
@@ -3070,12 +3134,12 @@ describe('Happy Path', () => {
 
     const intent: IntentStruct = {
       amount: POSITION.div(2),
+      collateral: 0,
       price: parse6decimal('125'),
       fee: parse6decimal('0.5'),
       additiveFee: 0,
       originator: userC.address,
       solver: owner.address,
-      collateralization: parse6decimal('0.01'),
       common: {
         account: user.address,
         signer: userC.address,
@@ -3088,11 +3152,7 @@ describe('Happy Path', () => {
 
     const signature = await signIntent(userC, verifier, intent)
 
-    await market
-      .connect(userC)
-      [
-        'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-      ](userC.address, intent, signature)
+    await market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, signature)
 
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
       ...DEFAULT_GUARANTEE,
@@ -3189,12 +3249,12 @@ describe('Happy Path', () => {
 
     const intent: IntentStruct = {
       amount: POSITION.div(2),
+      collateral: 0,
       price: parse6decimal('125'),
       fee: parse6decimal('0.5'),
       additiveFee: 0,
       originator: userC.address,
       solver: owner.address,
-      collateralization: parse6decimal('0.01'),
       common: {
         account: user.address,
         signer: userC.address,
@@ -3207,11 +3267,7 @@ describe('Happy Path', () => {
 
     const signature = await signIntent(userC, verifier, intent)
 
-    await market
-      .connect(userC)
-      [
-        'update(address,(int256,int256,uint256,uint256,address,address,uint256,(address,address,address,uint256,uint256,uint256)),bytes)'
-      ](userC.address, intent, signature)
+    await market.connect(userC)[MARKET_UPDATE_INTENT_PROTOTYPE](userC.address, intent, signature)
 
     expectGuaranteeEq(await market.guarantee((await market.global()).currentId), {
       ...DEFAULT_GUARANTEE,

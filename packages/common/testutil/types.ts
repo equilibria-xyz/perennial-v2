@@ -199,12 +199,12 @@ export interface Take {
 
 export interface Intent {
   amount: BigNumberish
+  collateral: BigNumberish
   price: BigNumberish
   fee: BigNumberish
   additiveFee: BigNumberish
   originator: string
   solver: string
-  collateralization: BigNumberish
   common: Common
 }
 
@@ -334,11 +334,11 @@ export function expectFillEq(a: Fill, b: Fill): void {
 
 export function expectIntentEq(a: Intent, b: Intent): void {
   expect(a.amount).to.equal(b.amount, 'Intent:Amount')
+  expect(a.collateral).to.equal(b.collateral, 'Intent:Collateral')
   expect(a.price).to.equal(b.price, 'Intent:Price')
   expect(a.fee).to.equal(b.fee, 'Intent:Fee')
   expect(a.originator).to.equal(b.originator, 'Intent:Originator')
   expect(a.solver).to.equal(b.solver, 'Intent:Solver')
-  expect(a.collateralization).to.equal(b.collateralization, 'Intent:Collateralization')
   expectCommonEq(a.common, b.common)
 }
 

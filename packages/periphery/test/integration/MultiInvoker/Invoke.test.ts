@@ -691,12 +691,12 @@ export function RunInvokerTests(
 
             const intent = {
               amount: parse6decimal('1'),
+              collateral: 0,
               price: parse6decimal('125'),
               fee: parse6decimal('0.5'),
               additiveFee: 0,
               originator: userC.address,
               solver: owner.address,
-              collateralization: parse6decimal('0.01'),
               common: {
                 account: userB.address,
                 signer: userB.address,
