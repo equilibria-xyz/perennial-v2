@@ -44,6 +44,8 @@ interface IKeeperFactory is IOracleProviderFactory, IFactory {
     error KeeperFactoryInvalidPayoffError();
     // sig: 0x0afa0593
     error KeeperFactoryVersionOutsideRangeError();
+    // sig: 0x8fe834f3
+    error KeeperFactoryInvalidVersionError();
 
     function initialize(IOracleFactory oracleFactory) external;
     function oracleFactory() external view returns (IOracleFactory);

@@ -131,6 +131,9 @@ abstract contract KeeperFactory is IKeeperFactory, Factory {
     /// @param version The oracle version to commit
     /// @param data The update data to commit
     function commit(bytes32[] memory oracleIds, uint256 version, bytes calldata data) external payable {
+        // validate version
+        if (version >= current() || version > block.timestamp) revert KeeperFactoryInvalidVersionError();
+
         // commit invalid version if no data
         bool valid = data.length != 0;
 
