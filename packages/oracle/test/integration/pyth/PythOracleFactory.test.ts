@@ -554,10 +554,10 @@ testOracles.forEach(testOracle => {
 
         await time.includeAt(async () => {
           await pythOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
-          await pythOracleFactory.commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME - 1, VAA, { value: 1 })
+          await pythOracleFactory.commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME - 2, VAA, { value: 1 })
           await pythOracleFactory.commit(
             ['0x0000000000000000000000000000000000000000000000000000000000000021'],
-            STARTING_TIME - 1,
+            STARTING_TIME - 2,
             VAA,
             { value: 1 },
           )
@@ -781,10 +781,10 @@ testOracles.forEach(testOracle => {
                   parse6decimal('10'),
                   false,
                 ),
-            STARTING_TIME,
+            STARTING_TIME - 1,
           )
-          expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
-          expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
+          expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME - 1)
+          expect(await keeperOracle.next()).to.be.equal(STARTING_TIME - 1)
         })
 
         it('does not commit a version that has already been committed', async () => {

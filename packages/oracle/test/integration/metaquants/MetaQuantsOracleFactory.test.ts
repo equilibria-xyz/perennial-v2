@@ -471,7 +471,7 @@ testOracles.forEach(testOracle => {
       // set the oracle parameters at STARTING_TIME - 1
       await time.includeAt(async () => {
         await metaquantsOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
-        await metaquantsOracleFactory.commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME - 1, listify(PAYLOAD))
+        await metaquantsOracleFactory.commit([METAQUANTS_BAYC_ETH_PRICE_FEED], STARTING_TIME - 2, listify(PAYLOAD))
       }, STARTING_TIME - 1)
 
       // run tests at STARTING_TIME
@@ -614,21 +614,21 @@ testOracles.forEach(testOracle => {
             .connect(user)
             .commit(
               [METAQUANTS_BAYC_ETH_PRICE_FEED, METAQUANTS_MILADY_ETH_PRICE_FEED],
-              STARTING_TIME,
+              STARTING_TIME - 1,
               listify(PAYLOAD),
             ),
         ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'MetaQuantsFactoryInputLengthMismatchError')
 
         // Don't allow too few IDs.
         await expect(
-          metaquantsOracleFactory.connect(user).commit([], STARTING_TIME, listify(PAYLOAD)),
+          metaquantsOracleFactory.connect(user).commit([], STARTING_TIME - 1, listify(PAYLOAD)),
         ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'MetaQuantsFactoryInputLengthMismatchError')
 
         // Don't allow incorrect ID.
         await expect(
           metaquantsOracleFactory
             .connect(user)
-            .commit([METAQUANTS_MILADY_ETH_PRICE_FEED], STARTING_TIME, listify(PAYLOAD)),
+            .commit([METAQUANTS_MILADY_ETH_PRICE_FEED], STARTING_TIME - 1, listify(PAYLOAD)),
         ).to.be.revertedWithCustomError(metaquantsOracleFactory, 'MetaQuantsFactoryInvalidIdError')
       })
 
@@ -639,7 +639,7 @@ testOracles.forEach(testOracle => {
               .connect(user)
               .commit(
                 [METAQUANTS_BAYC_ETH_PRICE_FEED, METAQUANTS_MILADY_ETH_PRICE_FEED],
-                STARTING_TIME,
+                STARTING_TIME - 1,
                 listify(PAYLOAD, PAYLOAD_MILADY),
               ),
           STARTING_TIME,
@@ -647,13 +647,13 @@ testOracles.forEach(testOracle => {
 
         const [baycPrice, miladyPrice] = getPrices(listify(PAYLOAD, PAYLOAD_MILADY))
 
-        expect((await keeperOracle.latest()).timestamp).to.equal(STARTING_TIME)
+        expect((await keeperOracle.latest()).timestamp).to.equal(STARTING_TIME - 1)
         expect((await keeperOracle.latest()).valid).to.equal(true)
         const [latestIndexEth] = await keeperOracle.status()
         expect(latestIndexEth.valid).to.be.true
         expect(latestIndexEth.price).to.equal(baycPrice)
 
-        expect((await keeperOracleMilady.latest()).timestamp).to.equal(STARTING_TIME)
+        expect((await keeperOracleMilady.latest()).timestamp).to.equal(STARTING_TIME - 1)
         expect((await keeperOracleMilady.latest()).valid).to.equal(true)
         const [latestIndexBtc] = await keeperOracleMilady.status()
         expect(latestIndexBtc.valid).to.be.true
