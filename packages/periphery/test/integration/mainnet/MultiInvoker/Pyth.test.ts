@@ -71,11 +71,10 @@ export function RunPythOracleTests(
       await keeperOracle.register(oracle.address)
       await oracle.connect(owner).register(market.address)
 
-      await pythOracleFactory.commit([PYTH_ETH_USD_PRICE_FEED], vaaVars.startingTime - 3, vaaVars.vaaValid, {
+      await time.increaseTo(vaaVars.startingTime - 3)
+      await pythOracleFactory.commit([PYTH_ETH_USD_PRICE_FEED], vaaVars.startingTime - 4, vaaVars.vaaValid, {
         value: 1,
       })
-      // block.timestamp of the next call will be vaaVars.startingTime
-      await time.increaseTo(vaaVars.startingTime - 5)
     }
 
     beforeEach(async () => {
@@ -85,6 +84,7 @@ export function RunPythOracleTests(
 
     describe('PerennialAction.COMMIT_PRICE', async () => {
       it('commits a requested pyth version', async () => {
+        const requestedVersion = vaaVars.startingTime + 2
         await time.includeAt(
           async () =>
             await market
@@ -97,7 +97,7 @@ export function RunPythOracleTests(
                 parse6decimal('1000'),
                 false,
               ),
-          vaaVars.startingTime,
+          requestedVersion,
         )
 
         // Base fee isn't working properly in coverage, so we need to set it manually
@@ -108,7 +108,7 @@ export function RunPythOracleTests(
               action: 6,
               args: utils.defaultAbiCoder.encode(
                 ['address', 'uint256', 'bytes32[]', 'uint256', 'bytes', 'bool'],
-                [pythOracleFactory.address, 1, [PYTH_ETH_USD_PRICE_FEED], vaaVars.startingTime, vaaVars.vaaValid, true],
+                [pythOracleFactory.address, 1, [PYTH_ETH_USD_PRICE_FEED], requestedVersion, vaaVars.vaaValid, true],
               ),
             },
           ],
@@ -119,7 +119,7 @@ export function RunPythOracleTests(
         )
 
         const reward = utils.parseEther('0.000016')
-        expect((await keeperOracle.callStatic.latest()).timestamp).to.equal(vaaVars.startingTime)
+        expect((await keeperOracle.callStatic.latest()).timestamp).to.equal(requestedVersion)
         expect(await dsu.balanceOf(user.address)).to.be.eq(dsuBalanceBefore.sub(utils.parseEther('1000')).add(reward))
       })
 
