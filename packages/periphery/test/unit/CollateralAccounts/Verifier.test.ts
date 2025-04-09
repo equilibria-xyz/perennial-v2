@@ -298,7 +298,7 @@ describe('Verifier', () => {
           domain: userA.address,
           nonce: nextNonce(),
           group: 0,
-          expiry: currentTime.add(60),
+          expiry: currentTime.add(120),
         },
       }
     }
