@@ -430,7 +430,6 @@ testOracles.forEach(testOracle => {
       factorySigner = await impersonateWithBalance(pythOracleFactory.address, utils.parseEther('10'))
 
       await testOracle.gasMock()
-      console.log('finished creating fixture', await time.currentBlockTimestamp())
     }
 
     describe('without initial price', async () => {
@@ -767,7 +766,7 @@ testOracles.forEach(testOracle => {
 
           await expect(
             pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 3, VAA, { value: 1 }),
-          ).to.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryVersionOutsideRangeError')
+          ).to.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryInvalidVersionError')
 
           await time.includeAt(
             async () =>
@@ -781,10 +780,15 @@ testOracles.forEach(testOracle => {
                   parse6decimal('10'),
                   false,
                 ),
-            STARTING_TIME - 1,
+            STARTING_TIME,
           )
-          expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME - 1)
-          expect(await keeperOracle.next()).to.be.equal(STARTING_TIME - 1)
+          expect(await keeperOracle.requests(1)).to.be.equal(STARTING_TIME)
+          expect(await keeperOracle.next()).to.be.equal(STARTING_TIME)
+
+          await time.setNextBlockTimestamp(STARTING_TIME + 4)
+          await expect(
+            pythOracleFactory.connect(user).commit([PYTH_ETH_USD_PRICE_FEED], STARTING_TIME + 3, VAA, { value: 1 }),
+          ).to.revertedWithCustomError(pythOracleFactory, 'KeeperFactoryVersionOutsideRangeError')
         })
 
         it('does not commit a version that has already been committed', async () => {
