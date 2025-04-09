@@ -298,7 +298,7 @@ describe('Verifier', () => {
           domain: userA.address,
           nonce: nextNonce(),
           group: 0,
-          expiry: currentTime.add(120),
+          expiry: currentTime.add(60),
         },
       }
     }
@@ -445,7 +445,7 @@ describe('Verifier', () => {
       // create and sign the outer message
       const relayedSignerUpdateMessage = {
         signerUpdate: signerUpdate,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address, utils.parseEther('12'), 30),
       }
       const outerSignature = await signRelayedSignerUpdate(userA, accountVerifier, relayedSignerUpdateMessage)
       // ensure outer message verification succeeds
