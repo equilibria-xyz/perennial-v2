@@ -7,7 +7,6 @@ import { expect } from 'chai'
 import { impersonate } from '../../../common/testutil'
 import {
   IERC20__factory,
-  IOracleProvider,
   Market,
   Market__factory,
   ProxyAdmin,
@@ -20,7 +19,7 @@ const BTC_MARKET = '0x687CC5097210dE03940bBC8e5edD820da7Dd6827'
 const ETH_MARKET = '0x62564Cd7278B79b9CFe76388e0EEe115389586c6'
 const SOL_MARKET = '0xa534972Ec3Bc7e25559cc7A3b1e3Adc03C9Fb6f8'
 
-describe('MarketTest', () => {
+describe('DeployedMarketTest', () => {
   let owner: SignerWithAddress
   let user: SignerWithAddress
   let market: Market
@@ -62,7 +61,6 @@ describe('MarketTest', () => {
     let marketParams = await market.parameter()
     marketParams = { ...marketParams, closed: false }
     await market.connect(proxyAdminSigner).updateParameter(marketParams)
-    console.log('opened market')
 
     await expect(market.connect(user).settle(constants.AddressZero)).to.not.be.reverted
   })
