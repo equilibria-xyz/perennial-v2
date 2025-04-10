@@ -168,7 +168,7 @@ jobs:
         env:
           MOCHA_REPORTER: dot
           MOCHA_RETRY_COUNT: 2
-          MAINNET_NODE_URL: ${{ secrets.MAINNET_NODE_URL }}
+          PERENNIAL_NODE_URL: ${{ secrets.PERENNIAL_NODE_URL }}
         run: |
           yarn workspace @perennial/v2-core run test:integrationPerennial
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
