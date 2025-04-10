@@ -146,7 +146,32 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           delete-old-comments: true
         if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
-
+  core-live-test:
+    name: '[Core] Live Tests'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: |
+            node_modules
+          key: ${{ runner.os }}-node-${{ matrix.node }}-${{ hashFiles('yarn.lock') }}
+      - name: Install
+        run: yarn --frozen-lockfile
+      - name: Compile
+        run: yarn workspaces run compile # compile all packages
+      - name: Run tests
+        env:
+          MOCHA_REPORTER: dot
+          MOCHA_RETRY_COUNT: 2
+          PERENNIAL_NODE_URL: ${{ secrets.PERENNIAL_NODE_URL }}
+        run: |
+          yarn workspace @perennial/v2-core run test:integrationPerennial
+        if: ${{ github.event_name == 'pull_request' && env.PARSER_BROKEN != 'true' }}
   # [ORACLE]
   oracle-unit-test:
     name: '[Oracle] Unit Tests w/ Coverage'
