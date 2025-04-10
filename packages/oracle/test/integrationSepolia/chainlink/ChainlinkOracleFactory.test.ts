@@ -435,7 +435,7 @@ testOracles.forEach(testOracle => {
       // set the oracle parameters at STARTING_TIME - 1
       await time.includeAt(async () => {
         await chainlinkOracleFactory.updateParameter(1, parse6decimal('0.1'), 4, 10)
-        await chainlinkOracleFactory.commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME - 1, REPORT, {
+        await chainlinkOracleFactory.commit([CHAINLINK_ETH_USD_PRICE_FEED], STARTING_TIME - 2, REPORT, {
           value: getFee(REPORT),
         })
       }, STARTING_TIME - 1)
@@ -547,31 +547,17 @@ testOracles.forEach(testOracle => {
       })
 
       it('can update multiple from batched update', async () => {
-        await time.includeAt(
-          async () =>
-            await chainlinkOracleFactory.commit(
-              [CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_BTC_USD_PRICE_FEED],
-              BATCH_STARTING_TIME - 1,
-              REPORT_BATCH,
-              { value: getFee(REPORT_BATCH) },
-            ),
-          BATCH_STARTING_TIME - 1,
-        )
-
-        await time.includeAt(
-          async () =>
-            await market
-              .connect(user)
-              ['update(address,uint256,uint256,uint256,int256,bool)'](
-                user.address,
-                1,
-                0,
-                0,
-                parse6decimal('10'),
-                false,
-              ),
-          BATCH_STARTING_TIME,
-        )
+        await time.includeAt(async () => {
+          await chainlinkOracleFactory.commit(
+            [CHAINLINK_ETH_USD_PRICE_FEED, CHAINLINK_BTC_USD_PRICE_FEED],
+            BATCH_STARTING_TIME - 1,
+            REPORT_BATCH,
+            { value: getFee(REPORT_BATCH) },
+          )
+          await market
+            .connect(user)
+            ['update(address,uint256,uint256,uint256,int256,bool)'](user.address, 1, 0, 0, parse6decimal('10'), false)
+        }, BATCH_STARTING_TIME)
 
         await chainlinkOracleFactory
           .connect(user)

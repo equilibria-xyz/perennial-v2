@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { AggregatorV3Interface } from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmptySetReserve.sol";
 import { IBatcher } from "@equilibria/emptyset-batcher/interfaces/IBatcher.sol";
@@ -417,6 +418,8 @@ contract MultiInvoker is IMultiInvoker, Kept {
         bool revertOnFailure
     ) internal {
         UFixed18 balanceBefore = DSU.balanceOf();
+
+        version = Math.min(version, Math.min(block.timestamp, IPythFactory(oracleProviderFactory).current() - 1));
 
         try IPythFactory(oracleProviderFactory).commit{value: value}(ids, version, data) {
             // Return through keeper fee if any

@@ -393,7 +393,6 @@ testOracles.forEach(testOracle => {
       factorySigner = await impersonateWithBalance(storkOracleFactory.address, utils.parseEther('10'))
 
       await testOracle.gasMock()
-      console.log('finished creating fixture', await time.currentBlockTimestamp())
     }
 
     describe('without initial price', async () => {

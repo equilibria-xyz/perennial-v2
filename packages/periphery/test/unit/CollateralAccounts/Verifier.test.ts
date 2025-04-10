@@ -445,7 +445,7 @@ describe('Verifier', () => {
       // create and sign the outer message
       const relayedSignerUpdateMessage = {
         signerUpdate: signerUpdate,
-        ...createAction(userA.address),
+        ...createAction(userA.address, userA.address, utils.parseEther('12'), 30),
       }
       const outerSignature = await signRelayedSignerUpdate(userA, accountVerifier, relayedSignerUpdateMessage)
       // ensure outer message verification succeeds
