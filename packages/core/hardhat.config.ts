@@ -1,4 +1,7 @@
+import { dirname } from 'path'
 import defaultConfig, { OPTIMIZER_ENABLED, SOLIDITY_VERSION } from '../common/hardhat.default.config'
+
+const FORK_NETWORK = process.env.FORK_NETWORK || 'mainnet'
 
 export const solidityOverrides = {
   'contracts/Market.sol': {
@@ -22,8 +25,12 @@ export const solidityOverrides = {
   },
 }
 
+const deployPackageDir = dirname(require.resolve('@perennial/v2-deploy/package.json'))
 const config = defaultConfig({
   solidityOverrides,
+  externalDeployments: {
+    hardhat: [`${deployPackageDir}/deployments/${FORK_NETWORK}`],
+  },
   dependencyPaths: [
     '@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol',
     '@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol',
