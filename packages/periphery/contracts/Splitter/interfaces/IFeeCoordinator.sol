@@ -8,7 +8,7 @@ import { IFactory } from "@equilibria/root/attribute/interfaces/IFactory.sol";
 import { IFeeSplitter } from "./IFeeSplitter.sol";
 
 interface IFeeCoordinator is IFactory {
-    // TODO: sig
+    // sig: 0x24bb1db5
     error FeeCoordinatorInvalidMarketError();
 
     function marketFactory() external view returns (IMarketFactory);

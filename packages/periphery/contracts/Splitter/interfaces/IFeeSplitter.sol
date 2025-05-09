@@ -8,7 +8,11 @@ import { IEmptySetReserve } from "@equilibria/emptyset-batcher/interfaces/IEmpty
 import { IInstance } from "@equilibria/root/attribute/interfaces/IInstance.sol";
 
 interface IFeeSplitter is IInstance {
+    // sig: 0x8272e4c7
     error FeeSplitterOverflowError();
+
+    event BeneficiaryUpdated(address indexed newBeneficiary);
+    event SplitUpdated(address indexed beneficiary_, UFixed6 newSplit);
 
     function USDC() external view returns (Token6);
     function DSU() external view returns (Token18);

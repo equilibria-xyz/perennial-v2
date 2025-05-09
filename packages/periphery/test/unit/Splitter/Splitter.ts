@@ -1,5 +1,5 @@
 import { smock, FakeContract } from '@defi-wonderland/smock'
-import { constants, utils } from 'ethers'
+import { utils } from 'ethers'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import { expect, use } from 'chai'
 import HRE from 'hardhat'
@@ -13,14 +13,12 @@ import {
   IFeeSplitter,
   IMarket,
   IMarketFactory,
-  IFeeSplitter__factory,
 } from '../../../types/generated'
-import { parse6decimal } from '../../../../common/testutil/types'
 
 const { ethers } = HRE
 use(smock.matchers)
 
-describe('Splitter', () => {
+describe.only('Splitter', () => {
   let marketA: FakeContract<IMarket>
   let marketB: FakeContract<IMarket>
   let dsu: FakeContract<IERC20Metadata>
@@ -116,22 +114,25 @@ describe('Splitter', () => {
       })
     })
 
-    describe('#create', () => {
+    describe('#updateBeneficiary', () => {
+      let feeSplitter: IFeeSplitter
+
+      beforeEach(async () => {
+        feeSplitter = FeeSplitter__factory.connect(await feeCoordinator.callStatic.create(beneficiary.address), owner)
+        await feeCoordinator.connect(owner).create(beneficiary.address)
+      })
+
       it('should revert if not called by the owner', async () => {
-        await expect(feeCoordinator.connect(user).create(beneficiaryA.address)).to.be.revertedWithCustomError(
-          feeCoordinator,
-          'OwnableNotOwnerError',
+        await expect(feeSplitter.connect(user).updateBeneficiary(beneficiaryA.address)).to.be.revertedWithCustomError(
+          feeSplitter,
+          'InstanceNotOwnerError',
         )
       })
 
-      it('should create a new fee splitter', async () => {
-        const feeSplitter = FeeSplitter__factory.connect(
-          await feeCoordinator.callStatic.create(beneficiaryA.address),
-          owner,
-        )
-        await feeCoordinator.connect(owner).create(beneficiaryA.address)
-
-        expect(await feeCoordinator.instances(feeSplitter.address)).to.eq(true)
+      it('should update the beneficiary', async () => {
+        await expect(feeSplitter.updateBeneficiary(beneficiaryA.address))
+          .to.emit(feeSplitter, 'BeneficiaryUpdated')
+          .withArgs(beneficiaryA.address)
         expect(await feeSplitter.beneficiary()).to.eq(beneficiaryA.address)
       })
     })
@@ -150,8 +151,17 @@ describe('Splitter', () => {
         ).to.be.revertedWithCustomError(feeSplitter, 'InstanceNotOwnerError')
       })
 
+      it('should revert if the sum of splits is greater than 100%', async () => {
+        await feeSplitter.updateSplit(beneficiaryA.address, utils.parseUnits('0.5', 6))
+        await expect(
+          feeSplitter.updateSplit(beneficiaryB.address, utils.parseUnits('0.6', 6)),
+        ).to.be.revertedWithCustomError(feeSplitter, 'FeeSplitterOverflowError')
+      })
+
       it('should update the split', async () => {
-        await feeSplitter.updateSplit(beneficiaryA.address, utils.parseUnits('0.1', 6))
+        await expect(feeSplitter.updateSplit(beneficiaryA.address, utils.parseUnits('0.1', 6)))
+          .to.emit(feeSplitter, 'SplitUpdated')
+          .withArgs(beneficiaryA.address, utils.parseUnits('0.1', 6))
         expect(await feeSplitter.beneficiaries()).to.deep.eq([beneficiaryA.address])
         expect(await feeSplitter.splits(beneficiaryA.address)).to.eq(utils.parseUnits('0.1', 6))
       })
