@@ -32,7 +32,7 @@ contract FeeSplitter is IFeeSplitter, Instance {
     EnumerableSet.AddressSet private _beneficiaries;
 
     /// @dev The splits for each beneficiary.
-    mapping(address => UFixed6) public _splits;
+    mapping(address => UFixed6) public splits;
 
     /// @notice Constructs the contract.
     /// @param dsu_ The DSU token.
@@ -52,6 +52,11 @@ contract FeeSplitter is IFeeSplitter, Instance {
         DSU.approve(address(reserve));
     }
 
+    /// @notice Returns the set of beneficiaries.
+    function beneficiaries() external view returns (address[] memory) {
+        return _beneficiaries.values();
+    }
+
     /// @notice Updates the parent beneficiary of the fee splitter.
     function updateBeneficiary(address beneficiary_) external onlyOwner {
         beneficiary = beneficiary_;
@@ -63,10 +68,10 @@ contract FeeSplitter is IFeeSplitter, Instance {
     /// @param split The new split percentage.
     function updateSplit(address beneficiary_, UFixed6 split) external onlyOwner {
         split.isZero() ? _beneficiaries.remove(beneficiary_) : _beneficiaries.add(beneficiary_);
-        _splits[beneficiary_] = split;
+        splits[beneficiary_] = split;
 
         UFixed6 totalSplit;
-        for (uint256 i; i < _beneficiaries.length(); i++) totalSplit = totalSplit.add(_splits[_beneficiaries.at(i)]);
+        for (uint256 i; i < _beneficiaries.length(); i++) totalSplit = totalSplit.add(splits[_beneficiaries.at(i)]);
         if (totalSplit.gt(UFixed6Lib.ONE)) revert FeeSplitterOverflowError();
     }
 
@@ -79,9 +84,9 @@ contract FeeSplitter is IFeeSplitter, Instance {
             reserve.redeem(DSU.balanceOf());
         }
 
-        UFixed6 totalFee = USDC.balanceOf(address(this));
+        UFixed6 totalFee = USDC.balanceOf();
         for (uint256 i; i < _beneficiaries.length(); i++)
-            USDC.push(_beneficiaries.at(i), totalFee.mul(_splits[_beneficiaries.at(i)]));
+            USDC.push(_beneficiaries.at(i), totalFee.mul(splits[_beneficiaries.at(i)]));
 
         USDC.push(beneficiary);
     }

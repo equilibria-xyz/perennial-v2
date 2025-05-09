@@ -49,7 +49,8 @@ contract FeeCoordinator is IFeeCoordinator, Factory {
 
     /// @notice Registers `market` as a registered market if it is valid.
     function register(IMarket market) external {
-        if (marketFactory.instances(market)) _markets.add(address(market));
+        if (!marketFactory.instances(market)) revert FeeCoordinatorInvalidMarketError();
+        _markets.add(address(market));
     }
 
     /// @notice Pokes all created fee splitters.

@@ -15,6 +15,8 @@ interface IFeeSplitter is IInstance {
     function reserve() external view returns (IEmptySetReserve);
 
     function beneficiary() external view returns (address);
+    function beneficiaries() external view returns (address[] memory);
+    function splits(address beneficiary_) external view returns (UFixed6);
 
     function initialize(address beneficiary_) external;
     function updateBeneficiary(address beneficiary_) external;
