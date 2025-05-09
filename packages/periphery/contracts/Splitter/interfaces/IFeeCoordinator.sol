@@ -13,6 +13,8 @@ interface IFeeCoordinator is IFactory {
 
     function marketFactory() external view returns (IMarketFactory);
     function markets() external view returns (address[] memory);
+    function splitters() external view returns (address[] memory);
+
     function initialize() external;
     function create(address beneficiary) external returns (IFeeSplitter newSplitter);
     function register(IMarket market) external;

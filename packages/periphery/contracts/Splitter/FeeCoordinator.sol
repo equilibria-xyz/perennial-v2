@@ -47,6 +47,11 @@ contract FeeCoordinator is IFeeCoordinator, Factory {
         return _markets.values();
     }
 
+    /// @notice Returns the set of created splitters.
+    function splitters() external view returns (address[] memory) {
+        return _splitters.values();
+    }
+
     /// @notice Registers `market` as a registered market if it is valid.
     function register(IMarket market) external {
         if (!marketFactory.instances(market)) revert FeeCoordinatorInvalidMarketError();

@@ -18,7 +18,7 @@ import {
 const { ethers } = HRE
 use(smock.matchers)
 
-describe.only('Splitter', () => {
+describe('Splitter', () => {
   let marketA: FakeContract<IMarket>
   let marketB: FakeContract<IMarket>
   let dsu: FakeContract<IERC20Metadata>
@@ -109,6 +109,7 @@ describe.only('Splitter', () => {
         )
         await feeCoordinator.connect(owner).create(beneficiary.address)
 
+        expect(await feeCoordinator.splitters()).to.deep.eq([feeSplitter.address])
         expect(await feeCoordinator.instances(feeSplitter.address)).to.eq(true)
         expect(await feeSplitter.beneficiary()).to.eq(beneficiary.address)
       })
