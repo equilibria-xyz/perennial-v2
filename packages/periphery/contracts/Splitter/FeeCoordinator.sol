@@ -29,36 +29,34 @@ contract FeeCoordinator is IFeeCoordinator, Factory {
         marketFactory = marketFactory_;
     }
 
-    /// @notice Initializes the contract.
+    /// @inheritdoc IFeeCoordinator
     function initialize() external initializer(1) {
         __Factory__initialize();
     }
 
-    /// @notice Creates a new fee splitter.
-    /// @param beneficiary The initial parent beneficiary of the fee splitter.
-    /// @return newSplitter The new fee splitter contract address.
+    /// @inheritdoc IFeeCoordinator
     function create(address beneficiary) external onlyOwner returns (IFeeSplitter newSplitter) {
         newSplitter = IFeeSplitter(address(_create(abi.encodeCall(IFeeSplitter.initialize, (beneficiary)))));
         _splitters.add(address(newSplitter));
     }
 
-    /// @notice Returns the set of registered markets.
+    /// @inheritdoc IFeeCoordinator
     function markets() external view returns (address[] memory) {
         return _markets.values();
     }
 
-    /// @notice Returns the set of created splitters.
+    /// @inheritdoc IFeeCoordinator
     function splitters() external view returns (address[] memory) {
         return _splitters.values();
     }
 
-    /// @notice Registers `market` as a registered market if it is valid.
+    /// @inheritdoc IFeeCoordinator
     function register(IMarket market) external {
         if (!marketFactory.instances(market)) revert FeeCoordinatorInvalidMarketError();
         _markets.add(address(market));
     }
 
-    /// @notice Pokes all created fee splitters.
+    /// @inheritdoc IFeeCoordinator
     function poke() external {
         for (uint256 i; i < _splitters.length(); i++) IFeeSplitter(payable(_splitters.at(i))).poke();
     }

@@ -44,7 +44,7 @@ contract FeeSplitter is IFeeSplitter, Instance {
         reserve = reserve_;
     }
 
-    /// @notice Initializes the contract with the given parent beneficiary.
+    /// @inheritdoc IFeeSplitter
     function initialize(address beneficiary_) external initializer(1) {
         __Instance__initialize();
         beneficiary = beneficiary_;
@@ -52,21 +52,18 @@ contract FeeSplitter is IFeeSplitter, Instance {
         DSU.approve(address(reserve));
     }
 
-    /// @notice Returns the set of beneficiaries.
+    /// @inheritdoc IFeeSplitter
     function beneficiaries() external view returns (address[] memory) {
         return _beneficiaries.values();
     }
 
-    /// @notice Updates the parent beneficiary of the fee splitter.
+    /// @inheritdoc IFeeSplitter
     function updateBeneficiary(address newBeneficiary) external onlyOwner {
         beneficiary = newBeneficiary;
         emit BeneficiaryUpdated(newBeneficiary);
     }
 
-    /// @notice Updates the split for the given beneficiary.
-    /// @dev The sum of all child beneficiary splits must be less than or equal to 100%.
-    /// @param beneficiary_ The beneficiary to update the split for.
-    /// @param newSplit The new split percentage.
+    /// @inheritdoc IFeeSplitter
     function updateSplit(address beneficiary_, UFixed6 newSplit) external onlyOwner {
         newSplit.isZero() ? _beneficiaries.remove(beneficiary_) : _beneficiaries.add(beneficiary_);
         splits[beneficiary_] = newSplit;
@@ -78,8 +75,7 @@ contract FeeSplitter is IFeeSplitter, Instance {
         emit SplitUpdated(beneficiary_, newSplit);
     }
 
-    /// @notice Claims fees from all registered markets and distributes them to the beneficiaries.
-    /// @dev Unwraps DSU into USDC before distributing.
+    /// @inheritdoc IFeeSplitter
     function poke() external {
         address[] memory markets = IFeeCoordinator(address(factory())).markets();
         for (uint256 i; i < markets.length; i++) {
