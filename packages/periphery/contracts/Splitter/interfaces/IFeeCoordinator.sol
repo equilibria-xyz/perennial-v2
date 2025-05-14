@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity 0.8.24;
+pragma solidity ^0.8.13;
 
 import { IMarketFactory } from "@perennial/v2-core/contracts/interfaces/IMarketFactory.sol";
 import { IMarket } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
