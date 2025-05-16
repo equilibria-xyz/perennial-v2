@@ -138,8 +138,19 @@ Keepers should:
 ## MultiInvoker
 ( to be documented )
 
+## FeeCoordinator / FeeSplitter
+The `Splitter` package, consisting of the `FeeCoordinator` factory and `FeeSplitter`, provides an extensive centralized workflow for managing referral fees.
 
+### Design
+- A single `FeeCoordinator` is deployed by its owner, which manages each child instance of `FeeSplitter`.
+- In addition to child instances, FeeCoordinators also keep track of valid markets where funds could be claimed, via `register()`.
+- Each `FeeSplitter` defines a parent beneficiary, along with a list of child benefiaries and their fee percentage cuts.
+- `FeeSplitter` can be poked by anyone, afterwhich it will claim fees from all registered markets, unwrap fees to USDC, then divvy up fees first to the child beneficiaries, and then any remaining to the single parent beneficiary.
+- `FeeCoordinator` can be poked by anyone as well, which poked all child `FeeSplitter` instances for convenience.
 
+### Usage
+- To create a new referral address for tracking, call `create()` on the deployed `FeeCoordinator`.
+- To claim and distribute all funds and all referall addressed, `poke()` the `FeeCordinator`.
 
 ## Development
 
