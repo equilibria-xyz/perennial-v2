@@ -14,8 +14,8 @@ export const ALL_CHAINS = [
   'localhost',
 ] as const
 
-export type SupportedChains = typeof ALL_CHAINS
-export type SupportedChain = SupportedChains[number]
+export type SupportedChains = typeof ALL_CHAINS[number];
+export type SupportedChain = SupportedChains;
 
 export const MAINNETS: SupportedChain[] = ['mainnet', 'arbitrum', 'optimism', 'base', 'perennial']
 export const TESTNETS: SupportedChain[] = [
@@ -122,10 +122,10 @@ export function isLocalhost(networkName: string): boolean {
 }
 
 export function isFork(): boolean {
-  return process.env.FORK_ENABLED === 'true'
+  return process.env.FORK_ENABLED === 'true' || false;
 }
 
 export function forkNetwork(): string {
-  if (!isFork()) throw 'Not forked'
-  return process.env.FORK_NETWORK as string
+  if (!isFork()) throw new Error('Not forked');
+  return process.env.FORK_NETWORK ?? 'mainnet';
 }
