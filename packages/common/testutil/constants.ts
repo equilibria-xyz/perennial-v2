@@ -21,9 +21,8 @@ export function getLabsMultisig(networkName: string): string | null {
 }
 
 export function getAirdropAddress(networkName: string): string | null {
-  // TODO: add airdrop address after airdrop is deployed
   if (isMainnet(networkName)) {
-    if (isPerennial(networkName)) return '0x0000000000000000000000000000000000000000'
+    if (isPerennial(networkName)) return '0x0a47bb5e5260619204a578bd477204fce6246bb7'
   }
   return null
 }
