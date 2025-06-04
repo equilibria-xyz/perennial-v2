@@ -235,7 +235,7 @@ abstract contract Manager is IManager, Kept {
         TriggerOrder memory old = _orders[market][account][orderId].read();
         if (old.isSpent) revert ManagerInvalidOrderNonceError();
         // prevent user from frontrunning keeper compensation
-        if (!old.isEmpty() && old.maxFee.gt(order.maxFee)) revert ManagerCannotReduceMaxFee();
+        if (!old.isEmpty() && old.maxFee > order.maxFee) revert ManagerCannotReduceMaxFee();
 
         _orders[market][account][orderId].store(order);
         emit TriggerOrderPlaced(market, account, order, orderId);

@@ -6,6 +6,8 @@ import { UFixed6, UFixed6Lib } from "@equilibria/root/number/types/UFixed6.sol";
 import { IMarket, OracleVersion, Order, Position } from "@perennial/v2-core/contracts/interfaces/IMarket.sol";
 import { InterfaceFee, InterfaceFeeLib } from "./InterfaceFee.sol";
 
+import { console } from "hardhat/console.sol";
+
 /// @notice Changes a user's position in a market when price reaches a trigger threshold
 struct TriggerOrder {
     /// @dev Determines the desired position type to establish or change
@@ -17,7 +19,7 @@ struct TriggerOrder {
     /// @dev Amount to change position by, or type(int64).min to close position
     Fixed6 delta;     // <= 9.22t
     /// @dev Limit on keeper compensation for executing the order
-    UFixed6 maxFee;   // < 18.45t
+    uint64 maxFee;   // < 2^64
     /// @dev Always leave this false; set true after execution/cancellation
     bool isSpent;
     /// @dev Passed to market for awarding referral fee
@@ -165,7 +167,7 @@ library TriggerOrderStorageLib {
             int8(storedValue.comparison),
             Fixed6.wrap(int256(storedValue.price)),
             Fixed6.wrap(int256(storedValue.delta)),
-            UFixed6.wrap(uint256(storedValue.maxFee)),
+            storedValue.maxFee,
             storedValue.isSpent,
             storedValue.referrer,
             InterfaceFee(
@@ -184,7 +186,8 @@ library TriggerOrderStorageLib {
         if (newValue.price.lt(Fixed6.wrap(type(int64).min))) revert TriggerOrderStorageInvalidError();
         if (newValue.delta.gt(Fixed6.wrap(type(int64).max))) revert TriggerOrderStorageInvalidError();
         if (newValue.delta.lt(Fixed6.wrap(type(int64).min))) revert TriggerOrderStorageInvalidError();
-        if (newValue.maxFee.gt(UFixed6.wrap(type(uint64).max))) revert TriggerOrderStorageInvalidError();
+        console.log("maxFee (uint64) value %s", newValue.maxFee);
+        if (newValue.maxFee > type(uint64).max) revert TriggerOrderStorageInvalidError();
         if (newValue.interfaceFee.amount.gt(UFixed6.wrap(type(uint64).max))) revert TriggerOrderStorageInvalidError();
 
         self.value = StoredTriggerOrder(
@@ -192,7 +195,7 @@ library TriggerOrderStorageLib {
             int8(newValue.comparison),
             int64(Fixed6.unwrap(newValue.price)),
             int64(Fixed6.unwrap(newValue.delta)),
-            uint64(UFixed6.unwrap(newValue.maxFee)),
+            newValue.maxFee,
             newValue.isSpent,
             0,
             newValue.referrer,

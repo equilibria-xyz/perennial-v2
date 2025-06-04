@@ -341,9 +341,10 @@ describe('TriggerOrder', () => {
       )
     })
 
-    it('reverts storing order with maxFee overflow', async () => {
+    it.only('reverts storing order with maxFee overflow', async () => {
       const badOrder = { ...ORDER_SHORT }
-      badOrder.maxFee = BigNumber.from(2).pow(64).add(1)
+      // badOrder.maxFee = BigNumber.from(2).pow(64).sub(1) // This runs (and doesn't revert)
+      badOrder.maxFee = BigNumber.from(2).pow(64).add(1) // This errors out with an Ethers-generated OOB (no revert with custom error)
       await expect(orderTester.connect(owner).store(badOrder)).to.be.revertedWithCustomError(
         orderTester,
         'TriggerOrderStorageInvalidError',
