@@ -22,7 +22,7 @@ export function getLabsMultisig(networkName: string): string | null {
 
 export function getAirdropAddress(networkName: string): string | null {
   if (isMainnet(networkName)) {
-    if (isPerennial(networkName)) return '0x0a47bb5e5260619204a578bd477204fce6246bb7'
+    if (isPerennial(networkName)) return '0xaD335343ea59e0d3eb8Ce91B95779C6647F10dde'
   }
   return null
 }
