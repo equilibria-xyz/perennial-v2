@@ -41,6 +41,8 @@ const config = defaultConfig({
     '@perennial/v2-periphery/contracts/TriggerOrders/OrderVerifier.sol',
     '@perennial/v2-periphery/contracts/TriggerOrders/Manager_Arbitrum.sol',
     '@perennial/v2-periphery/contracts/TriggerOrders/Manager_Optimism.sol',
+    '@perennial/v2-periphery/contracts/Splitter/FeeSplitter.sol',
+    '@perennial/v2-periphery/contracts/Splitter/FeeCoordinator.sol',
   ],
   solidityOverrides: {
     '@perennial/v2-core/contracts/Market.sol': {
